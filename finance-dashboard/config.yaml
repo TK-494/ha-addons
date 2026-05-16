@@ -12,7 +12,7 @@ boot: auto
 ingress: true
 ingress_port: 8000
 panel_icon: mdi:cash-multiple
-panel_title: Finanties
+panel_title: Finance
 map:
   - addon_config:rw
 options: {}
