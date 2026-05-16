@@ -1,0 +1,24 @@
+# Alternative deployment for any non-HAOS Docker host.
+# Builds the same single-container image used by the HA add-on.
+#
+# Usage:
+#   docker compose up -d --build
+#   open http://<host>:8766
+#
+services:
+  homelab-inventory:
+    build:
+      context: .
+      args:
+        BUILD_FROM: python:3.11-alpine
+    container_name: homelab-inventory
+    restart: unless-stopped
+    ports:
+      - "8766:8000"
+    volumes:
+      - homelab-data:/data
+    environment:
+      - INVENTORY_PATH=/data/infrastructure.yaml
+
+volumes:
+  homelab-data:

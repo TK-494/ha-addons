@@ -1,0 +1,24 @@
+# Alternative deployment for any non-HAOS Docker host.
+# Builds the same single-container image used by the HA add-on.
+#
+# Usage:
+#   docker compose up -d --build
+#   open http://<host>:8765
+#
+services:
+  finance-dashboard:
+    build:
+      context: .
+      args:
+        BUILD_FROM: python:3.11-alpine
+    container_name: finance-dashboard
+    restart: unless-stopped
+    ports:
+      - "8765:8000"
+    volumes:
+      - finance-data:/data
+    environment:
+      - DATABASE_URL=sqlite:////data/finance.db
+
+volumes:
+  finance-data:

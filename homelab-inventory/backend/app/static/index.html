@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Homelab Inventory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ha: { 50: '#f1f7fb', 500: '#03a9f4', 600: '#0288d1', 700: '#0277bd' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div x-data="app()" x-init="init()" class="min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+        <div class="text-xl font-semibold flex items-center gap-2">
+          <span class="inline-block w-6 h-6 rounded bg-ha-500"></span>
+          Homelab Inventory
+        </div>
+        <nav class="flex gap-1 ml-4 text-sm">
+          <template x-for="t in tabs" :key="t.id">
+            <button
+              @click="tab = t.id"
+              :class="tab === t.id ? 'bg-ha-500 text-white' : 'text-slate-600 hover:bg-slate-100'"
+              class="px-3 py-1.5 rounded-md font-medium"
+              x-text="t.label"></button>
+          </template>
+        </nav>
+        <div class="ml-auto flex items-center gap-2 text-sm">
+          <span x-show="saving" class="text-amber-600">Saving…</span>
+          <span x-show="!saving && lastSaved" class="text-slate-400" x-text="'Saved ' + lastSaved"></span>
+          <button @click="reload()" class="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200">Reload</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4">
+
+      <!-- Overview -->
+      <section x-show="tab === 'overview'" x-cloak>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <template x-for="card in [
+            {label: 'Hardware', val: inv.hardware?.length || 0, color: 'bg-emerald-500'},
+            {label: 'Applications', val: inv.applications?.length || 0, color: 'bg-violet-500'},
+            {label: 'Integrations', val: inv.integrations?.length || 0, color: 'bg-amber-500'},
+            {label: 'Hosts', val: inv.network?.hosts?.length || 0, color: 'bg-ha-500'},
+          ]" :key="card.label">
+            <div class="bg-white rounded-lg border border-slate-200 p-4">
+              <div class="text-xs text-slate-500 uppercase tracking-wide" x-text="card.label"></div>
+              <div class="text-3xl font-semibold mt-1" x-text="card.val"></div>
+              <div :class="card.color" class="h-1 rounded mt-3"></div>
+            </div>
+          </template>
+        </div>
+
+        <div class="bg-white rounded-lg border border-slate-200 p-3">
+          <div class="text-sm font-medium text-slate-600 mb-2">Topology</div>
+          <div id="graph" class="w-full" style="height: 520px;"></div>
+        </div>
+      </section>
+
+      <!-- Generic table view for hardware/applications/integrations -->
+      <template x-for="section in flatSections" :key="section.key">
+        <section x-show="tab === section.key" x-cloak>
+          <div class="flex items-center mb-3">
+            <h2 class="text-lg font-semibold" x-text="section.label"></h2>
+            <span class="ml-2 text-sm text-slate-400" x-text="(inv[section.key]?.length || 0) + ' items'"></span>
+            <button @click="openNew(section.key)"
+                    class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+              + Add
+            </button>
+          </div>
+
+          <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-100 text-slate-600 text-left">
+                <tr>
+                  <template x-for="col in section.cols" :key="col.key">
+                    <th class="px-3 py-2 font-medium" x-text="col.label"></th>
+                  </template>
+                  <th class="px-3 py-2 w-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="item in (inv[section.key] || [])" :key="item.id">
+                  <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                      @click="openEdit(section.key, item)">
+                    <template x-for="col in section.cols" :key="col.key">
+                      <td class="px-3 py-2 align-top" x-text="renderCell(item, col)"></td>
+                    </template>
+                    <td class="px-3 py-2 text-right">
+                      <button @click.stop="del(section.key, item.id)"
+                              class="text-slate-400 hover:text-red-600 text-xs">✕</button>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="!(inv[section.key] || []).length">
+                  <td :colspan="section.cols.length + 1" class="px-3 py-6 text-center text-slate-400">
+                    Nothing here yet. Click + Add.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </template>
+
+      <!-- Network -->
+      <section x-show="tab === 'network'" x-cloak>
+        <template x-for="section in networkSections" :key="section.key">
+          <div class="mb-6">
+            <div class="flex items-center mb-2">
+              <h2 class="text-lg font-semibold" x-text="section.label"></h2>
+              <span class="ml-2 text-sm text-slate-400"
+                    x-text="(inv.network?.[section.key]?.length || 0) + ' items'"></span>
+              <button @click="openNew('network/' + section.key)"
+                      class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                + Add
+              </button>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-100 text-slate-600 text-left">
+                  <tr>
+                    <template x-for="col in section.cols" :key="col.key">
+                      <th class="px-3 py-2 font-medium" x-text="col.label"></th>
+                    </template>
+                    <th class="px-3 py-2 w-1"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="item in (inv.network?.[section.key] || [])" :key="item.id">
+                    <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                        @click="openEdit('network/' + section.key, item)">
+                      <template x-for="col in section.cols" :key="col.key">
+                        <td class="px-3 py-2 align-top" x-text="renderCell(item, col)"></td>
+                      </template>
+                      <td class="px-3 py-2 text-right">
+                        <button @click.stop="del('network/' + section.key, item.id)"
+                                class="text-slate-400 hover:text-red-600 text-xs">✕</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!(inv.network?.[section.key] || []).length">
+                    <td :colspan="section.cols.length + 1" class="px-3 py-6 text-center text-slate-400">
+                      Nothing here yet. Click + Add.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+      </section>
+
+      <!-- Raw YAML editor -->
+      <section x-show="tab === 'yaml'" x-cloak>
+        <div class="flex items-center mb-2">
+          <h2 class="text-lg font-semibold">Raw YAML</h2>
+          <span class="ml-2 text-xs text-slate-400">infrastructure.yaml in <code>/data</code></span>
+          <button @click="saveRaw()"
+                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+            Save YAML
+          </button>
+        </div>
+        <textarea x-model="rawYaml"
+                  class="w-full h-[600px] font-mono text-xs p-3 rounded-lg border border-slate-200 bg-white"
+                  spellcheck="false"></textarea>
+        <p x-show="rawError" class="text-red-600 text-sm mt-2" x-text="rawError"></p>
+      </section>
+    </main>
+
+    <!-- Edit modal -->
+    <div x-show="editing" x-cloak
+         class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-20"
+         @click.self="editing = null">
+      <div class="bg-white rounded-lg w-full max-w-lg max-h-[85vh] overflow-auto">
+        <div class="px-4 py-3 border-b border-slate-200 flex items-center">
+          <h3 class="font-semibold" x-text="(editingIsNew ? 'New ' : 'Edit ') + (editingSection || '')"></h3>
+          <button @click="editing = null" class="ml-auto text-slate-400 hover:text-slate-800">✕</button>
+        </div>
+        <div class="p-4 space-y-3">
+          <template x-for="field in editingFields" :key="field.key">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1" x-text="field.label"></label>
+              <template x-if="field.type === 'textarea'">
+                <textarea x-model="editing[field.key]" rows="3"
+                          class="w-full border border-slate-200 rounded px-2 py-1 text-sm"></textarea>
+              </template>
+              <template x-if="field.type === 'select'">
+                <select x-model="editing[field.key]"
+                        class="w-full border border-slate-200 rounded px-2 py-1 text-sm">
+                  <template x-for="opt in field.options" :key="opt">
+                    <option :value="opt" x-text="opt"></option>
+                  </template>
+                </select>
+              </template>
+              <template x-if="field.type === 'tags'">
+                <input :value="(editing[field.key] || []).join(', ')"
+                       @input="editing[field.key] = $event.target.value.split(',').map(s => s.trim()).filter(Boolean)"
+                       class="w-full border border-slate-200 rounded px-2 py-1 text-sm"
+                       placeholder="comma, separated, tags" />
+              </template>
+              <template x-if="!field.type || field.type === 'text' || field.type === 'number'">
+                <input :type="field.type === 'number' ? 'number' : 'text'"
+                       x-model="editing[field.key]"
+                       class="w-full border border-slate-200 rounded px-2 py-1 text-sm" />
+              </template>
+            </div>
+          </template>
+        </div>
+        <div class="px-4 py-3 border-t border-slate-200 flex">
+          <button @click="editing = null"
+                  class="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm">
+            Cancel
+          </button>
+          <button @click="saveItem()"
+                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+            Save
+          </button>
+        </div>
+        <p x-show="editError" class="text-red-600 text-sm px-4 pb-3" x-text="editError"></p>
+      </div>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

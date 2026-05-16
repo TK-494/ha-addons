@@ -1,0 +1,14 @@
+[x-cloak] { display: none !important; }
+
+#graph {
+  background: #fafbfc;
+  border-radius: 6px;
+}
+
+textarea, input, select {
+  outline: none;
+}
+textarea:focus, input:focus, select:focus {
+  border-color: #03a9f4;
+  box-shadow: 0 0 0 2px rgba(3, 169, 244, 0.15);
+}
