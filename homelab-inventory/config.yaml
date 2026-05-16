@@ -17,4 +17,3 @@ map:
   - addon_config:rw
 options: {}
 schema: {}
-image: null
