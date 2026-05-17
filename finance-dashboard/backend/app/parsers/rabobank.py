@@ -93,55 +93,59 @@ def parse_rabobank_csv(content: bytes) -> List[Dict[str, Any]]:
     df = pd.read_csv(StringIO(text), dtype=str)
     df.columns = [c.strip() for c in df.columns]
 
-    # Detect column layout
-    # New format (post-2022): IBAN/BBAN, Naam, Tegenrekening IBAN/BBAN, Naam tegenpartij,
-    #                          Notitie, Omschrijving, Valutadatum, Bedrag, Label
-    col_map_new = {
-        "own_iban": "IBAN/BBAN",
-        "own_name": "Naam",
-        "counter_iban": "Tegenrekening IBAN/BBAN",
-        "counter_name": "Naam tegenpartij",
-        "note": "Notitie",
-        "description": "Omschrijving",
-        "date": "Valutadatum",
-        "amount": "Bedrag",
-    }
+    # Rabobank has shipped at least three CSV layouts over the years:
+    # - "current"  (≈2018+): Datum, Bedrag (signed), Tegenrekening IBAN/BBAN,
+    #                         Naam tegenpartij, Omschrijving-1/2/3, …
+    # - "valuta"   (post-2022 variant): Valutadatum, Bedrag, Omschrijving, Notitie
+    # - "legacy"   (pre-IBAN-rename): Datum, Bedrag (EUR), Af Bij, Naam/Omschrijving
+    cols = set(df.columns)
+    if "Valutadatum" in cols:
+        fmt = "valuta"
+    elif "Omschrijving-1" in cols or "Tegenrekening IBAN/BBAN" in cols:
+        fmt = "current"
+    else:
+        fmt = "legacy"
 
-    # Old format: Datum, Naam/Omschrijving, Rekening, Tegenrekening, Code, Af Bij, Bedrag (EUR), Soort, Omschrijving
-    col_map_old = {
-        "date": "Datum",
-        "counter_name": "Naam/Omschrijving",
-        "own_iban": "Rekening",
-        "counter_iban": "Tegenrekening",
-        "debit_credit": "Af Bij",
-        "amount": "Bedrag (EUR)",
-        "description": "Omschrijving",
-    }
-
-    is_new_format = "Valutadatum" in df.columns
+    def _s(v) -> str:
+        # pandas with dtype=str turns missing cells into the literal "nan".
+        s = str(v).strip()
+        return "" if s.lower() == "nan" else s
 
     records = []
     for _, row in df.iterrows():
         try:
-            if is_new_format:
-                raw_amount = str(row.get("Bedrag", "0")).replace(",", ".").strip()
+            if fmt == "valuta":
+                raw_amount = _s(row.get("Bedrag", "0")).replace(",", ".") or "0"
                 amount = float(raw_amount)
-                tx_date = pd.to_datetime(row.get("Valutadatum", "")).date()
-                description = str(row.get("Omschrijving", "")).strip()
-                counter_name = str(row.get("Naam tegenpartij", "")).strip()
-                counter_iban = str(row.get("Tegenrekening IBAN/BBAN", "")).strip()
-                own_iban = str(row.get("IBAN/BBAN", "")).strip()
-                note = str(row.get("Notitie", "")).strip()
-            else:
-                raw_amount = str(row.get("Bedrag (EUR)", "0")).replace(".", "").replace(",", ".").strip()
+                tx_date = pd.to_datetime(_s(row.get("Valutadatum", ""))).date()
+                description = _s(row.get("Omschrijving", ""))
+                counter_name = _s(row.get("Naam tegenpartij", ""))
+                counter_iban = _s(row.get("Tegenrekening IBAN/BBAN", ""))
+                own_iban = _s(row.get("IBAN/BBAN", ""))
+                note = _s(row.get("Notitie", ""))
+            elif fmt == "current":
+                # Bedrag is signed with comma decimal: "-12,34" or "1500,00".
+                raw_amount = _s(row.get("Bedrag", "0")).replace(",", ".") or "0"
                 amount = float(raw_amount)
-                if str(row.get("Af Bij", "")).lower() == "af":
+                # Datum is typically YYYYMMDD or YYYY-MM-DD — let pandas guess.
+                tx_date = pd.to_datetime(_s(row.get("Datum", ""))).date()
+                # Description is split across three columns; join non-empty parts.
+                parts = [_s(row.get(f"Omschrijving-{i}", "")) for i in (1, 2, 3)]
+                description = " ".join(p for p in parts if p)
+                counter_name = _s(row.get("Naam tegenpartij", ""))
+                counter_iban = _s(row.get("Tegenrekening IBAN/BBAN", ""))
+                own_iban = _s(row.get("IBAN/BBAN", ""))
+                note = _s(row.get("Betalingskenmerk", ""))
+            else:  # legacy
+                raw_amount = _s(row.get("Bedrag (EUR)", "0")).replace(".", "").replace(",", ".") or "0"
+                amount = float(raw_amount)
+                if _s(row.get("Af Bij", "")).lower() == "af":
                     amount = -amount
-                tx_date = pd.to_datetime(row.get("Datum", ""), dayfirst=True).date()
-                description = str(row.get("Omschrijving", "")).strip()
-                counter_name = str(row.get("Naam/Omschrijving", "")).strip()
-                counter_iban = str(row.get("Tegenrekening", "")).strip()
-                own_iban = str(row.get("Rekening", "")).strip()
+                tx_date = pd.to_datetime(_s(row.get("Datum", "")), dayfirst=True).date()
+                description = _s(row.get("Omschrijving", ""))
+                counter_name = _s(row.get("Naam/Omschrijving", ""))
+                counter_iban = _s(row.get("Tegenrekening", ""))
+                own_iban = _s(row.get("Rekening", ""))
                 note = ""
 
             # Skip filler rows: zero amount with no description and no
