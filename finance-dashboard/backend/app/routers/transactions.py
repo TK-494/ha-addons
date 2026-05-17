@@ -6,7 +6,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..models import Transaction, Category, UserSettings
 from ..schemas import TransactionOut
-from ..parsers.rabobank import parse_rabobank_csv
+from ..parsers import detect_bank, parse_bank_csv
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -161,7 +161,8 @@ def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
 @router.post("/upload")
 async def upload_bank_statement(file: UploadFile = File(...), db: Session = Depends(get_db)):
     content = await file.read()
-    records = parse_rabobank_csv(content)
+    bank = detect_bank(content)
+    records = parse_bank_csv(content)
 
     # Every IBAN that ever appears as the *own* side of an imported statement
     # is, by definition, an account the user owns. Persist the union so that a
@@ -216,6 +217,7 @@ async def upload_bank_statement(file: UploadFile = File(...), db: Session = Depe
 
     db.commit()
     return {
+        "bank": bank,
         "imported": imported,
         "skipped": skipped,
         "total": len(records),

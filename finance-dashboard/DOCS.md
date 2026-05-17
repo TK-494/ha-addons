@@ -8,13 +8,23 @@ Single FastAPI container that serves both the React frontend (built as static fi
 
 This add-on currently has no configurable options in `config.yaml` — defaults work out of the box. Per-user preferences (salary day, known own accounts, CAO scale, etc.) are stored in the SQLite DB and edited from the UI.
 
-## Importing a Rabobank CSV
+## Importing a CSV
 
+Both **Rabobank** and **ASN Bank** are supported. The add-on peeks at the CSV header and dispatches to the right parser — you just drop the file on **Importeren** and the result banner tells you which bank was detected.
+
+### Rabobank
 1. Log in to Mijn Rabobank → Overzicht → Downloaden → **CSV**
-2. In the add-on, go to **Importeren** and drop the file
-3. Three Rabobank export layouts are supported: current (`Datum` + `Bedrag` + `Omschrijving-1/2/3`), `Valutadatum` variant, and the legacy `Bedrag (EUR)` / `Af Bij` format
-4. Duplicate transactions are detected via SHA-256 hash, so re-importing the same period (or overlapping CSVs) is safe — duplicates are reported as `skipped`
-5. The encoding is auto-detected: UTF-8 with BOM is tried first, then Windows-1252 (cp1252) which older Rabobank exports use
+2. Three Rabobank export layouts are recognised: current (`Datum` + `Bedrag` + `Omschrijving-1/2/3`), `Valutadatum` variant, and the legacy `Bedrag (EUR)` / `Af Bij` format
+
+### ASN Bank
+1. Log in to Mijn ASN → Afschriften / Transacties downloaden → **CSV**
+2. The export uses `Datum`, `Je rekening`, `Van / naar`, `Naam`, `Bedrag bij / af` (signed, comma decimal), `Omschrijving`, `Betalingskenmerk` — these are mapped to the same internal record as Rabobank
+3. ASN ships its own `Categorie` column, but the add-on ignores it and runs its own keyword-based categorization so the buckets stay consistent across banks
+
+### Shared behavior
+- Duplicate transactions are detected via SHA-256 hash of `(date, amount, description, counter_iban)`, so re-importing the same period (or overlapping CSVs from different banks) is safe — duplicates are reported as `skipped`
+- The encoding is auto-detected: UTF-8 with BOM is tried first, then Windows-1252 (cp1252) which older exports use
+- The upload response includes the detected `bank` (`"rabobank"` or `"asn"`) and a `transfers_flagged_in_batch` count so you can confirm what happened
 
 ## Transfers between your own accounts
 
@@ -22,7 +32,7 @@ The add-on auto-detects transfers between accounts you own so they don't pollute
 
 **How it works:** every IBAN that appears as the *own* side of an imported CSV is remembered as one of your accounts. Any transaction whose counterparty IBAN is in that set is flagged as a transfer (badge `Overboeking` in the transactions list) and excluded from dashboard stats, trends, the category pie, and the balance line.
 
-The list grows automatically as you import statements from additional accounts. A retroactive pass also re-flags historical rows: e.g. if you imported account A first, then later import account B, the A→B transfers that were already in the database get flagged the moment account B arrives.
+The detection is **bank-agnostic** — it keys on IBAN, not bank. As soon as you've imported a Rabobank statement *and* an ASN statement once each, transfers in both directions (Rabobank → ASN and ASN → Rabobank) start getting flagged on every subsequent import. A retroactive pass also re-flags historical rows: if account A was imported first and account B later, the A→B moves that were already in the database get flagged the moment account B arrives.
 
 **Manual override** via the API if needed:
 - `GET  /api/transactions/own-accounts` — list known IBANs

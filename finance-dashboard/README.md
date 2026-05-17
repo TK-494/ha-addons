@@ -2,7 +2,7 @@
 
 Persoonlijk financieel dashboard:
 
-- 📄 Rabobank CSV import (alle bekende exportformaten — Datum/Bedrag, Valutadatum, en de oudere "Af Bij")
+- 📄 CSV import van **Rabobank én ASN Bank** — formaat wordt automatisch herkend (alle bekende Rabobank-exporten: Datum/Bedrag, Valutadatum, en de oudere "Af Bij")
 - 🛒 Automatische categorisatie (Nederlandse winkels, banken, verzekeraars, BNPL)
 - 🔁 **Overboekingen tussen eigen rekeningen** worden automatisch herkend en uit je inkomsten/uitgaven gefilterd
 - 🎯 Budget per categorie met live voortgang

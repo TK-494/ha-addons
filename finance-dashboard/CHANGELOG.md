@@ -2,6 +2,16 @@
 
 All notable changes to the Finance Dashboard add-on. Newest version on top. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.0.7 — 2026-05-17
+
+### Added
+- **ASN Bank CSV support.** Drop an ASN export on the Importeren-pagina and it just works — het formaat (`Datum`, `Je rekening`, `Van / naar`, `Naam`, `Bedrag bij / af`, `Omschrijving`) wordt automatisch herkend naast de bestaande Rabobank-layouts.
+- The upload result banner now shows the detected bank (Rabobank/ASN) and, when applicable, the count of inter-account transfers flagged in this batch.
+- **Cross-bank transfer detection works out of the box.** Once you've imported one statement from each account (regardless of bank), any subsequent transfer between them is flagged with the existing `Overboeking` badge and excluded from income/expense totals.
+
+### Changed
+- The parser ASN ignores ASN's own `Categorie` column intentionally — the add-on's keyword-based categorization is used so buckets stay consistent across banks.
+
 ## 1.0.6 — 2026-05-17
 
 ### Added
