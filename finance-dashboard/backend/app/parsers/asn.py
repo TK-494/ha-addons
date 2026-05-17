@@ -1,11 +1,15 @@
 """ASN Bank CSV parser.
 
-Header layout we support (comma-separated):
+Column layout (20 fields):
 
     Datum, Je rekening, Van / naar, Naam, Adres, Postcode, Woonplaats,
     Valuta saldo, Saldo voor boeking, Valuta, Bedrag bij / af,
     Verwerkingsdatum, Valutadatum, Code, Type, Volgnummer,
     Betalingskenmerk, Omschrijving, Afschriftnummer, Categorie
+
+ASN downloads usually arrive *without* a header row — every line is data.
+We inject the canonical column names when that's the case, so the rest
+of the code is identical between headered and headerless files.
 
 'Bedrag bij / af' is the signed amount with comma decimal (-12,34 / 1500,00).
 'Datum' is Dutch DD-MM-YYYY in newer exports; pandas with dayfirst=True
@@ -21,9 +25,33 @@ from typing import Any, Dict, List
 from ._common import auto_categorize, decode_csv_bytes, make_hash, s
 
 
+ASN_COLUMNS = [
+    "Datum", "Je rekening", "Van / naar", "Naam", "Adres", "Postcode",
+    "Woonplaats", "Valuta saldo", "Saldo voor boeking", "Valuta",
+    "Bedrag bij / af", "Verwerkingsdatum", "Valutadatum", "Code", "Type",
+    "Volgnummer", "Betalingskenmerk", "Omschrijving", "Afschriftnummer",
+    "Categorie",
+]
+
+
+def _looks_like_asn_header(line: str) -> bool:
+    return "Je rekening" in line and "Bedrag bij / af" in line
+
+
 def parse_asn_csv(content: bytes) -> List[Dict[str, Any]]:
     text = decode_csv_bytes(content)
-    df = pd.read_csv(StringIO(text), dtype=str)
+    first_line = text.split("\n", 1)[0]
+
+    # `sep=None, engine='python'` lets pandas sniff comma vs semicolon —
+    # ASN exports are usually comma-separated but we've seen semicolon
+    # variants. `quoting` handles the quoted IBANs and descriptions.
+    common_kw = dict(dtype=str, sep=None, engine="python")
+    if _looks_like_asn_header(first_line):
+        df = pd.read_csv(StringIO(text), **common_kw)
+    else:
+        # Header-less file — name the columns ourselves so the rest of the
+        # code can keep referencing them by name.
+        df = pd.read_csv(StringIO(text), header=None, names=ASN_COLUMNS, **common_kw)
     df.columns = [c.strip() for c in df.columns]
 
     records = []

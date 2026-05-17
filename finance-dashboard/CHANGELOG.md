@@ -2,6 +2,11 @@
 
 All notable changes to the Finance Dashboard add-on. Newest version on top. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.0.8 — 2026-05-17
+
+### Fixed
+- ASN-uploads werden niet herkend en stilletjes als 0 transacties geïmporteerd. ASN-exports bevatten meestal **geen kopregel**, dus de detectie kon de eerste regel niet matchen op kolomnamen. De parser herkent nu zowel ASN-bestanden mét als zonder kopregel (gebaseerd op 20 velden + IBAN in de tweede kolom), en accepteert zowel komma- als puntkomma-separator.
+
 ## 1.0.7 — 2026-05-17
 
 ### Added
