@@ -79,7 +79,17 @@ def make_hash(row: Dict[str, Any]) -> str:
 
 
 def parse_rabobank_csv(content: bytes) -> List[Dict[str, Any]]:
-    text = content.decode("utf-8-sig")
+    # Rabobank exports vary: newer ones are UTF-8 (sometimes with BOM), older
+    # ones are Windows-1252 (cp1252) — that's what produces the 0xeb-on-ë crash.
+    # Try the modern encoding first, fall back to cp1252.
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            text = content.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        text = content.decode("utf-8", errors="replace")
     df = pd.read_csv(StringIO(text), dtype=str)
     df.columns = [c.strip() for c in df.columns]
 
