@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { getTransactions, getCategories, setTransactionCategory, deleteTransaction } from "../api";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  getTransactions, getCategories, setTransactionCategory, deleteTransaction,
+  getTransactionIds, bulkSetCategory,
+} from "../api";
 
 const fmt = (n) =>
   new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(n);
@@ -11,24 +14,39 @@ export default function Transactions() {
   const [filterCat, setFilterCat] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Bulk-select state.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkCatId, setBulkCatId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const filterParams = useMemo(() => {
+    const p = {};
+    if (search) p.search = search;
+    if (filterCat) p.category_id = filterCat;
+    return p;
+  }, [search, filterCat]);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const params = {};
-    if (search) params.search = search;
-    if (filterCat) params.category_id = filterCat;
     const [txs, cats] = await Promise.all([
-      getTransactions({ ...params, limit: 300 }),
+      getTransactions({ ...filterParams, limit: 300 }),
       getCategories(),
     ]);
     setTransactions(txs);
     setCategories(cats);
     setLoading(false);
-  }, [search, filterCat]);
+  }, [filterParams]);
 
+  // Debounce so typing in the search box doesn't fire on every keystroke.
   useEffect(() => {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
   }, [load]);
+
+  // When the filter changes, the previous selection is no longer meaningful.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [search, filterCat]);
 
   async function handleCategoryChange(txId, catId) {
     await setTransactionCategory(txId, catId || null);
@@ -45,7 +63,59 @@ export default function Transactions() {
     if (!confirm("Transactie verwijderen?")) return;
     await deleteTransaction(txId);
     setTransactions((prev) => prev.filter((tx) => tx.id !== txId));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(txId);
+      return next;
+    });
   }
+
+  function toggleOne(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleVisible() {
+    setSelectedIds((prev) => {
+      const visibleIds = transactions.map((t) => t.id);
+      const allVisibleSelected = visibleIds.every((id) => prev.has(id));
+      if (allVisibleSelected) {
+        // Deselect only the visible ones; keep any off-screen-but-selected.
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...visibleIds]);
+    });
+  }
+
+  async function selectAllMatchingFilter() {
+    // Ask the backend for the full ID list under the active filter — the
+    // visible page is capped at 300, but the filter can match thousands.
+    const { ids } = await getTransactionIds(filterParams);
+    setSelectedIds(new Set(ids));
+  }
+
+  async function applyBulkCategory() {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    const catId = bulkCatId === "" ? null : Number(bulkCatId);
+    await bulkSetCategory([...selectedIds], catId);
+    setBulkBusy(false);
+    setSelectedIds(new Set());
+    setBulkCatId("");
+    load();
+  }
+
+  const visibleCount = transactions.length;
+  const visibleSelectedCount = transactions.reduce(
+    (n, t) => n + (selectedIds.has(t.id) ? 1 : 0), 0,
+  );
+  const allVisibleSelected = visibleCount > 0 && visibleSelectedCount === visibleCount;
+  const filterIsActive = Boolean(search || filterCat);
 
   return (
     <div className="p-6 space-y-4">
@@ -76,12 +146,61 @@ export default function Transactions() {
         </select>
       </div>
 
+      {/* Bulk action bar — appears only when a selection exists. */}
+      {selectedIds.size > 0 && (
+        <div className="card flex flex-wrap items-center gap-3 border-indigo-700/40 bg-indigo-950/30">
+          <span className="text-sm text-indigo-200">
+            <strong>{selectedIds.size}</strong> geselecteerd
+          </span>
+          <select
+            className="select w-56"
+            value={bulkCatId}
+            onChange={(e) => setBulkCatId(e.target.value)}
+          >
+            <option value="">— geen categorie —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+            ))}
+          </select>
+          <button
+            className="btn-primary"
+            onClick={applyBulkCategory}
+            disabled={bulkBusy}
+          >
+            {bulkBusy ? "Bezig..." : "Toepassen op selectie"}
+          </button>
+          {filterIsActive && (
+            <button
+              className="btn-ghost"
+              onClick={selectAllMatchingFilter}
+              title="Selecteer ook transacties buiten de zichtbare 300 rijen die aan het filter voldoen"
+            >
+              Selecteer alles wat aan filter voldoet
+            </button>
+          )}
+          <button
+            className="btn-ghost"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Selectie wissen
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-800/50 border-b border-slate-800">
               <tr>
+                <th className="px-3 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    aria-label="Alles op deze pagina selecteren"
+                    checked={allVisibleSelected}
+                    onChange={toggleVisible}
+                  />
+                </th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium">Datum</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium">Omschrijving</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium">Tegenpartij</th>
@@ -93,17 +212,29 @@ export default function Transactions() {
             <tbody className="divide-y divide-slate-800/50">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-600">Laden...</td>
+                  <td colSpan={7} className="text-center py-12 text-slate-600">Laden...</td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-600">
+                  <td colSpan={7} className="text-center py-12 text-slate-600">
                     Geen transacties gevonden. Importeer een bankafschrift.
                   </td>
                 </tr>
               ) : (
                 transactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr
+                    key={tx.id}
+                    className={`hover:bg-slate-800/30 transition-colors ${
+                      selectedIds.has(tx.id) ? "bg-indigo-950/30" : ""
+                    }`}
+                  >
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(tx.id)}
+                        onChange={() => toggleOne(tx.id)}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                       {new Date(tx.date).toLocaleDateString("nl-NL")}
                     </td>

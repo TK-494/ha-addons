@@ -1,5 +1,5 @@
 name: Finance Dashboard
-version: "1.0.5"
+version: "1.0.6"
 slug: finance-dashboard
 description: Personal finance dashboard — Rabobank CSV analysis, budgets, VGN CAO salary projection.
 url: https://github.com/TK-494/ha-addons/tree/main/finance-dashboard

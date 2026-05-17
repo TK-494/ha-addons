@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
@@ -8,6 +9,33 @@ from ..schemas import TransactionOut
 from ..parsers.rabobank import parse_rabobank_csv
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+class BulkCategoryUpdate(BaseModel):
+    transaction_ids: List[int]
+    category_id: Optional[int] = None
+
+
+def _apply_list_filters(q, year, month, category_id, search):
+    """Shared filter logic between /transactions/ and /transactions/ids — keep
+    them in lockstep so 'select all matching filter' selects exactly what the
+    list view shows."""
+    if year:
+        q = q.filter(Transaction.date.between(f"{year}-01-01", f"{year}-12-31"))
+    if month and year:
+        import calendar
+        last_day = calendar.monthrange(year, month)[1]
+        q = q.filter(Transaction.date.between(
+            f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day}"
+        ))
+    if category_id is not None:
+        q = q.filter(Transaction.category_id == category_id)
+    if search:
+        q = q.filter(
+            Transaction.description.ilike(f"%{search}%") |
+            Transaction.counter_name.ilike(f"%{search}%")
+        )
+    return q
 
 
 OWN_IBANS_KEY = "own_ibans"
@@ -71,23 +99,43 @@ def list_transactions(
     search: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = db.query(Transaction).options(joinedload(Transaction.category))
-    if year:
-        q = q.filter(Transaction.date.between(f"{year}-01-01", f"{year}-12-31"))
-    if month and year:
-        import calendar
-        last_day = calendar.monthrange(year, month)[1]
-        q = q.filter(Transaction.date.between(
-            f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day}"
-        ))
-    if category_id is not None:
-        q = q.filter(Transaction.category_id == category_id)
-    if search:
-        q = q.filter(
-            Transaction.description.ilike(f"%{search}%") |
-            Transaction.counter_name.ilike(f"%{search}%")
-        )
+    q = _apply_list_filters(
+        db.query(Transaction).options(joinedload(Transaction.category)),
+        year, month, category_id, search,
+    )
     return q.order_by(Transaction.date.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/ids")
+def list_transaction_ids(
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    category_id: Optional[int] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Return just the IDs matching the same filter the list view uses.
+    Used by the frontend's 'Select all matching filter' bulk-action button,
+    which needs the full result set even when the visible page is capped."""
+    q = _apply_list_filters(db.query(Transaction.id), year, month, category_id, search)
+    return {"ids": [r[0] for r in q.all()]}
+
+
+@router.post("/bulk-category")
+def bulk_set_category(payload: BulkCategoryUpdate, db: Session = Depends(get_db)):
+    if not payload.transaction_ids:
+        return {"updated": 0}
+    # Validate the category if one is provided — bare-id input from the UI.
+    if payload.category_id is not None:
+        if not db.query(Category).filter(Category.id == payload.category_id).first():
+            raise HTTPException(status_code=404, detail="Category not found")
+    updated = (
+        db.query(Transaction)
+        .filter(Transaction.id.in_(payload.transaction_ids))
+        .update({Transaction.category_id: payload.category_id}, synchronize_session=False)
+    )
+    db.commit()
+    return {"updated": updated, "category_id": payload.category_id}
 
 
 @router.patch("/{transaction_id}/category")

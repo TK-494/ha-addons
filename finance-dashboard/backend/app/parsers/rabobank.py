@@ -4,8 +4,29 @@ from datetime import date
 from io import StringIO
 from typing import List, Dict, Any
 
-# Keyword-based auto-categorization (Dutch)
+# Keyword-based auto-categorization (Dutch). Rules are evaluated in dict order
+# and the first match wins, so place specific/important categories first —
+# otherwise generic ones (e.g. "Online Shopping" with "klarna") swallow rows
+# that should land in a more specific bucket (e.g. "Afbetaling").
 CATEGORY_RULES: Dict[str, List[str]] = {
+    # New specific buckets — evaluated before existing generic ones.
+    "Afbetaling": [
+        "klarna", "afterpay", "riverty", "in3 ", "billink",
+        "buy now pay later", "achteraf betalen",
+    ],
+    "Verzekeringen": [
+        "aegon", "a.s.r", " asr ", "allianz", "klaverblad", "univé", "unive",
+        "dela", "monuta", "reaal", "ohra", "inshared", "ditzo",
+        "interpolis", "centraal beheer", "nationale nederlanden", " nn ",
+        "verzekering",
+    ],
+    "Leningen": [
+        "santander consumer", "defam", "qander", "alfam",
+        "financial lease", "lening", "krediet", "consumptief krediet",
+        "persoonlijke lening",
+    ],
+
+    # Existing buckets.
     "Boodschappen": [
         "albert heijn", "ah ", "jumbo", "lidl", "aldi", "plus supermarkt",
         "dirk", "spar", "coop", "deka", "boni", "poiesz", "vomar", "hoogvliet"
@@ -24,7 +45,7 @@ CATEGORY_RULES: Dict[str, List[str]] = {
     ],
     "Zorgverzekering": [
         "zilveren kruis", "vgz", "cz ", "menzis", "achmea",
-        "dsw", "anderzorg", "ditzo", "eno zorgverzekering"
+        "dsw", "anderzorg", "eno zorgverzekering"
     ],
     "Telefoon/Internet": [
         "kpn", "t-mobile", "vodafone", "ziggo", "odido",
@@ -47,7 +68,7 @@ CATEGORY_RULES: Dict[str, List[str]] = {
     ],
     "Online Shopping": [
         "bol.com", "amazon", "coolblue", "mediamarkt", "fnac",
-        "harvey norman", "paypal", "klarna"
+        "harvey norman", "paypal",
     ],
     "Zorg & Apotheek": [
         "apotheek", "huisarts", "tandarts", "ziekenhuis", "fysiotherap",
@@ -59,7 +80,6 @@ CATEGORY_RULES: Dict[str, List[str]] = {
     ],
     "Bank & Verzekering": [
         "rente", "kosten rekening", "abonnement rabobank",
-        "interpolis", "centraal beheer", "nationale nederlanden", "nn "
     ],
 }
 

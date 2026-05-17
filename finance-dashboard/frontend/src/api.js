@@ -23,6 +23,21 @@ export const getTransactions = (params) =>
 export const setTransactionCategory = (id, categoryId) =>
   api.patch(`/transactions/${id}/category`, null, { params: { category_id: categoryId } });
 
+export const getTransactionIds = (params) =>
+  api.get("/transactions/ids", { params }).then((r) => r.data);
+
+export const bulkSetCategory = (transactionIds, categoryId) =>
+  api.post("/transactions/bulk-category", {
+    transaction_ids: transactionIds,
+    category_id: categoryId,
+  }).then((r) => r.data);
+
+export const getDashboardSettings = () =>
+  api.get("/dashboard/settings").then((r) => r.data);
+
+export const saveDashboardSettings = (monthStartDay) =>
+  api.post("/dashboard/settings", null, { params: { month_start_day: monthStartDay } }).then((r) => r.data);
+
 export const deleteTransaction = (id) =>
   api.delete(`/transactions/${id}`);
 

@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import {
   getDashboardStats, getDashboardTrend, getDashboardByCategory, getBalanceHistory,
+  getDashboardSettings, saveDashboardSettings,
 } from "../api";
 
 const fmt = (n) =>
@@ -32,16 +33,33 @@ export default function Dashboard() {
   const [trend, setTrend] = useState([]);
   const [byCategory, setByCategory] = useState([]);
   const [balance, setBalance] = useState([]);
+  const [startDay, setStartDay] = useState(1);
+  const [savingStartDay, setSavingStartDay] = useState(false);
 
+  useEffect(() => {
+    getDashboardSettings().then((s) => setStartDay(s.month_start_day));
+  }, []);
+
+  // Refetch month-bound endpoints whenever the period selection — or the
+  // salary day setting — changes; the backend re-windows the data for us.
   useEffect(() => {
     getDashboardStats(year, month).then(setStats);
     getDashboardByCategory(year, month).then(setByCategory);
-  }, [year, month]);
+  }, [year, month, startDay]);
 
   useEffect(() => {
     getDashboardTrend(6).then(setTrend);
     getBalanceHistory(90).then(setBalance);
-  }, []);
+  }, [startDay]);
+
+  async function commitStartDay(day) {
+    const clamped = Math.max(1, Math.min(31, Number(day) || 1));
+    if (clamped === startDay) return;
+    setSavingStartDay(true);
+    await saveDashboardSettings(clamped);
+    setStartDay(clamped);
+    setSavingStartDay(false);
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -52,6 +70,20 @@ export default function Dashboard() {
           <p className="text-slate-500 text-sm">Overzicht van je financiën</p>
         </div>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-slate-400" title="Dag van de maand waarop je salaris binnenkomt. De maand 'mei' loopt dan van die dag in mei t/m de dag ervoor in juni.">
+            Maand start
+            <input
+              type="number"
+              min={1}
+              max={31}
+              className="input w-16 text-center"
+              defaultValue={startDay}
+              key={startDay}
+              onBlur={(e) => commitStartDay(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              disabled={savingStartDay}
+            />
+          </label>
           <select
             className="select w-36"
             value={month}

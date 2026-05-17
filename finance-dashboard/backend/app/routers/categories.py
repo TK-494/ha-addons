@@ -36,7 +36,13 @@ DEFAULT_CATEGORIES = [
     {"name": "Abonnementen", "color": "#f43f5e", "icon": "📺",
      "keywords": "spotify,netflix,disney,videoland,adobe,microsoft,apple,google"},
     {"name": "Bank & Verzekering", "color": "#64748b", "icon": "🏦",
-     "keywords": "rente,kosten rekening,abonnement rabobank,interpolis,centraal beheer"},
+     "keywords": "rente,kosten rekening,abonnement rabobank"},
+    {"name": "Verzekeringen", "color": "#0891b2", "icon": "🛡️",
+     "keywords": "aegon,asr,allianz,klaverblad,unive,dela,monuta,reaal,ohra,inshared,ditzo,interpolis,centraal beheer,nationale nederlanden,verzekering"},
+    {"name": "Leningen", "color": "#b45309", "icon": "💸",
+     "keywords": "santander consumer,defam,qander,alfam,financial lease,lening,krediet"},
+    {"name": "Afbetaling", "color": "#9333ea", "icon": "💳",
+     "keywords": "klarna,afterpay,riverty,in3,billink,achteraf betalen"},
     {"name": "Overig", "color": "#94a3b8", "icon": "📋", "keywords": ""},
 ]
 
@@ -78,7 +84,16 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
 
 
 def seed_default_categories(db: Session):
-    if db.query(Category).count() == 0:
-        for cat in DEFAULT_CATEGORIES:
+    """Add any default categories that don't yet exist by name. Idempotent —
+    runs on every boot so newly-shipped defaults (e.g. Verzekeringen,
+    Leningen, Afbetaling) appear in existing installs without wiping the
+    user's own edits to colour/icon/keywords of categories they already have.
+    """
+    existing_names = {c.name for c in db.query(Category).all()}
+    added = False
+    for cat in DEFAULT_CATEGORIES:
+        if cat["name"] not in existing_names:
             db.add(Category(**cat))
+            added = True
+    if added:
         db.commit()
