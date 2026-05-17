@@ -30,6 +30,36 @@ CATEGORY_RULES: Dict[str, List[str]] = {
         "financial lease", "lening", "krediet", "consumptief krediet",
         "persoonlijke lening",
     ],
+    "Sparen & Beleggen": [
+        "degiro", "bitvavo", "coinbase", "bux b.v.", "binck", "easybroker",
+        "ishares", "vanguard", "blackrock", "scalable capital", "trading 212",
+        "peaks ", "meesman", "beleggen",
+    ],
+    "Belasting": [
+        "belastingdienst aanslag", "belastingdienst ib",
+        "aanslag inkomstenbelasting", "motorrijtuigenbelasting", "mrb ",
+        "wegenbelasting", "waterschap", "hoogheemraadschap",
+        "rioolheffing", "ozb", "afvalstoffenheffing", "hondenbelasting",
+        "gemeentebelasting", "kwijtschelding",
+    ],
+    "Goede Doelen": [
+        "greenpeace", "wereld natuur fonds", "wnf ", "plan nederland",
+        "plan internat", "unicef", "amnesty", "rode kruis", "oxfam",
+        "kwf kanker", "hartstichting", "longfonds", "nierstichting",
+        "save the children", "alzheimer nederland", "donatie", "schenking",
+        "giro555",
+    ],
+    "Brandstof": [
+        "shell ", "shell-", "bp ", "esso", "total energies", "texaco",
+        "tango", "tinq", "tamoil", "gulf ", "avia ", "q8 ", "ok station",
+        "ok benzine", "ok statoil", "brandstof", "tankstation", "fuelplaza",
+        "en-go",
+    ],
+    "Auto": [
+        "apk ", "rdw ", "rdw nederland", "kwikfit", "profile tyrecenter",
+        "profile autocenter", "bovag", "autobedrijf", "garagebedrijf",
+        "anwb wegen", "anwb lidmaat", "anwb auto", "anwb pechhulp",
+    ],
 
     # General buckets.
     "Vakantie": [
@@ -38,6 +68,23 @@ CATEGORY_RULES: Dict[str, List[str]] = {
         "djoser", "anwb reizen", "anwb camping", "schiphol", "eurostar",
         "thalys", "ouigo", "deutsche bahn", "db reise",
         "vakantie", "hotel", "camping", "cruise",
+    ],
+    "Kinderen": [
+        "kinderopvang", "kdv ", "bso ", "kinderdagverblijf", "ouderbijdrage",
+        "schoolgeld", "schoolfonds", "intertoys", "bart smit", "lobbes",
+        "speelgoed", "prenatal", "baby-park", "kids actief",
+    ],
+    "Huisdieren": [
+        "dierenarts", "dierenkliniek", "pets place", "discus dier",
+        "brekz", "zoofy", "dierenwinkel", "hondenvoer", "kattenvoer",
+        "dierenspeciaalzaak",
+    ],
+    "Persoonlijke Verzorging": [
+        "kapper", "kapsalon", "barbier", "schoonheidssalon", "nagelstudio",
+        "beauty salon", "parfumerie", "douglas ", "ici paris",
+    ],
+    "Geldopname": [
+        "geldautomaat", "geldopname", "atm withdrawal", "gea ",
     ],
     "Boodschappen": [
         "albert heijn", "ah ", "jumbo", "lidl", "aldi", "plus supermarkt",
@@ -65,7 +112,7 @@ CATEGORY_RULES: Dict[str, List[str]] = {
     ],
     "Transport": [
         "ns ", "ov-chipkaart", "htm", "gvb", "ret", "connexxion",
-        "arriva", "qbuzz", "parking", "p+r ", "anwb", "rdw",
+        "arriva", "qbuzz", "parking", "p+r ",
     ],
     "Restaurant & Café": [
         "mcdonalds", "burger king", "kfc", "subway", "dominos",

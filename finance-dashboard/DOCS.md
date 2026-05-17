@@ -54,7 +54,12 @@ Budgets still use calendar months (Jan 1–31, etc.) — that's intentional.
 
 **On import**, the parser auto-categorizes rows by keyword matching across description and counterparty. The full Dutch ruleset lives in `app/parsers/rabobank.py::CATEGORY_RULES`. Specific buckets (Afbetaling, Verzekeringen, Leningen) are evaluated before generic ones so a Klarna line lands in **Afbetaling**, not Online Shopping.
 
-**Default categories** ship out of the box: Boodschappen, Inkomen, Wonen, Energie, Zorgverzekering, Telefoon/Internet, Transport, Restaurant & Café, Sport & Fitness, Kleding, Online Shopping, Zorg & Apotheek, Abonnementen, Bank & Verzekering, **Verzekeringen**, **Leningen**, **Afbetaling**, **Vakantie**, Overig. New defaults are added automatically on update — existing categories you've edited are left alone.
+**Default categories** ship out of the box:
+- Everyday: Boodschappen, Inkomen, Wonen, Energie, Zorgverzekering, Telefoon/Internet, Transport, Restaurant & Café, Sport & Fitness, Kleding, Online Shopping, Zorg & Apotheek, Abonnementen, Bank & Verzekering, Overig.
+- Financial: **Verzekeringen**, **Leningen**, **Afbetaling**, **Sparen & Beleggen**, **Belasting**, **Geldopname**.
+- Lifestyle: **Vakantie**, **Brandstof**, **Auto**, **Kinderen**, **Huisdieren**, **Persoonlijke Verzorging**, **Goede Doelen**.
+
+New defaults are added automatically on update — existing categories you've edited are left alone.
 
 **Bulk categorize** in the Transactions page:
 

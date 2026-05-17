@@ -2,6 +2,26 @@
 
 All notable changes to the Finance Dashboard add-on. Newest version on top. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.0.10 — 2026-05-17
+
+### Added
+- **Negen nieuwe standaard-categorieën** met auto-categorisatie:
+  - ⛽ **Brandstof** — Shell, BP, Esso, Total, Texaco, Tango, Tinq, Tamoil, Gulf, Avia, Q8, OK
+  - 🚗 **Auto** — APK, RDW, Kwik-Fit, Profile, BOVAG, autobedrijven, garage, ANWB pechhulp/lidmaatschap
+  - 🏛️ **Belasting** — aanslagen IB, motorrijtuigenbelasting/MRB, wegenbelasting, waterschap, OZB, afvalstoffenheffing, rioolheffing
+  - ❤️ **Goede Doelen** — Greenpeace, WNF, Plan, UNICEF, Amnesty, Rode Kruis, Oxfam, KWF, Hartstichting, Longfonds, Giro555
+  - 👶 **Kinderen** — kinderopvang/KDV/BSO, schoolgeld, ouderbijdrage, Intertoys, Bart Smit, Lobbes, Prenatal
+  - 🐾 **Huisdieren** — dierenarts, dierenkliniek, Pets Place, Discus, Brekz, dierenwinkels
+  - 💇 **Persoonlijke Verzorging** — kapper/kapsalon, barbier, schoonheidssalon, nagelstudio, Douglas, ICI Paris
+  - 📈 **Sparen & Beleggen** — DEGIRO, Bitvavo, Coinbase, BUX, Binck, EasyBroker, iShares, Vanguard, BlackRock, Meesman
+  - 💵 **Geldopname** — geldautomaat, ATM, GEA, geldopname
+
+### Changed
+- `Transport` is nu strikt openbaar vervoer + parkeren — `rdw` en `anwb` zijn verhuisd naar `Auto` zodat een ANWB pechhulp-factuur niet meer als "Transport" wordt aangemerkt.
+
+### Note
+- Specifieke categorieën (Sparen, Belasting, Brandstof, Auto, etc.) zijn in `CATEGORY_RULES` vóór de generieke buckets geplaatst, zodat ze bij conflicten als eerste matchen. Bestaande categorieën die je zelf hebt aangepast worden niet overschreven.
+
 ## 1.0.9 — 2026-05-17
 
 ### Added
