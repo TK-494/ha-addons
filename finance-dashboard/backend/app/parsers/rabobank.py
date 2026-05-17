@@ -144,6 +144,12 @@ def parse_rabobank_csv(content: bytes) -> List[Dict[str, Any]]:
                 own_iban = str(row.get("Rekening", "")).strip()
                 note = ""
 
+            # Skip filler rows: zero amount with no description and no
+            # counterparty — these are not real transactions and collide on
+            # import_hash, which used to crash the whole upload.
+            if amount == 0 and not description and not counter_name and not counter_iban:
+                continue
+
             record = {
                 "date": tx_date,
                 "amount": round(amount, 2),

@@ -65,11 +65,20 @@ async def upload_bank_statement(file: UploadFile = File(...), db: Session = Depe
     records = parse_rabobank_csv(content)
 
     categories = {c.name: c for c in db.query(Category).all()}
+    existing_hashes = {
+        h for (h,) in db.query(Transaction.import_hash).all()
+    }
+    batch_hashes: set[str] = set()
     imported = 0
     skipped = 0
 
     for record in records:
-        if db.query(Transaction).filter(Transaction.import_hash == record["import_hash"]).first():
+        h = record["import_hash"]
+        # Skip duplicates already in the DB AND duplicates within this same upload.
+        # Without the in-batch check, two identical rows in one file (common with
+        # zero-amount filler rows in Rabobank exports) both pass the DB lookup,
+        # then commit() crashes with UNIQUE constraint failed: transactions.import_hash.
+        if h in existing_hashes or h in batch_hashes:
             skipped += 1
             continue
 
@@ -81,6 +90,7 @@ async def upload_bank_statement(file: UploadFile = File(...), db: Session = Depe
         tx = Transaction(**{k: v for k, v in record.items() if k != "suggested_category"},
                          category_id=cat_id)
         db.add(tx)
+        batch_hashes.add(h)
         imported += 1
 
     db.commit()
