@@ -8,6 +8,7 @@ Persoonlijk financieel dashboard:
 - 🎯 Budget per categorie met live voortgang
 - 📈 VGN CAO loongroei projectie (FWG schalen per 01-12-2024, projectie vanaf het huidige jaar)
 - 📊 Maand-overzicht, trends, saldoverloop
+- 🗂️ **Categorieën-tab** — uitgaven per categorie over 3, 6, 12 of 24 maanden, met drill-down per categorie
 - 🗓️ **Salarisdag instelbaar** — laat je financiële maand op je salarisdag beginnen i.p.v. de 1e
 - ✅ **Bulk categoriseren** — selecteer meerdere transacties (of alles wat aan een filter voldoet) en zet ze in één klik in de juiste categorie
 

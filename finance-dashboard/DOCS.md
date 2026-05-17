@@ -54,7 +54,7 @@ Budgets still use calendar months (Jan 1–31, etc.) — that's intentional.
 
 **On import**, the parser auto-categorizes rows by keyword matching across description and counterparty. The full Dutch ruleset lives in `app/parsers/rabobank.py::CATEGORY_RULES`. Specific buckets (Afbetaling, Verzekeringen, Leningen) are evaluated before generic ones so a Klarna line lands in **Afbetaling**, not Online Shopping.
 
-**Default categories** ship out of the box: Boodschappen, Inkomen, Wonen, Energie, Zorgverzekering, Telefoon/Internet, Transport, Restaurant & Café, Sport & Fitness, Kleding, Online Shopping, Zorg & Apotheek, Abonnementen, Bank & Verzekering, **Verzekeringen**, **Leningen**, **Afbetaling**, Overig. New defaults are added automatically on update — existing categories you've edited are left alone.
+**Default categories** ship out of the box: Boodschappen, Inkomen, Wonen, Energie, Zorgverzekering, Telefoon/Internet, Transport, Restaurant & Café, Sport & Fitness, Kleding, Online Shopping, Zorg & Apotheek, Abonnementen, Bank & Verzekering, **Verzekeringen**, **Leningen**, **Afbetaling**, **Vakantie**, Overig. New defaults are added automatically on update — existing categories you've edited are left alone.
 
 **Bulk categorize** in the Transactions page:
 
@@ -64,6 +64,18 @@ Budgets still use calendar months (Jan 1–31, etc.) — that's intentional.
 4. Pick a category (or "geen categorie" to clear it) and apply
 
 Manual single-row re-categorization is still available via the dropdown in each row.
+
+## Categorieën tab — multi-month breakdown
+
+The **Categorieën** sidebar tab is for analysis over multiple months at once (the Dashboard shows one month at a time).
+
+1. Pick a window: **3, 6, 12, or 24 months** (top-right dropdown). Months use your salary-aligned boundaries.
+2. **Stacked-bar chart** shows expenses per month for the top 8 categories by total spend — quick visual for "what's eating my budget".
+3. **Summary table** below lists every category with: total over the window, gemiddeld/maand, afgelopen maand, and the count of months in which it was active. Sorted by total descending.
+4. **Click any row** to open a per-category line chart inline — useful for catching a creeping subscription cost or a one-off vacation spike.
+5. The **Transacties →** link in the Acties column deep-links to the Transactions page pre-filtered for that category, so you can verify which transactions make up the total.
+
+Transfers between own accounts are excluded; only expenses (amount < 0) are counted, shown as positive values.
 
 ## VGN CAO salary projection
 

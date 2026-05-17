@@ -32,6 +32,13 @@ CATEGORY_RULES: Dict[str, List[str]] = {
     ],
 
     # General buckets.
+    "Vakantie": [
+        "booking.com", "airbnb", "trivago", "expedia", "hotels.com",
+        "klm", "transavia", "ryanair", "easyjet", "tui ", "corendon", "sunweb",
+        "djoser", "anwb reizen", "anwb camping", "schiphol", "eurostar",
+        "thalys", "ouigo", "deutsche bahn", "db reise",
+        "vakantie", "hotel", "camping", "cruise",
+    ],
     "Boodschappen": [
         "albert heijn", "ah ", "jumbo", "lidl", "aldi", "plus supermarkt",
         "dirk", "spar", "coop", "deka", "boni", "poiesz", "vomar", "hoogvliet",

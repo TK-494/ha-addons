@@ -159,6 +159,66 @@ def get_by_category(year: int = None, month: int = None, db: Session = Depends(g
     ]
 
 
+@router.get("/category-trend")
+def get_category_trend(months: int = 6, db: Session = Depends(get_db)):
+    """Per-month expense totals broken down by category, for the last N
+    months (using the user's salary-aligned month boundary).
+
+    Used by the Categorieën page to render a stacked-bar 'spending per
+    category over time' chart and a per-category summary table. Transfers
+    between own accounts are excluded; only expenses (amount < 0) are
+    aggregated and returned as positive values (`abs(amount)`)."""
+    months = max(1, min(36, months))
+    today = date.today()
+    start_day = _month_start_day(db)
+
+    month_names = ["jan", "feb", "mrt", "apr", "mei", "jun",
+                   "jul", "aug", "sep", "okt", "nov", "dec"]
+
+    categories_meta = [
+        {"id": c.id, "name": c.name, "color": c.color, "icon": c.icon}
+        for c in db.query(Category).order_by(Category.name).all()
+    ]
+
+    months_out = []
+    for i in range(months - 1, -1, -1):
+        first_of_current = today.replace(day=1)
+        target = (first_of_current - timedelta(days=i * 28)).replace(day=1)
+        start, end = _period_for(target.year, target.month, start_day)
+
+        rows = (
+            db.query(
+                Transaction.category_id,
+                func.sum(Transaction.amount).label("total"),
+            )
+            .filter(
+                Transaction.date.between(start, end),
+                Transaction.amount < 0,
+                Transaction.is_transfer == False,  # noqa: E712
+            )
+            .group_by(Transaction.category_id)
+            .all()
+        )
+        by_cat = {}
+        uncategorized = 0.0
+        for r in rows:
+            amount = round(abs(r.total), 2)
+            if r.category_id is None:
+                uncategorized = amount
+            else:
+                by_cat[r.category_id] = amount
+
+        months_out.append({
+            "year": target.year,
+            "month": target.month,
+            "label": f"{month_names[target.month - 1]} {target.year}",
+            "by_category": by_cat,
+            "uncategorized": uncategorized,
+        })
+
+    return {"categories": categories_meta, "months": months_out}
+
+
 @router.get("/balance-history")
 def get_balance_history(days: int = 90, db: Session = Depends(get_db)):
     today = date.today()

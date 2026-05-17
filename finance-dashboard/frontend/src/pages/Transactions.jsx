@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   getTransactions, getCategories, setTransactionCategory, deleteTransaction,
   getTransactionIds, bulkSetCategory,
@@ -8,11 +9,24 @@ const fmt = (n) =>
   new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(n);
 
 export default function Transactions() {
+  // URL drives the filter so deep links from the Categorieën page work and
+  // the back button restores the right view.
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filterCat, setFilterCat] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [filterCat, setFilterCat] = useState(searchParams.get("category_id") || "");
   const [loading, setLoading] = useState(false);
+
+  // Keep URL in sync when the user types in the search box or changes the
+  // category filter — without this, navigating back/forward would lose state.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (search) next.set("search", search);
+    if (filterCat) next.set("category_id", filterCat);
+    setSearchParams(next, { replace: true });
+  }, [search, filterCat, setSearchParams]);
 
   // Bulk-select state.
   const [selectedIds, setSelectedIds] = useState(() => new Set());

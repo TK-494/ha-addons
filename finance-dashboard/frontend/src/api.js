@@ -17,6 +17,9 @@ export const getDashboardByCategory = (year, month) =>
 export const getBalanceHistory = (days = 90) =>
   api.get("/dashboard/balance-history", { params: { days } }).then((r) => r.data);
 
+export const getCategoryTrend = (months = 6) =>
+  api.get("/dashboard/category-trend", { params: { months } }).then((r) => r.data);
+
 export const getTransactions = (params) =>
   api.get("/transactions/", { params }).then((r) => r.data);
 

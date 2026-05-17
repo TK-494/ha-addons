@@ -43,6 +43,8 @@ DEFAULT_CATEGORIES = [
      "keywords": "santander consumer,defam,qander,alfam,financial lease,lening,krediet"},
     {"name": "Afbetaling", "color": "#9333ea", "icon": "💳",
      "keywords": "klarna,afterpay,riverty,in3,billink,achteraf betalen"},
+    {"name": "Vakantie", "color": "#f59e0b", "icon": "✈️",
+     "keywords": "booking.com,airbnb,klm,transavia,ryanair,tui,sunweb,corendon,schiphol,hotel,camping,vakantie"},
     {"name": "Overig", "color": "#94a3b8", "icon": "📋", "keywords": ""},
 ]
 

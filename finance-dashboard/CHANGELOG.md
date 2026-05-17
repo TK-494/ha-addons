@@ -2,6 +2,16 @@
 
 All notable changes to the Finance Dashboard add-on. Newest version on top. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.0.9 — 2026-05-17
+
+### Added
+- New category **Vakantie** (✈️) — keywords voor booking.com, airbnb, KLM, Transavia, Ryanair, TUI, Sunweb, Corendon, Schiphol, hotels en campings.
+- New sidebar tab **Categorieën** — uitgaven per categorie over 3, 6, 12 of 24 maanden:
+  - Stacked-bar grafiek met de top 8 categorieën per maand
+  - Overzichtstabel met totaal, gemiddelde per maand, afgelopen maand, en aantal actieve maanden — klik op een rij om een verloop-grafiek van die categorie te openen
+  - "Transacties →" link gaat naar de Transacties-pagina, vooraf gefilterd op die categorie
+- De Transacties-pagina onthoudt nu zoek- en categoriefilters in de URL, dus deep-links uit de Categorieën-tab werken en de browser-back-knop herstelt de juiste view.
+
 ## 1.0.8 — 2026-05-17
 
 ### Fixed

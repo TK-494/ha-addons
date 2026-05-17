@@ -1,6 +1,7 @@
 import { Routes, Route, NavLink, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
+import Categories from "./pages/Categories";
 import Budget from "./pages/Budget";
 import CAOProjection from "./pages/CAOProjection";
 import Upload from "./pages/Upload";
@@ -8,6 +9,7 @@ import Upload from "./pages/Upload";
 const NAV = [
   { to: "/", icon: "📊", label: "Dashboard" },
   { to: "/transactions", icon: "💳", label: "Transacties" },
+  { to: "/categories", icon: "🗂️", label: "Categorieën" },
   { to: "/budget", icon: "🎯", label: "Budget" },
   { to: "/cao", icon: "📈", label: "CAO Groei" },
   { to: "/upload", icon: "⬆️", label: "Importeren" },
@@ -53,6 +55,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/categories" element={<Categories />} />
           <Route path="/budget" element={<Budget />} />
           <Route path="/cao" element={<CAOProjection />} />
           <Route path="/upload" element={<Upload />} />
