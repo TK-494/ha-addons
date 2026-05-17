@@ -5,13 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .database import engine, SessionLocal
+from .database import engine, SessionLocal, run_lightweight_migrations
 from .models import Base
 from .routers import transactions, categories, budgets, cao, dashboard
 from .routers.categories import seed_default_categories
 from .routers.cao import seed_vgn_scales
 
 Base.metadata.create_all(bind=engine)
+run_lightweight_migrations()
 
 app = FastAPI(title="Finance Dashboard", version="1.0.0")
 

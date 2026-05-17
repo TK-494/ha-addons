@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/finance.db")
@@ -25,3 +25,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def run_lightweight_migrations() -> None:
+    """Add columns that newer model versions expect but older DBs don't have.
+    SQLAlchemy's create_all only creates missing tables, not missing columns —
+    so existing finance.db files from earlier installs need this nudge.
+    """
+    insp = inspect(engine)
+    if "transactions" in insp.get_table_names():
+        cols = {c["name"] for c in insp.get_columns("transactions")}
+        if "is_transfer" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE transactions ADD COLUMN is_transfer BOOLEAN NOT NULL DEFAULT 0"
+                ))

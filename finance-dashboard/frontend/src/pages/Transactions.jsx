@@ -108,7 +108,17 @@ export default function Transactions() {
                       {new Date(tx.date).toLocaleDateString("nl-NL")}
                     </td>
                     <td className="px-4 py-3 text-slate-300 max-w-xs truncate">
-                      {tx.description || tx.counter_name || "—"}
+                      <span className="inline-flex items-center gap-2">
+                        {tx.is_transfer && (
+                          <span
+                            title="Overboeking tussen eigen rekeningen — telt niet mee in inkomsten of uitgaven"
+                            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-900/40 text-sky-300 border border-sky-800/60"
+                          >
+                            Overboeking
+                          </span>
+                        )}
+                        <span>{tx.description || tx.counter_name || "—"}</span>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-slate-500 max-w-[160px] truncate">
                       {tx.counter_name}

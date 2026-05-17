@@ -28,3 +28,6 @@ data/
 
 # Docker
 .docker/
+
+# Third-party reference docs used locally to seed data but not redistributable.
+Salaristabellen*.pdf

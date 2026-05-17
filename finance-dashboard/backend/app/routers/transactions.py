@@ -3,11 +3,62 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
 from ..database import get_db
-from ..models import Transaction, Category
+from ..models import Transaction, Category, UserSettings
 from ..schemas import TransactionOut
 from ..parsers.rabobank import parse_rabobank_csv
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+OWN_IBANS_KEY = "own_ibans"
+
+
+def _load_own_ibans(db: Session) -> set[str]:
+    row = db.query(UserSettings).filter(UserSettings.key == OWN_IBANS_KEY).first()
+    if not row or not row.value:
+        return set()
+    return {p.strip() for p in row.value.split(",") if p.strip()}
+
+
+def _save_own_ibans(db: Session, ibans: set[str]) -> None:
+    val = ",".join(sorted(ibans))
+    row = db.query(UserSettings).filter(UserSettings.key == OWN_IBANS_KEY).first()
+    if row:
+        row.value = val
+    else:
+        db.add(UserSettings(key=OWN_IBANS_KEY, value=val))
+
+
+@router.get("/own-accounts")
+def list_own_accounts(db: Session = Depends(get_db)):
+    return {"own_ibans": sorted(_load_own_ibans(db))}
+
+
+@router.post("/own-accounts")
+def add_own_account(iban: str, db: Session = Depends(get_db)):
+    iban = iban.strip().upper().replace(" ", "")
+    if not iban:
+        raise HTTPException(status_code=400, detail="IBAN is empty")
+    ibans = _load_own_ibans(db)
+    ibans.add(iban)
+    _save_own_ibans(db, ibans)
+    # Backfill flag on any historical transactions to/from this IBAN.
+    db.query(Transaction).filter(
+        Transaction.counter_iban == iban,
+        Transaction.is_transfer == False,  # noqa: E712 (SQLAlchemy)
+    ).update({Transaction.is_transfer: True}, synchronize_session=False)
+    db.commit()
+    return {"own_ibans": sorted(ibans)}
+
+
+@router.delete("/own-accounts")
+def remove_own_account(iban: str, db: Session = Depends(get_db)):
+    iban = iban.strip().upper().replace(" ", "")
+    ibans = _load_own_ibans(db)
+    ibans.discard(iban)
+    _save_own_ibans(db, ibans)
+    db.commit()
+    return {"own_ibans": sorted(ibans)}
 
 
 @router.get("/", response_model=List[TransactionOut])
@@ -64,6 +115,14 @@ async def upload_bank_statement(file: UploadFile = File(...), db: Session = Depe
     content = await file.read()
     records = parse_rabobank_csv(content)
 
+    # Every IBAN that ever appears as the *own* side of an imported statement
+    # is, by definition, an account the user owns. Persist the union so that a
+    # later import from account A can flag transfers TO account B (and vice
+    # versa) as inter-account moves, not real income/expense.
+    own_ibans = _load_own_ibans(db)
+    own_ibans |= {r["own_iban"] for r in records if r.get("own_iban")}
+    _save_own_ibans(db, own_ibans)
+
     categories = {c.name: c for c in db.query(Category).all()}
     existing_hashes = {
         h for (h,) in db.query(Transaction.import_hash).all()
@@ -71,27 +130,47 @@ async def upload_bank_statement(file: UploadFile = File(...), db: Session = Depe
     batch_hashes: set[str] = set()
     imported = 0
     skipped = 0
+    transfer_count = 0
 
     for record in records:
         h = record["import_hash"]
         # Skip duplicates already in the DB AND duplicates within this same upload.
-        # Without the in-batch check, two identical rows in one file (common with
-        # zero-amount filler rows in Rabobank exports) both pass the DB lookup,
-        # then commit() crashes with UNIQUE constraint failed: transactions.import_hash.
         if h in existing_hashes or h in batch_hashes:
             skipped += 1
             continue
 
         suggested = record.pop("suggested_category", None)
+        is_transfer = bool(record.get("counter_iban")) and record["counter_iban"] in own_ibans
+
         cat_id = None
-        if suggested and suggested in categories:
+        # Don't auto-categorize transfers — they shouldn't land in 'Boodschappen' etc.
+        if not is_transfer and suggested and suggested in categories:
             cat_id = categories[suggested].id
 
-        tx = Transaction(**{k: v for k, v in record.items() if k != "suggested_category"},
-                         category_id=cat_id)
+        tx = Transaction(
+            **{k: v for k, v in record.items() if k != "suggested_category"},
+            category_id=cat_id,
+            is_transfer=is_transfer,
+        )
         db.add(tx)
         batch_hashes.add(h)
         imported += 1
+        if is_transfer:
+            transfer_count += 1
+
+    # Re-flag historical rows: when account B was imported AFTER account A,
+    # the A->B transfers in A's statement were stored before B was known.
+    if own_ibans:
+        db.query(Transaction).filter(
+            Transaction.counter_iban.in_(own_ibans),
+            Transaction.is_transfer == False,  # noqa: E712
+        ).update({Transaction.is_transfer: True}, synchronize_session=False)
 
     db.commit()
-    return {"imported": imported, "skipped": skipped, "total": len(records)}
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "total": len(records),
+        "transfers_flagged_in_batch": transfer_count,
+        "own_ibans": sorted(own_ibans),
+    }

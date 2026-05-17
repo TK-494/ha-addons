@@ -29,11 +29,19 @@ export default function CAOProjection() {
 
   useEffect(() => {
     if (fwgScale && currentStep) {
-      getCAOProjection(fwgScale, currentStep, 10).then(setProjection);
+      getCAOProjection(fwgScale, currentStep, 10).then((p) => {
+        setProjection(p);
+        // Backend clamps stale settings (e.g. trede 1 for FG 40 → 2). Reflect
+        // that in the dropdown so the saved value matches what's displayed.
+        if (p?.current_step && p.current_step !== currentStep) {
+          setCurrentStep(p.current_step);
+        }
+      });
     }
   }, [fwgScale, currentStep]);
 
-  const maxStep = projection?.max_step || 7;
+  const maxStep = projection?.max_step ?? 14;
+  const minStep = projection?.min_step ?? 0;
 
   async function handleSave() {
     setSaving(true);
@@ -100,7 +108,7 @@ export default function CAOProjection() {
               value={currentStep}
               onChange={(e) => setCurrentStep(Number(e.target.value))}
             >
-              {Array.from({ length: maxStep }, (_, i) => i + 1).map((s) => (
+              {Array.from({ length: maxStep - minStep + 1 }, (_, i) => minStep + i).map((s) => (
                 <option key={s} value={s}>Periodiek {s}</option>
               ))}
             </select>

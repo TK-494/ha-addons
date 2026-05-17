@@ -29,6 +29,7 @@ class TransactionBase(BaseModel):
     note: str = ""
     category_id: Optional[int] = None
     is_income: bool = False
+    is_transfer: bool = False
 
 
 class TransactionCreate(TransactionBase):

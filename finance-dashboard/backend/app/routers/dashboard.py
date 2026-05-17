@@ -22,7 +22,14 @@ def get_stats(year: int = None, month: int = None, db: Session = Depends(get_db)
     start = date(year, month, 1)
     end = date(year, month, last_day)
 
-    txs = db.query(Transaction).filter(Transaction.date.between(start, end)).all()
+    txs = (
+        db.query(Transaction)
+        .filter(
+            Transaction.date.between(start, end),
+            Transaction.is_transfer == False,  # noqa: E712 (SQLAlchemy comparison)
+        )
+        .all()
+    )
 
     income = sum(t.amount for t in txs if t.amount > 0)
     expenses = sum(t.amount for t in txs if t.amount < 0)
@@ -51,7 +58,14 @@ def get_trend(months: int = 6, db: Session = Depends(get_db)):
         start = date(target.year, target.month, 1)
         end = date(target.year, target.month, last_day)
 
-        txs = db.query(Transaction).filter(Transaction.date.between(start, end)).all()
+        txs = (
+            db.query(Transaction)
+            .filter(
+                Transaction.date.between(start, end),
+                Transaction.is_transfer == False,  # noqa: E712
+            )
+            .all()
+        )
         income = sum(t.amount for t in txs if t.amount > 0)
         expenses = abs(sum(t.amount for t in txs if t.amount < 0))
 
@@ -88,6 +102,7 @@ def get_by_category(year: int = None, month: int = None, db: Session = Depends(g
         .filter(
             Transaction.date.between(start, end),
             Transaction.amount < 0,
+            Transaction.is_transfer == False,  # noqa: E712
         )
         .group_by(Category.id)
         .order_by(func.sum(Transaction.amount))
@@ -112,7 +127,10 @@ def get_balance_history(days: int = 90, db: Session = Depends(get_db)):
 
     txs = (
         db.query(Transaction)
-        .filter(Transaction.date >= start)
+        .filter(
+            Transaction.date >= start,
+            Transaction.is_transfer == False,  # noqa: E712
+        )
         .order_by(Transaction.date)
         .all()
     )

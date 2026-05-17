@@ -29,6 +29,7 @@ class Transaction(Base):
     note = Column(String, default="")
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     is_income = Column(Boolean, default=False)
+    is_transfer = Column(Boolean, default=False, nullable=False, server_default="0")
     import_hash = Column(String, unique=True, index=True)
 
     category = relationship("Category", back_populates="transactions")
