@@ -22,10 +22,10 @@ from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import discovery, ha_client, storage, uptime
 from .schemas import (
@@ -40,14 +40,41 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.0.0")
+app = FastAPI(title="Homelab Inventory", version="1.2.1")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+# Security headers. The app is served same-origin under HA Ingress, so no CORS
+# is required — dropping the wildcard middleware narrows what a misconfigured
+# reverse proxy or sibling add-on could do. CSP whitelists exactly the three
+# CDNs the SPA pulls (tailwind, alpinejs, vis-network) and bans inline event
+# handlers; Alpine's `x-data`/`x-text` attrs are evaluated by Alpine itself,
+# not by the browser as inline JS, so `script-src` doesn't need 'unsafe-inline'.
+# 'unsafe-eval' is required by Alpine 3's expression evaluator.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com; "
+    "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; "
+    "img-src 'self' data:; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'self'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
 )
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("Content-Security-Policy", _CSP)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 SECTION_MODELS = {
@@ -355,13 +382,19 @@ def delete_network_item(section: str, item_id: str) -> Dict[str, str]:
 
 # ─── frontend ──────────────────────────────────────────────────────────────
 
-STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR = (Path(__file__).parent / "static").resolve()
 
 
 @app.get("/{full_path:path}", include_in_schema=False)
 def spa(full_path: str):
     if full_path:
-        target = STATIC_DIR / full_path
-        if target.is_file():
+        # Resolve and confirm the path stays under STATIC_DIR — protects against
+        # traversal like `GET /../../etc/passwd`. Path.resolve() collapses `..`
+        # before we check containment; is_relative_to is the actual gate.
+        try:
+            target = (STATIC_DIR / full_path).resolve()
+        except (OSError, RuntimeError):
+            target = None
+        if target and target.is_file() and target.is_relative_to(STATIC_DIR):
             return FileResponse(target)
     return FileResponse(STATIC_DIR / "index.html")

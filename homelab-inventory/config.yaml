@@ -1,5 +1,5 @@
 name: Homelab Inventory
-version: "1.2.0"
+version: "1.2.1"
 slug: homelab-inventory
 description: Living inventory of homelab hardware, network, applications and integrations. Tracks uptime via Home Assistant entities and auto-discovers devices/hosts (HA registry + LAN ARP sweep). YAML-backed, browse and edit through the UI.
 url: https://github.com/TK-494/ha-addons/tree/main/homelab-inventory
@@ -16,8 +16,9 @@ panel_title: Homelab
 homeassistant_api: true
 hassio_api: false
 host_network: true
+# NET_RAW is the only capability arp-scan needs to open AF_PACKET sockets.
+# NET_ADMIN (route/iptables changes) is deliberately NOT requested.
 privileged:
-  - NET_ADMIN
   - NET_RAW
 map:
   - addon_config:rw
