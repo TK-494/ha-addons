@@ -292,6 +292,75 @@
         </div>
       </section>
 
+      <!-- Discovery -->
+      <section x-show="tab === 'discovery'" x-cloak>
+        <div class="flex items-center mb-3 flex-wrap gap-2">
+          <h2 class="text-lg font-semibold">Auto-discovery</h2>
+          <span class="ml-2 text-sm text-slate-400" x-text="discovery.candidates.length + ' candidates'"></span>
+          <span class="text-xs text-slate-400" x-show="discovery.last_scan_at"
+                x-text="'last scan ' + fmtAgo(discovery.last_scan_at)"></span>
+          <button @click="runDiscoveryScan()"
+                  :disabled="discovery.scan_in_progress"
+                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm disabled:opacity-50">
+            <span x-text="discovery.scan_in_progress ? 'Scanning…' : 'Scan now'"></span>
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Pulls candidates from the Home Assistant device registry, HA entity attributes (IP/MAC), and a LAN ARP sweep
+          (<code>arp-scan --localnet</code>, falls back to the kernel ARP cache). Nothing is written to
+          <code>infrastructure.yaml</code> until you click Import.
+        </p>
+
+        <template x-for="group in discoveryGroups()" :key="group.title">
+          <div class="mb-4">
+            <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200"
+                x-text="group.title + ' (' + group.items.length + ')'"></h3>
+            <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-left">
+                  <tr>
+                    <th class="px-3 py-2 font-medium">Name</th>
+                    <th class="px-3 py-2 font-medium">Details</th>
+                    <th class="px-3 py-2 font-medium">Source</th>
+                    <th class="px-3 py-2 font-medium">First seen</th>
+                    <th class="px-3 py-2 w-1 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="c in group.items" :key="c.key">
+                    <tr class="border-t border-slate-100 dark:border-slate-800">
+                      <td class="px-3 py-2 align-top font-medium" x-text="c.label"></td>
+                      <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400 text-xs" x-text="c.subtitle"></td>
+                      <td class="px-3 py-2 align-top text-xs font-mono text-slate-400" x-text="c.source"></td>
+                      <td class="px-3 py-2 align-top text-xs text-slate-400" x-text="fmtAgo(c.first_seen)"></td>
+                      <td class="px-3 py-2 text-right whitespace-nowrap">
+                        <button @click="importCandidate(c)"
+                                class="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-xs">
+                          Import
+                        </button>
+                        <button @click="dismissCandidate(c)"
+                                class="ml-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs">
+                          Dismiss
+                        </button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!group.items.length">
+                    <td colspan="5" class="px-3 py-6 text-center text-slate-400">No candidates from this source.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+
+        <p class="text-xs text-slate-400" x-show="discovery.dismissed_count">
+          <span x-text="discovery.dismissed_count + ' dismissed candidates suppressed.'"></span>
+          They won't reappear unless their key changes.
+        </p>
+      </section>
+
       <!-- HA Devices -->
       <section x-show="tab === 'ha'" x-cloak>
         <div class="flex items-center mb-3">

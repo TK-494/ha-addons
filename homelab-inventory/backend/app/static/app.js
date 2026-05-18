@@ -78,6 +78,15 @@ function tableCols(sectionKey) {
 
 const API = './api';
 
+function fmtAgo(unixSeconds) {
+  if (!unixSeconds) return 'never';
+  const delta = Math.max(0, Math.floor(Date.now() / 1000 - unixSeconds));
+  if (delta < 60)    return `${delta}s ago`;
+  if (delta < 3600)  return `${Math.floor(delta / 60)}m ago`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h ago`;
+  return `${Math.floor(delta / 86400)}d ago`;
+}
+
 function fmtDuration(seconds) {
   if (seconds === null || seconds === undefined || isNaN(seconds)) return '—';
   const s = Math.max(0, Math.floor(seconds));
@@ -118,9 +127,12 @@ function app() {
       { id: 'network',      label: 'Network' },
       { id: 'integrations', label: 'Integrations' },
       { id: 'topology',     label: 'Topology' },
+      { id: 'discovery',    label: 'Discovery' },
       { id: 'ha',           label: 'HA Devices' },
       { id: 'yaml',         label: 'YAML' },
     ],
+
+    discovery: { candidates: [], last_scan_at: 0, scan_in_progress: false, dismissed_count: 0 },
 
     integrationCols: tableCols('integrations'),
 
@@ -137,6 +149,7 @@ function app() {
       this.$watch('tab', t => {
         if (t === 'topology') this.$nextTick(() => this.renderGraph());
         if (t === 'ha' && !this.haDevices.length) this.loadHaDevices();
+        if (t === 'discovery') this.loadDiscovery();
       });
       this.$watch('inv', () => { if (this.tab === 'topology') this.renderGraph(); }, { deep: true });
     },
@@ -179,6 +192,67 @@ function app() {
         (d.entities || []).some(e => (e.entity_id || '').toLowerCase().includes(q))
       );
     },
+
+    async loadDiscovery() {
+      try {
+        const r = await fetch(`${API}/discovery`);
+        this.discovery = await r.json();
+      } catch {}
+    },
+
+    async runDiscoveryScan() {
+      this.discovery.scan_in_progress = true;
+      try {
+        const r = await fetch(`${API}/discovery/scan`, { method: 'POST' });
+        this.discovery = await r.json();
+      } catch {} finally {
+        this.discovery.scan_in_progress = false;
+      }
+    },
+
+    discoveryGroups() {
+      const buckets = {
+        'HA devices': [],
+        'HA hosts (entity IP/MAC)': [],
+        'LAN (ARP)': [],
+      };
+      (this.discovery.candidates || []).forEach(c => {
+        if (c.source === 'ha-device')      buckets['HA devices'].push(c);
+        else if (c.source === 'ha-entity') buckets['HA hosts (entity IP/MAC)'].push(c);
+        else if (c.source === 'arp')       buckets['LAN (ARP)'].push(c);
+      });
+      return Object.entries(buckets).map(([title, items]) => ({ title, items }));
+    },
+
+    async importCandidate(c) {
+      try {
+        const r = await fetch(`${API}/discovery/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: c.key }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          alert('Import failed: ' + (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)));
+          return;
+        }
+        await Promise.all([this.reload(), this.loadDiscovery()]);
+        this.markSaved();
+      } catch (e) { alert('Import error: ' + e); }
+    },
+
+    async dismissCandidate(c) {
+      try {
+        const r = await fetch(`${API}/discovery/dismiss`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: c.key }),
+        });
+        this.discovery = await r.json();
+      } catch {}
+    },
+
+    fmtAgo(t) { return fmtAgo(t); },
 
     async loadUptime() {
       try {

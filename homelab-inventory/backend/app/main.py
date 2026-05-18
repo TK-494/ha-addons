@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from . import ha_client, storage, uptime
+from . import discovery, ha_client, storage, uptime
 from .schemas import (
     Hardware,
     Application,
@@ -79,6 +79,7 @@ async def on_startup() -> None:
     ):
         storage.save(initial_inventory())
     uptime.start()
+    discovery.start()
 
 
 # ─── meta ───────────────────────────────────────────────────────────────────
@@ -174,6 +175,50 @@ async def ha_entities() -> Dict[str, Any]:
 @app.get("/api/uptime")
 def uptime_snapshot() -> Dict[str, Any]:
     return uptime.snapshot()
+
+
+# ─── Discovery ─────────────────────────────────────────────────────────────
+
+@app.get("/api/discovery")
+def discovery_snapshot() -> Dict[str, Any]:
+    return discovery.snapshot()
+
+
+@app.post("/api/discovery/scan")
+async def discovery_scan() -> Dict[str, Any]:
+    await discovery.scan()
+    return discovery.snapshot()
+
+
+@app.post("/api/discovery/import")
+def discovery_import(payload: Dict[str, Any]) -> Dict[str, Any]:
+    key = payload.get("key")
+    if not key:
+        raise HTTPException(status_code=400, detail="missing 'key'")
+    try:
+        return discovery.import_candidate(key, payload.get("overrides"))
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/discovery/dismiss")
+def discovery_dismiss(payload: Dict[str, Any]) -> Dict[str, Any]:
+    key = payload.get("key")
+    if not key:
+        raise HTTPException(status_code=400, detail="missing 'key'")
+    return discovery.dismiss(key)
+
+
+@app.post("/api/discovery/undismiss")
+def discovery_undismiss(payload: Dict[str, Any]) -> Dict[str, Any]:
+    key = payload.get("key")
+    if not key:
+        raise HTTPException(status_code=400, detail="missing 'key'")
+    return discovery.undismiss(key)
 
 
 # ─── flat sections: hardware, applications, integrations ───────────────────

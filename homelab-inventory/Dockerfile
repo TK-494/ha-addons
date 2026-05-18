@@ -4,6 +4,10 @@ FROM ${BUILD_FROM}
 
 WORKDIR /app
 
+# arp-scan + iproute2 power the LAN auto-discovery sweep. arp-scan needs
+# NET_RAW; iproute2 gives us `ip neigh show` as a no-privilege fallback.
+RUN apk add --no-cache arp-scan iproute2
+
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
