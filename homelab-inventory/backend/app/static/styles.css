@@ -1,14 +1,84 @@
 [x-cloak] { display: none !important; }
 
+/* Light defaults; dark overrides via prefers-color-scheme. Theme tokens drive
+   the few raw colours the Tailwind utility classes can't reach (vis-network,
+   form focus, scrollbars). */
+:root {
+  --bg:           #f8fafc;
+  --bg-elev:     #ffffff;
+  --bg-soft:     #f1f5f9;
+  --border:      #e2e8f0;
+  --text:        #0f172a;
+  --text-muted:  #64748b;
+  --accent:      #03a9f4;
+  --graph-bg:    #fafbfc;
+  --graph-edge:  #94a3b8;
+  --node-app-bg: #ede9fe;
+  --node-app-bd: #7c3aed;
+  --node-int-bg: #fef3c7;
+  --node-int-bd: #d97706;
+  --up:          #10b981;
+  --down:        #ef4444;
+  --unknown:     #94a3b8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:           #0b1220;
+    --bg-elev:     #111a2c;
+    --bg-soft:     #1a2440;
+    --border:      #233149;
+    --text:        #e2e8f0;
+    --text-muted:  #94a3b8;
+    --accent:      #38bdf8;
+    --graph-bg:    #0f172a;
+    --graph-edge:  #475569;
+    --node-app-bg: #312e81;
+    --node-app-bd: #a78bfa;
+    --node-int-bg: #422006;
+    --node-int-bd: #fbbf24;
+    --up:          #34d399;
+    --down:        #f87171;
+    --unknown:     #64748b;
+  }
+}
+
+html, body { background: var(--bg); color: var(--text); }
+
 #graph {
-  background: #fafbfc;
+  background: var(--graph-bg);
   border-radius: 6px;
 }
 
 textarea, input, select {
   outline: none;
+  background: var(--bg-elev);
+  color: var(--text);
 }
 textarea:focus, input:focus, select:focus {
-  border-color: #03a9f4;
-  box-shadow: 0 0 0 2px rgba(3, 169, 244, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.status-pill::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+.status-up      { color: var(--up);      background: color-mix(in srgb, var(--up) 15%, transparent); }
+.status-down    { color: var(--down);    background: color-mix(in srgb, var(--down) 15%, transparent); }
+.status-unknown { color: var(--unknown); background: color-mix(in srgb, var(--unknown) 15%, transparent); }

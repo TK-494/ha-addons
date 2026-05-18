@@ -30,6 +30,8 @@ class Hardware(BaseModel):
     purchased: Optional[str] = None
     notes: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+    ha_device_id: Optional[str] = None
+    ha_entity_id: Optional[str] = None
 
 
 class Subnet(BaseModel):
@@ -76,6 +78,7 @@ class Application(BaseModel):
     purpose: Optional[str] = None
     notes: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+    ha_entity_id: Optional[str] = None
 
 
 class Integration(BaseModel):

@@ -1,7 +1,7 @@
 name: Homelab Inventory
-version: "1.0.0"
+version: "1.1.0"
 slug: homelab-inventory
-description: Living inventory of homelab hardware, network, applications and integrations. YAML-backed, browse and edit through the UI.
+description: Living inventory of homelab hardware, network, applications and integrations. Tracks uptime via Home Assistant entities. YAML-backed, browse and edit through the UI.
 url: https://github.com/TK-494/ha-addons/tree/main/homelab-inventory
 arch:
   - aarch64
@@ -13,6 +13,8 @@ ingress: true
 ingress_port: 8000
 panel_icon: mdi:server-network
 panel_title: Homelab
+homeassistant_api: true
+hassio_api: false
 map:
   - addon_config:rw
 options: {}

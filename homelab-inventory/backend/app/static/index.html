@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script>
     tailwind.config = {
+      darkMode: 'media',
       theme: {
         extend: {
           colors: {
@@ -20,29 +21,33 @@
     }
   </script>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
   <div x-data="app()" x-init="init()" class="min-h-screen">
 
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 flex-wrap">
         <div class="text-xl font-semibold flex items-center gap-2">
           <span class="inline-block w-6 h-6 rounded bg-ha-500"></span>
           Homelab Inventory
         </div>
-        <nav class="flex gap-1 ml-4 text-sm">
+        <nav class="flex gap-1 ml-4 text-sm flex-wrap">
           <template x-for="t in tabs" :key="t.id">
             <button
               @click="tab = t.id"
-              :class="tab === t.id ? 'bg-ha-500 text-white' : 'text-slate-600 hover:bg-slate-100'"
+              :class="tab === t.id
+                ? 'bg-ha-500 text-white'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'"
               class="px-3 py-1.5 rounded-md font-medium"
               x-text="t.label"></button>
           </template>
         </nav>
         <div class="ml-auto flex items-center gap-2 text-sm">
-          <span x-show="saving" class="text-amber-600">Saving…</span>
+          <span x-show="ha.configured === false" class="text-amber-600 dark:text-amber-400 text-xs">HA: not connected</span>
+          <span x-show="ha.configured === true"  class="text-emerald-600 dark:text-emerald-400 text-xs">HA: connected</span>
+          <span x-show="saving" class="text-amber-600 dark:text-amber-400">Saving…</span>
           <span x-show="!saving && lastSaved" class="text-slate-400" x-text="'Saved ' + lastSaved"></span>
-          <button @click="reload()" class="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200">Reload</button>
+          <button @click="reload()" class="px-3 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700">Reload</button>
         </div>
       </div>
     </header>
@@ -58,65 +63,178 @@
             {label: 'Integrations', val: inv.integrations?.length || 0, color: 'bg-amber-500'},
             {label: 'Hosts', val: inv.network?.hosts?.length || 0, color: 'bg-ha-500'},
           ]" :key="card.label">
-            <div class="bg-white rounded-lg border border-slate-200 p-4">
-              <div class="text-xs text-slate-500 uppercase tracking-wide" x-text="card.label"></div>
+            <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+              <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide" x-text="card.label"></div>
               <div class="text-3xl font-semibold mt-1" x-text="card.val"></div>
               <div :class="card.color" class="h-1 rounded mt-3"></div>
             </div>
           </template>
         </div>
 
-        <div class="bg-white rounded-lg border border-slate-200 p-3">
-          <div class="text-sm font-medium text-slate-600 mb-2">Topology</div>
-          <div id="graph" class="w-full" style="height: 520px;"></div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Tracked entities</div>
+            <div class="text-3xl font-semibold mt-1" x-text="Object.keys(uptime).length"></div>
+            <div class="text-xs text-slate-400 mt-1">bound to HA entities</div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Up right now</div>
+            <div class="text-3xl font-semibold mt-1 text-emerald-500" x-text="trackedCount('up')"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+            <div class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Down right now</div>
+            <div class="text-3xl font-semibold mt-1 text-red-500" x-text="trackedCount('down')"></div>
+          </div>
         </div>
       </section>
 
-      <!-- Generic table view for hardware/applications/integrations -->
-      <template x-for="section in flatSections" :key="section.key">
-        <section x-show="tab === section.key" x-cloak>
-          <div class="flex items-center mb-3">
-            <h2 class="text-lg font-semibold" x-text="section.label"></h2>
-            <span class="ml-2 text-sm text-slate-400" x-text="(inv[section.key]?.length || 0) + ' items'"></span>
-            <button @click="openNew(section.key)"
-                    class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
-              + Add
-            </button>
-          </div>
+      <!-- Hardware -->
+      <section x-show="tab === 'hardware'" x-cloak>
+        <div class="flex items-center mb-3">
+          <h2 class="text-lg font-semibold">Hardware infrastructure</h2>
+          <span class="ml-2 text-sm text-slate-400" x-text="(inv.hardware?.length || 0) + ' items'"></span>
+          <button @click="openNew('hardware')"
+                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+            + Add
+          </button>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-left">
+              <tr>
+                <th class="px-3 py-2 font-medium">Status</th>
+                <th class="px-3 py-2 font-medium">Name</th>
+                <th class="px-3 py-2 font-medium">Type</th>
+                <th class="px-3 py-2 font-medium">Location</th>
+                <th class="px-3 py-2 font-medium">Role</th>
+                <th class="px-3 py-2 font-medium">HA entity</th>
+                <th class="px-3 py-2 font-medium">Current streak</th>
+                <th class="px-3 py-2 font-medium">Uptime</th>
+                <th class="px-3 py-2 w-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in (inv.hardware || [])" :key="item.id">
+                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                    @click="openEdit('hardware', item)">
+                  <td class="px-3 py-2 align-top" x-html="statusPill(item.ha_entity_id)"></td>
+                  <td class="px-3 py-2 align-top font-medium" x-text="item.name"></td>
+                  <td class="px-3 py-2 align-top" x-text="item.type"></td>
+                  <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="item.location || '—'"></td>
+                  <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="item.role || '—'"></td>
+                  <td class="px-3 py-2 align-top font-mono text-xs text-slate-500 dark:text-slate-400" x-text="item.ha_entity_id || '—'"></td>
+                  <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="streakOf(item.ha_entity_id)"></td>
+                  <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="uptimePctOf(item.ha_entity_id)"></td>
+                  <td class="px-3 py-2 text-right">
+                    <button @click.stop="del('hardware', item.id)"
+                            class="text-slate-400 hover:text-red-600 text-xs">✕</button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!(inv.hardware || []).length">
+                <td colspan="9" class="px-3 py-6 text-center text-slate-400">Nothing here yet. Click + Add.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-          <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <!-- Applications (grouped by runs_on) -->
+      <section x-show="tab === 'applications'" x-cloak>
+        <div class="flex items-center mb-3">
+          <h2 class="text-lg font-semibold">Application landscape</h2>
+          <span class="ml-2 text-sm text-slate-400" x-text="(inv.applications?.length || 0) + ' items'"></span>
+          <button @click="openNew('applications')"
+                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+            + Add
+          </button>
+        </div>
+
+        <template x-for="group in appsByHardware()" :key="group.hardware_id || '__unassigned__'">
+          <div class="mb-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div class="px-3 py-2 bg-slate-100 dark:bg-slate-800 flex items-center text-sm">
+              <span class="font-semibold" x-text="group.hardware_name"></span>
+              <span class="ml-2 text-slate-400 text-xs" x-text="group.hardware_id ? (group.hardware_type || '') : 'No hardware linked'"></span>
+              <span class="ml-auto text-xs text-slate-400" x-text="group.apps.length + ' app' + (group.apps.length === 1 ? '' : 's')"></span>
+            </div>
             <table class="w-full text-sm">
-              <thead class="bg-slate-100 text-slate-600 text-left">
+              <thead class="text-slate-500 dark:text-slate-400 text-left text-xs uppercase">
                 <tr>
-                  <template x-for="col in section.cols" :key="col.key">
-                    <th class="px-3 py-2 font-medium" x-text="col.label"></th>
-                  </template>
+                  <th class="px-3 py-2 font-medium">Status</th>
+                  <th class="px-3 py-2 font-medium">Name</th>
+                  <th class="px-3 py-2 font-medium">Type</th>
+                  <th class="px-3 py-2 font-medium">Purpose</th>
+                  <th class="px-3 py-2 font-medium">HA entity</th>
+                  <th class="px-3 py-2 font-medium">Current streak</th>
+                  <th class="px-3 py-2 font-medium">Uptime</th>
                   <th class="px-3 py-2 w-1"></th>
                 </tr>
               </thead>
               <tbody>
-                <template x-for="item in (inv[section.key] || [])" :key="item.id">
-                  <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
-                      @click="openEdit(section.key, item)">
-                    <template x-for="col in section.cols" :key="col.key">
-                      <td class="px-3 py-2 align-top" x-text="renderCell(item, col)"></td>
-                    </template>
+                <template x-for="item in group.apps" :key="item.id">
+                  <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                      @click="openEdit('applications', item)">
+                    <td class="px-3 py-2 align-top" x-html="statusPill(item.ha_entity_id)"></td>
+                    <td class="px-3 py-2 align-top font-medium" x-text="item.name"></td>
+                    <td class="px-3 py-2 align-top" x-text="item.type"></td>
+                    <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="item.purpose || '—'"></td>
+                    <td class="px-3 py-2 align-top font-mono text-xs text-slate-500 dark:text-slate-400" x-text="item.ha_entity_id || '—'"></td>
+                    <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="streakOf(item.ha_entity_id)"></td>
+                    <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="uptimePctOf(item.ha_entity_id)"></td>
                     <td class="px-3 py-2 text-right">
-                      <button @click.stop="del(section.key, item.id)"
+                      <button @click.stop="del('applications', item.id)"
                               class="text-slate-400 hover:text-red-600 text-xs">✕</button>
                     </td>
                   </tr>
                 </template>
-                <tr x-show="!(inv[section.key] || []).length">
-                  <td :colspan="section.cols.length + 1" class="px-3 py-6 text-center text-slate-400">
-                    Nothing here yet. Click + Add.
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
-        </section>
-      </template>
+        </template>
+      </section>
+
+      <!-- Integrations -->
+      <section x-show="tab === 'integrations'" x-cloak>
+        <div class="flex items-center mb-3">
+          <h2 class="text-lg font-semibold">Integrations</h2>
+          <span class="ml-2 text-sm text-slate-400" x-text="(inv.integrations?.length || 0) + ' items'"></span>
+          <button @click="openNew('integrations')"
+                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+            + Add
+          </button>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-left">
+              <tr>
+                <template x-for="col in integrationCols" :key="col.key">
+                  <th class="px-3 py-2 font-medium" x-text="col.label"></th>
+                </template>
+                <th class="px-3 py-2 w-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in (inv.integrations || [])" :key="item.id">
+                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                    @click="openEdit('integrations', item)">
+                  <template x-for="col in integrationCols" :key="col.key">
+                    <td class="px-3 py-2 align-top" x-text="renderCell(item, col)"></td>
+                  </template>
+                  <td class="px-3 py-2 text-right">
+                    <button @click.stop="del('integrations', item.id)"
+                            class="text-slate-400 hover:text-red-600 text-xs">✕</button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!(inv.integrations || []).length">
+                <td :colspan="integrationCols.length + 1" class="px-3 py-6 text-center text-slate-400">
+                  Nothing here yet. Click + Add.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <!-- Network -->
       <section x-show="tab === 'network'" x-cloak>
@@ -131,9 +249,9 @@
                 + Add
               </button>
             </div>
-            <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
               <table class="w-full text-sm">
-                <thead class="bg-slate-100 text-slate-600 text-left">
+                <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-left">
                   <tr>
                     <template x-for="col in section.cols" :key="col.key">
                       <th class="px-3 py-2 font-medium" x-text="col.label"></th>
@@ -143,7 +261,7 @@
                 </thead>
                 <tbody>
                   <template x-for="item in (inv.network?.[section.key] || [])" :key="item.id">
-                    <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                    <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
                         @click="openEdit('network/' + section.key, item)">
                       <template x-for="col in section.cols" :key="col.key">
                         <td class="px-3 py-2 align-top" x-text="renderCell(item, col)"></td>
@@ -166,6 +284,59 @@
         </template>
       </section>
 
+      <!-- Topology -->
+      <section x-show="tab === 'topology'" x-cloak>
+        <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+          <div class="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Topology</div>
+          <div id="graph" class="w-full" style="height: 620px;"></div>
+        </div>
+      </section>
+
+      <!-- HA Devices -->
+      <section x-show="tab === 'ha'" x-cloak>
+        <div class="flex items-center mb-3">
+          <h2 class="text-lg font-semibold">Home Assistant devices</h2>
+          <span class="ml-2 text-sm text-slate-400" x-text="haDevices.length + ' devices'"></span>
+          <input x-model="haFilter" placeholder="Filter…"
+                 class="ml-auto border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm w-64" />
+          <button @click="loadHaDevices()"
+                  class="ml-2 px-3 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm">
+            Refresh
+          </button>
+        </div>
+        <p x-show="ha.configured === false" class="text-amber-600 dark:text-amber-400 text-sm mb-3">
+          Not running inside Home Assistant (no SUPERVISOR_TOKEN). Device list is empty.
+        </p>
+        <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-left">
+              <tr>
+                <th class="px-3 py-2 font-medium">Name</th>
+                <th class="px-3 py-2 font-medium">Manufacturer</th>
+                <th class="px-3 py-2 font-medium">Model</th>
+                <th class="px-3 py-2 font-medium">Entities</th>
+                <th class="px-3 py-2 font-medium">Device ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="d in filteredHaDevices()" :key="d.id">
+                <tr class="border-t border-slate-100 dark:border-slate-800">
+                  <td class="px-3 py-2 align-top font-medium" x-text="d.name || '(unnamed)'"></td>
+                  <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="d.manufacturer || '—'"></td>
+                  <td class="px-3 py-2 align-top text-slate-500 dark:text-slate-400" x-text="d.model || '—'"></td>
+                  <td class="px-3 py-2 align-top text-xs font-mono text-slate-500 dark:text-slate-400"
+                      x-text="(d.entities || []).map(e => e.entity_id).join(', ') || '—'"></td>
+                  <td class="px-3 py-2 align-top text-xs font-mono text-slate-400" x-text="d.id"></td>
+                </tr>
+              </template>
+              <tr x-show="!filteredHaDevices().length">
+                <td colspan="5" class="px-3 py-6 text-center text-slate-400">No devices.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Raw YAML editor -->
       <section x-show="tab === 'yaml'" x-cloak>
         <div class="flex items-center mb-2">
@@ -177,7 +348,7 @@
           </button>
         </div>
         <textarea x-model="rawYaml"
-                  class="w-full h-[600px] font-mono text-xs p-3 rounded-lg border border-slate-200 bg-white"
+                  class="w-full h-[600px] font-mono text-xs p-3 rounded-lg border border-slate-200 dark:border-slate-700"
                   spellcheck="false"></textarea>
         <p x-show="rawError" class="text-red-600 text-sm mt-2" x-text="rawError"></p>
       </section>
@@ -187,22 +358,22 @@
     <div x-show="editing" x-cloak
          class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-20"
          @click.self="editing = null">
-      <div class="bg-white rounded-lg w-full max-w-lg max-h-[85vh] overflow-auto">
-        <div class="px-4 py-3 border-b border-slate-200 flex items-center">
+      <div class="bg-white dark:bg-slate-900 rounded-lg w-full max-w-lg max-h-[85vh] overflow-auto">
+        <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center">
           <h3 class="font-semibold" x-text="(editingIsNew ? 'New ' : 'Edit ') + (editingSection || '')"></h3>
-          <button @click="editing = null" class="ml-auto text-slate-400 hover:text-slate-800">✕</button>
+          <button @click="editing = null" class="ml-auto text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">✕</button>
         </div>
         <div class="p-4 space-y-3">
           <template x-for="field in editingFields" :key="field.key">
             <div>
-              <label class="block text-xs font-medium text-slate-500 mb-1" x-text="field.label"></label>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1" x-text="field.label"></label>
               <template x-if="field.type === 'textarea'">
                 <textarea x-model="editing[field.key]" rows="3"
-                          class="w-full border border-slate-200 rounded px-2 py-1 text-sm"></textarea>
+                          class="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm"></textarea>
               </template>
               <template x-if="field.type === 'select'">
                 <select x-model="editing[field.key]"
-                        class="w-full border border-slate-200 rounded px-2 py-1 text-sm">
+                        class="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm">
                   <template x-for="opt in field.options" :key="opt">
                     <option :value="opt" x-text="opt"></option>
                   </template>
@@ -211,20 +382,20 @@
               <template x-if="field.type === 'tags'">
                 <input :value="(editing[field.key] || []).join(', ')"
                        @input="editing[field.key] = $event.target.value.split(',').map(s => s.trim()).filter(Boolean)"
-                       class="w-full border border-slate-200 rounded px-2 py-1 text-sm"
+                       class="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm"
                        placeholder="comma, separated, tags" />
               </template>
               <template x-if="!field.type || field.type === 'text' || field.type === 'number'">
                 <input :type="field.type === 'number' ? 'number' : 'text'"
                        x-model="editing[field.key]"
-                       class="w-full border border-slate-200 rounded px-2 py-1 text-sm" />
+                       class="w-full border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm" />
               </template>
             </div>
           </template>
         </div>
-        <div class="px-4 py-3 border-t border-slate-200 flex">
+        <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex">
           <button @click="editing = null"
-                  class="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-sm">
+                  class="px-3 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm">
             Cancel
           </button>
           <button @click="saveItem()"

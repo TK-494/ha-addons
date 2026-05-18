@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from . import storage
+from . import ha_client, storage, uptime
 from .schemas import (
     Hardware,
     Application,
@@ -66,8 +66,8 @@ NETWORK_SECTION_MODELS = {
 # ─── lifecycle ──────────────────────────────────────────────────────────────
 
 @app.on_event("startup")
-def on_startup() -> None:
-    """Seed an empty inventory on first run."""
+async def on_startup() -> None:
+    """Seed an empty inventory on first run, then start the uptime poller."""
     inv = storage.load()
     if (
         not inv.hardware
@@ -78,6 +78,7 @@ def on_startup() -> None:
         and not inv.network.vlans
     ):
         storage.save(initial_inventory())
+    uptime.start()
 
 
 # ─── meta ───────────────────────────────────────────────────────────────────
@@ -115,6 +116,64 @@ async def put_raw(request: Request) -> str:
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     return storage.raw_yaml()
+
+
+# ─── Home Assistant proxy ──────────────────────────────────────────────────
+
+@app.get("/api/ha/status")
+def ha_status() -> Dict[str, Any]:
+    return {
+        "configured": ha_client.is_configured(),
+        "rest_base": ha_client.HA_REST_BASE,
+    }
+
+
+@app.get("/api/ha/devices")
+async def ha_devices() -> Dict[str, Any]:
+    devices = await ha_client.list_devices()
+    entities = await ha_client.list_entities_for_devices()
+    by_device: Dict[str, list] = {}
+    for e in entities:
+        did = e.get("device_id")
+        if did:
+            by_device.setdefault(did, []).append(
+                {"entity_id": e.get("entity_id"), "platform": e.get("platform")}
+            )
+    enriched = []
+    for d in devices:
+        did = d.get("id")
+        enriched.append({
+            "id": did,
+            "name": d.get("name_by_user") or d.get("name"),
+            "manufacturer": d.get("manufacturer"),
+            "model": d.get("model"),
+            "area_id": d.get("area_id"),
+            "disabled_by": d.get("disabled_by"),
+            "entities": by_device.get(did, []),
+        })
+    return {"count": len(enriched), "devices": enriched}
+
+
+@app.get("/api/ha/entities")
+async def ha_entities() -> Dict[str, Any]:
+    states = await ha_client.list_states()
+    slim = [
+        {
+            "entity_id": s.get("entity_id"),
+            "state": s.get("state"),
+            "friendly_name": (s.get("attributes") or {}).get("friendly_name"),
+            "device_class": (s.get("attributes") or {}).get("device_class"),
+        }
+        for s in states
+    ]
+    return {"count": len(slim), "entities": slim}
+
+
+# ─── Uptime ────────────────────────────────────────────────────────────────
+
+@app.get("/api/uptime")
+def uptime_snapshot() -> Dict[str, Any]:
+    return uptime.snapshot()
 
 
 # ─── flat sections: hardware, applications, integrations ───────────────────
