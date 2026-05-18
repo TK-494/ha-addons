@@ -19,9 +19,9 @@ services:
       - homelab-data:/data
     environment:
       - INVENTORY_PATH=/data/infrastructure.yaml
-      # Standalone compose runs publish the port, so bind to all interfaces.
-      # Inside HAOS the add-on uses run.sh's default (127.0.0.1) for safety.
-      - BIND_HOST=0.0.0.0
+      # Standalone compose has no HA Ingress in front of it — disable the
+      # ingress-only middleware so the published port is actually usable.
+      - INGRESS_ONLY=0
 
 volumes:
   homelab-data:

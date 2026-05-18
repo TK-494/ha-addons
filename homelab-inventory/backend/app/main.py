@@ -18,11 +18,12 @@ Endpoints:
 Static frontend mounted at /.
 """
 
+import os
 from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -40,7 +41,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.2.1")
+app = FastAPI(title="Homelab Inventory", version="1.2.2")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS
@@ -74,7 +75,35 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# When the add-on uses host_network: true (required for arp-scan), uvicorn
+# has to listen on 0.0.0.0 so Supervisor's ingress proxy can reach it from
+# its own container — but that also makes the port reachable from the LAN.
+# Supervisor stamps every ingress-proxied request with X-Hass-User-* /
+# X-Ingress-Path headers; LAN clients connecting directly don't. We reject
+# anything missing those headers.
+#
+# Set INGRESS_ONLY=0 for standalone docker-compose runs (no HA in front).
+_INGRESS_ONLY = os.getenv("INGRESS_ONLY", "1") == "1"
+_INGRESS_HEADER_MARKERS = ("x-ingress-path", "x-hass-user-id", "x-hassio-key")
+_INGRESS_EXEMPT_PATHS = {"/api/health"}
+
+
+class IngressOnlyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if _INGRESS_ONLY and request.url.path not in _INGRESS_EXEMPT_PATHS:
+            if not any(h in request.headers for h in _INGRESS_HEADER_MARKERS):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": "Direct access not allowed. Open the add-on through "
+                                  "Home Assistant's sidebar (ingress)."
+                    },
+                )
+        return await call_next(request)
+
+
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(IngressOnlyMiddleware)
 
 
 SECTION_MODELS = {
