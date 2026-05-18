@@ -5,21 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Homelab Inventory</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind config must load AFTER the CDN script but BEFORE Alpine starts
+       rendering, and must be external because our CSP forbids inline scripts. -->
+  <script src="tailwind-config.js"></script>
   <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
   <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
   <link rel="stylesheet" href="styles.css" />
-  <script>
-    tailwind.config = {
-      darkMode: 'media',
-      theme: {
-        extend: {
-          colors: {
-            ha: { 50: '#f1f7fb', 500: '#03a9f4', 600: '#0288d1', 700: '#0277bd' }
-          }
-        }
-      }
-    }
-  </script>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
   <div x-data="app()" x-init="init()" class="min-h-screen">
@@ -36,7 +27,7 @@
             <button
               @click="tab = t.id"
               :class="tab === t.id
-                ? 'bg-ha-500 text-white'
+                ? 'tab-active'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'"
               class="px-3 py-1.5 rounded-md font-medium"
               x-text="t.label"></button>
@@ -94,7 +85,7 @@
           <h2 class="text-lg font-semibold">Hardware infrastructure</h2>
           <span class="ml-2 text-sm text-slate-400" x-text="(inv.hardware?.length || 0) + ' items'"></span>
           <button @click="openNew('hardware')"
-                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
             + Add
           </button>
         </div>
@@ -145,7 +136,7 @@
           <h2 class="text-lg font-semibold">Application landscape</h2>
           <span class="ml-2 text-sm text-slate-400" x-text="(inv.applications?.length || 0) + ' items'"></span>
           <button @click="openNew('applications')"
-                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
             + Add
           </button>
         </div>
@@ -199,7 +190,7 @@
           <h2 class="text-lg font-semibold">Integrations</h2>
           <span class="ml-2 text-sm text-slate-400" x-text="(inv.integrations?.length || 0) + ' items'"></span>
           <button @click="openNew('integrations')"
-                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
             + Add
           </button>
         </div>
@@ -245,7 +236,7 @@
               <span class="ml-2 text-sm text-slate-400"
                     x-text="(inv.network?.[section.key]?.length || 0) + ' items'"></span>
               <button @click="openNew('network/' + section.key)"
-                      class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                      class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
                 + Add
               </button>
             </div>
@@ -301,7 +292,7 @@
                 x-text="'last scan ' + fmtAgo(discovery.last_scan_at)"></span>
           <button @click="runDiscoveryScan()"
                   :disabled="discovery.scan_in_progress"
-                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm disabled:opacity-50">
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm disabled:opacity-50">
             <span x-text="discovery.scan_in_progress ? 'Scanning…' : 'Scan now'"></span>
           </button>
         </div>
@@ -420,7 +411,7 @@
           <h2 class="text-lg font-semibold">Raw YAML</h2>
           <span class="ml-2 text-xs text-slate-400">infrastructure.yaml in <code>/data</code></span>
           <button @click="saveRaw()"
-                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
             Save YAML
           </button>
         </div>
@@ -476,7 +467,7 @@
             Cancel
           </button>
           <button @click="saveItem()"
-                  class="ml-auto px-3 py-1.5 rounded-md bg-ha-500 hover:bg-ha-600 text-white text-sm">
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
             Save
           </button>
         </div>

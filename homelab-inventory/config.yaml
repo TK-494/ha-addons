@@ -1,5 +1,5 @@
 name: Homelab Inventory
-version: "1.2.3"
+version: "1.2.4"
 slug: homelab-inventory
 description: Living inventory of homelab hardware, network, applications and integrations. Tracks uptime via Home Assistant entities and auto-discovers devices/hosts (HA registry + LAN ARP sweep). YAML-backed, browse and edit through the UI.
 url: https://github.com/TK-494/ha-addons/tree/main/homelab-inventory

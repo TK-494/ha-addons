@@ -41,7 +41,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.2.3")
+app = FastAPI(title="Homelab Inventory", version="1.2.4")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS

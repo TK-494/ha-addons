@@ -82,3 +82,23 @@ textarea:focus, input:focus, select:focus {
 .status-up      { color: var(--up);      background: color-mix(in srgb, var(--up) 15%, transparent); }
 .status-down    { color: var(--down);    background: color-mix(in srgb, var(--down) 15%, transparent); }
 .status-unknown { color: var(--unknown); background: color-mix(in srgb, var(--unknown) 15%, transparent); }
+
+/* Hard-coded fallbacks for high-contrast UI affordances. Defined here (rather
+   than only as Tailwind utilities) so they stay readable even if a Tailwind
+   custom-colour config ever silently fails to load — which is exactly what
+   broke us once when CSP blocked the inline tailwind.config script. */
+.tab-active, .btn-primary {
+  background-color: #0369a1 !important; /* sky-700 */
+  color: #ffffff !important;
+}
+.tab-active:hover, .btn-primary:hover {
+  background-color: #075985 !important; /* sky-800 */
+}
+@media (prefers-color-scheme: dark) {
+  .tab-active, .btn-primary {
+    background-color: #0284c7 !important; /* sky-600 — slightly lighter on dark */
+  }
+  .tab-active:hover, .btn-primary:hover {
+    background-color: #0369a1 !important;
+  }
+}
