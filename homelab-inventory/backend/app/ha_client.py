@@ -21,21 +21,46 @@ import httpx
 import websockets
 
 
-SUPERVISOR_TOKEN = os.getenv("SUPERVISOR_TOKEN")
 HA_REST_BASE = os.getenv("HA_REST_BASE", "http://supervisor/core/api")
 HA_WS_URL = os.getenv("HA_WS_URL", "ws://supervisor/core/websocket")
+
+# Order matters: SUPERVISOR_TOKEN is the modern name; HASSIO_TOKEN is the
+# legacy one (still injected by older HA versions and some forks).
+_TOKEN_ENV_VARS = ("SUPERVISOR_TOKEN", "HASSIO_TOKEN")
 
 _DEVICE_CACHE: Dict[str, Any] = {"at": 0.0, "data": []}
 _DEVICE_TTL_SECONDS = 60.0
 
 
+def _token() -> Optional[str]:
+    """Look up the Supervisor token at call time, not import time.
+
+    Reading at import time bakes in whatever the env was at that exact moment
+    and stays None forever if anything was off. Looking it up lazily picks up
+    the value as soon as the env is correct.
+    """
+    for var in _TOKEN_ENV_VARS:
+        v = os.getenv(var)
+        if v:
+            return v
+    return None
+
+
+def token_env_var() -> Optional[str]:
+    """Which env var the current token came from (for diagnostics)."""
+    for var in _TOKEN_ENV_VARS:
+        if os.getenv(var):
+            return var
+    return None
+
+
 def is_configured() -> bool:
-    return bool(SUPERVISOR_TOKEN)
+    return bool(_token())
 
 
 def _headers() -> Dict[str, str]:
     return {
-        "Authorization": f"Bearer {SUPERVISOR_TOKEN}",
+        "Authorization": f"Bearer {_token()}",
         "Content-Type": "application/json",
     }
 
@@ -100,7 +125,7 @@ async def _ws_call(ws_type: str) -> Any:
         hello = json.loads(await ws.recv())
         if hello.get("type") != "auth_required":
             raise RuntimeError(f"unexpected hello: {hello}")
-        await ws.send(json.dumps({"type": "auth", "access_token": SUPERVISOR_TOKEN}))
+        await ws.send(json.dumps({"type": "auth", "access_token": _token()}))
         auth_resp = json.loads(await ws.recv())
         if auth_resp.get("type") != "auth_ok":
             raise RuntimeError(f"auth failed: {auth_resp}")
