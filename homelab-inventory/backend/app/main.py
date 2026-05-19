@@ -41,7 +41,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.2.4")
+app = FastAPI(title="Homelab Inventory", version="1.2.5")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS
@@ -179,9 +179,13 @@ async def put_raw(request: Request) -> str:
 
 @app.get("/api/ha/status")
 def ha_status() -> Dict[str, Any]:
-    # Diagnostic helpers — which Supervisor-related env vars exist (names
-    # only, never values) so the UI can explain WHY the token wasn't picked
-    # up if it wasn't.
+    # Diagnostic helpers — env var NAMES only (never values). Three views:
+    #  1. supervisor_env_present: names matching the well-known prefixes
+    #     (SUPERVISOR/HASSIO/HOMEASSISTANT). The common case.
+    #  2. all_env_keys: every env var name in the container. Helps when (1)
+    #     comes back empty so we can spot whatever Supervisor IS injecting
+    #     under an unexpected name.
+    #  3. addon_version + bind metadata so we can confirm the running build.
     supervisor_env_present = sorted(
         k for k in os.environ.keys()
         if k.startswith(("SUPERVISOR", "HASSIO", "HOMEASSISTANT"))
@@ -191,6 +195,8 @@ def ha_status() -> Dict[str, Any]:
         "token_env_var": ha_client.token_env_var(),
         "rest_base": ha_client.HA_REST_BASE,
         "supervisor_env_present": supervisor_env_present,
+        "all_env_keys": sorted(os.environ.keys()),
+        "addon_version": app.version,
     }
 
 

@@ -1,5 +1,5 @@
 name: Homelab Inventory
-version: "1.2.4"
+version: "1.2.5"
 slug: homelab-inventory
 description: Living inventory of homelab hardware, network, applications and integrations. Tracks uptime via Home Assistant entities and auto-discovers devices/hosts (HA registry + LAN ARP sweep). YAML-backed, browse and edit through the UI.
 url: https://github.com/TK-494/ha-addons/tree/main/homelab-inventory
@@ -13,8 +13,14 @@ ingress: true
 ingress_port: 8000
 panel_icon: mdi:server-network
 panel_title: Homelab
+# All three flags request SUPERVISOR_TOKEN. Some HA Supervisor builds only
+# inject the token when hassio_api: true is set; homeassistant_api alone
+# isn't enough. auth_api kept on for future use (HA auth flows). The token
+# is scoped by hassio_role.
 homeassistant_api: true
-hassio_api: false
+hassio_api: true
+hassio_role: default
+auth_api: true
 host_network: true
 # NET_RAW is the only capability arp-scan needs to open AF_PACKET sockets.
 # NET_ADMIN (route/iptables changes) is deliberately NOT requested.

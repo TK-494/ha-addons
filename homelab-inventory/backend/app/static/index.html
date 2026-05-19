@@ -367,12 +367,18 @@
         <div x-show="ha.configured === false" class="mb-3 p-3 rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-200 text-sm">
           <div class="font-medium">Home Assistant token not found.</div>
           <div class="text-xs mt-1">
-            The add-on isn't seeing <code>SUPERVISOR_TOKEN</code> or <code>HASSIO_TOKEN</code> in its environment.
+            Running add-on version: <code x-text="ha.addon_version || '?'"></code>.
             Supervisor-related env vars currently present:
             <code x-text="(ha.supervisor_env_present || []).join(', ') || '(none)'"></code>.
           </div>
-          <div class="text-xs mt-1">
-            Fix: ensure <code>homeassistant_api: true</code> is set in <code>config.yaml</code> (it is, from v1.1), then fully <strong>stop and start</strong> the add-on in HA — a plain restart doesn't always re-inject env vars.
+          <details class="text-xs mt-2">
+            <summary class="cursor-pointer">All env var names in the container (click to expand)</summary>
+            <code class="block mt-1 break-all" x-text="(ha.all_env_keys || []).join(', ') || '(none)'"></code>
+          </details>
+          <div class="text-xs mt-2">
+            Fix path: ensure the add-on shows version <strong>1.2.5</strong> or higher (the api flags were widened in 1.2.5).
+            If still missing after a stop+start, try <em>uninstall + reinstall</em> — Supervisor sometimes caches the original
+            <code>config.yaml</code> permissions and doesn't re-evaluate on upgrade.
           </div>
         </div>
         <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
