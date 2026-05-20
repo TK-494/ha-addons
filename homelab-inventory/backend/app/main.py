@@ -41,7 +41,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.2.5")
+app = FastAPI(title="Homelab Inventory", version="1.2.6")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS
@@ -192,8 +192,14 @@ def ha_status() -> Dict[str, Any]:
     )
     return {
         "configured": ha_client.is_configured(),
+        # `token_source` is the new name — value is either an env var name
+        # (e.g. "SUPERVISOR_TOKEN") or "options.json:ha_token" when the user
+        # pasted a token in the add-on Configuration tab. Old key kept for
+        # back-compat with anyone who scripted against it.
+        "token_source": ha_client.token_env_var(),
         "token_env_var": ha_client.token_env_var(),
-        "rest_base": ha_client.HA_REST_BASE,
+        "rest_base": ha_client.rest_base(),
+        "ws_url": ha_client.ws_url(),
         "supervisor_env_present": supervisor_env_present,
         "all_env_keys": sorted(os.environ.keys()),
         "addon_version": app.version,

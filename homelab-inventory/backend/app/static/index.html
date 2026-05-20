@@ -366,20 +366,27 @@
         </div>
         <div x-show="ha.configured === false" class="mb-3 p-3 rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-200 text-sm">
           <div class="font-medium">Home Assistant token not found.</div>
-          <div class="text-xs mt-1">
-            Running add-on version: <code x-text="ha.addon_version || '?'"></code>.
-            Supervisor-related env vars currently present:
-            <code x-text="(ha.supervisor_env_present || []).join(', ') || '(none)'"></code>.
+          <div class="text-xs mt-2">
+            <strong>Quickest fix (recommended):</strong>
+            <ol class="list-decimal ml-5 mt-1 space-y-0.5">
+              <li>In HA, click your profile → Security → "Long-Lived Access Tokens" → Create Token.</li>
+              <li>Copy the token.</li>
+              <li>Open the Homelab Inventory add-on page → <strong>Configuration</strong> tab → paste into <code>ha_token</code> → Save.</li>
+              <li><strong>Stop + start</strong> the add-on.</li>
+            </ol>
+            <div class="mt-1">
+              If you also want to hit HA over the LAN (not through Supervisor's proxy), set <code>ha_base_url</code> to e.g. <code>http://homeassistant.local:8123</code> in the same Configuration tab.
+            </div>
           </div>
           <details class="text-xs mt-2">
-            <summary class="cursor-pointer">All env var names in the container (click to expand)</summary>
-            <code class="block mt-1 break-all" x-text="(ha.all_env_keys || []).join(', ') || '(none)'"></code>
+            <summary class="cursor-pointer">Diagnostic info</summary>
+            <div class="mt-1 space-y-0.5">
+              <div>Running version: <code x-text="ha.addon_version || '?'"></code></div>
+              <div>REST base: <code x-text="ha.rest_base || '?'"></code></div>
+              <div>Supervisor env vars present: <code x-text="(ha.supervisor_env_present || []).join(', ') || '(none)'"></code></div>
+              <div>All env var names: <code class="break-all" x-text="(ha.all_env_keys || []).join(', ') || '(none)'"></code></div>
+            </div>
           </details>
-          <div class="text-xs mt-2">
-            Fix path: ensure the add-on shows version <strong>1.2.5</strong> or higher (the api flags were widened in 1.2.5).
-            If still missing after a stop+start, try <em>uninstall + reinstall</em> — Supervisor sometimes caches the original
-            <code>config.yaml</code> permissions and doesn't re-evaluate on upgrade.
-          </div>
         </div>
         <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
           <table class="w-full text-sm">

@@ -1,5 +1,5 @@
 name: Homelab Inventory
-version: "1.2.5"
+version: "1.2.6"
 slug: homelab-inventory
 description: Living inventory of homelab hardware, network, applications and integrations. Tracks uptime via Home Assistant entities and auto-discovers devices/hosts (HA registry + LAN ARP sweep). YAML-backed, browse and edit through the UI.
 url: https://github.com/TK-494/ha-addons/tree/main/homelab-inventory
@@ -28,5 +28,12 @@ privileged:
   - NET_RAW
 map:
   - addon_config:rw
-options: {}
-schema: {}
+# Lets the user paste a Long-Lived Access Token from HA → Profile → Security
+# in the add-on Configuration tab. Used when Supervisor isn't injecting
+# SUPERVISOR_TOKEN for whatever reason (and works in standalone docker too).
+options:
+  ha_token: ""
+  ha_base_url: ""
+schema:
+  ha_token: "password?"
+  ha_base_url: "url?"
