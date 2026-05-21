@@ -244,11 +244,11 @@ def _classify_device(
     if vendor or model:
         return ("hardware", _hw_type_from_hints(vendor, model))
 
-    # 5. No vendor, no sensor entities, not a service — best guess: skip.
-    # These are usually integration shells (e.g. "Cast", "Apple TV"). Suppress
-    # by default rather than create noise; if the user wants them they can
-    # add manually.
-    return ("skip", None)
+    # 5. No vendor, no sensor entities, not a service. Could be an integration
+    # shell, could be a real device with empty metadata. Don't guess — surface
+    # to the user in the Discovery "needs your input" group so they can decide
+    # whether it's hardware, a sensor, an application, or noise to dismiss.
+    return ("unclassified", None)
 
 
 async def _ha_device_candidates() -> List[Dict[str, Any]]:
@@ -330,6 +330,27 @@ async def _ha_device_candidates() -> List[Dict[str, Any]]:
                 "label": name,
                 "subtitle": " • ".join(x for x in ["ha_addon", vendor, model] if x) or "ha_addon",
                 "proposal": proposal,
+            })
+        elif kind == "unclassified":
+            # Stash everything we know so the UI's per-row picker can render
+            # the proposal preview, but don't pick a destination — the user
+            # decides what section this should land in.
+            out.append({
+                "key": f"unk:ha:{did}",
+                "kind": "unclassified",
+                "source": "ha-device",
+                "label": name,
+                "subtitle": " • ".join(x for x in [vendor, model, area] if x) or "no manufacturer / model",
+                "proposal": {
+                    "id": common["id"],
+                    "name": name,
+                    "vendor": vendor,
+                    "model": model,
+                    "location": area,
+                    "ha_device_id": did,
+                    "notes": common["notes"],
+                    "tags": ["discovered", "ha", "unclassified"],
+                },
             })
     return out
 
@@ -438,24 +459,58 @@ def _arp_candidates() -> List[Dict[str, Any]]:
 # ─── scan orchestration ─────────────────────────────────────────────────────
 
 async def scan() -> Dict[str, Any]:
+    """Run all sources, **auto-import** confidently-classified HA devices, and
+    persist the rest as candidates the user has to triage.
+
+    Auto-imported kinds: hardware, sensor, application. The classifier only
+    returns those when it has enough signal (vendor/model, sensor entities,
+    or a hassio identifier) to be confident — see _classify_device.
+
+    Persistent candidates (review queue):
+    - kind=unclassified — HA devices the classifier couldn't pin down. Land
+      in the "needs your input" group with a per-row picker.
+    - kind=host — IPs from HA entities or LAN ARP. Always pending because
+      network membership is a user decision, not a data classification.
+    """
     global _scan_in_progress
     if _scan_in_progress:
         return _load()
     _scan_in_progress = True
     try:
-        # ARP scan blocks; run in a thread so the event loop stays responsive.
         ha_devs, ha_hosts, arp = await asyncio.gather(
             _ha_device_candidates(),
             _ha_host_candidates(),
             asyncio.to_thread(_arp_candidates),
         )
-        all_found = ha_devs + ha_hosts + arp
 
         data = _load()
         dismissed = set(data.get("dismissed", []))
         now = time.time()
+        auto_imported = 0
+        skipped_dismissed = 0
+
+        # 1) Auto-import the confident HA devices.
+        for c in ha_devs:
+            if c["kind"] not in ("hardware", "sensor", "application"):
+                continue
+            if c["key"] in dismissed:
+                skipped_dismissed += 1
+                continue
+            try:
+                _do_import(c)
+                auto_imported += 1
+            except Exception:
+                # If a single import blows up, keep going — the others still
+                # land. The failed candidate falls through to the pending queue
+                # so the user can see and fix it.
+                ha_devs_unclassified_fallback(c)  # noqa: F821 (defined below)
+
+        # 2) Build the persistent candidate set from what's left: unclassified
+        #    HA devices, HA host candidates, LAN ARP candidates.
+        pending = [c for c in ha_devs if c["kind"] == "unclassified"] + ha_hosts + arp
+
         new_candidates: Dict[str, Any] = {}
-        for c in all_found:
+        for c in pending:
             key = c["key"]
             if key in dismissed:
                 continue
@@ -467,10 +522,19 @@ async def scan() -> Dict[str, Any]:
             }
         data["candidates"] = new_candidates
         data["last_scan_at"] = now
+        data["last_auto_imported"] = auto_imported
         _save(data)
         return data
     finally:
         _scan_in_progress = False
+
+
+def ha_devs_unclassified_fallback(c: Dict[str, Any]) -> None:
+    """Called when _do_import throws on a supposedly-confident candidate.
+    Mutates the candidate dict in place so it lands in the persistent queue
+    on the next pass instead of being silently lost."""
+    c["kind"] = "unclassified"
+    c["key"] = c["key"].replace("hw:ha:", "unk:ha:").replace("sensor:ha:", "unk:ha:").replace("app:ha:", "unk:ha:")
 
 
 async def _loop() -> None:
@@ -495,6 +559,7 @@ def snapshot() -> Dict[str, Any]:
     data = _load()
     return {
         "last_scan_at": data.get("last_scan_at", 0),
+        "last_auto_imported": data.get("last_auto_imported", 0),
         "scan_in_progress": _scan_in_progress,
         "dismissed_count": len(data.get("dismissed", [])),
         "candidates": list(data.get("candidates", {}).values()),
@@ -518,13 +583,11 @@ def undismiss(key: str) -> Dict[str, Any]:
     return snapshot()
 
 
-def import_candidate(key: str, overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Promote a candidate into the real inventory. Returns the saved item."""
-    data = _load()
-    cand = data["candidates"].get(key)
-    if not cand:
-        raise KeyError(f"unknown candidate: {key}")
-
+def _do_import(cand: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Apply a candidate's proposal into the inventory. Doesn't touch
+    /data/discovery.json — the caller decides what to do with the candidate
+    record afterwards (scan() drops it on the floor; import_candidate() and
+    resolve() remove from the persistent queue)."""
     proposal = {**(cand.get("proposal") or {}), **(overrides or {})}
     inv = storage.load()
     if cand["kind"] == "hardware":
@@ -532,33 +595,80 @@ def import_candidate(key: str, overrides: Optional[Dict[str, Any]] = None) -> Di
         existing_ids = {h.id for h in inv.hardware}
         item = _ensure_unique_id(item, existing_ids)
         inv.hardware.append(item)
-        saved = item.model_dump(mode="json")
     elif cand["kind"] == "sensor":
         item = Sensor.model_validate(proposal)
         existing_ids = {s.id for s in inv.sensors}
         item = _ensure_unique_id(item, existing_ids)
         inv.sensors.append(item)
-        saved = item.model_dump(mode="json")
     elif cand["kind"] == "application":
         item = Application.model_validate(proposal)
         existing_ids = {a.id for a in inv.applications}
         item = _ensure_unique_id(item, existing_ids)
         inv.applications.append(item)
-        saved = item.model_dump(mode="json")
     elif cand["kind"] == "host":
         item = Host.model_validate(proposal)
         existing_ids = {h.id for h in inv.network.hosts}
         item = _ensure_unique_id(item, existing_ids)
         inv.network.hosts.append(item)
-        saved = item.model_dump(mode="json")
     else:
         raise ValueError(f"unsupported kind: {cand['kind']}")
-
     storage.save(inv)
-    # Drop the candidate; don't dismiss so it can resurface if it ever drifts back.
+    return {"imported": item.model_dump(mode="json"), "kind": cand["kind"]}
+
+
+def import_candidate(key: str, overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Promote a candidate already in the queue into the inventory."""
+    data = _load()
+    cand = data["candidates"].get(key)
+    if not cand:
+        raise KeyError(f"unknown candidate: {key}")
+    result = _do_import(cand, overrides)
     del data["candidates"][key]
     _save(data)
-    return {"imported": saved, "kind": cand["kind"]}
+    return result
+
+
+def resolve(
+    key: str,
+    target: str,
+    subtype: Optional[str] = None,
+    overrides: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """User-driven classification of an unclassified candidate.
+
+    `target` ∈ {"hardware", "sensor", "application", "host", "skip"}.
+    `subtype` is the HardwareType / SensorKind / AppType slot to fill in.
+    "skip" just dismisses without importing.
+    """
+    if target == "skip":
+        return {"dismissed": key, **dismiss(key)}
+
+    data = _load()
+    cand = data["candidates"].get(key)
+    if not cand:
+        raise KeyError(f"unknown candidate: {key}")
+
+    proposal = dict(cand.get("proposal") or {})
+    if target == "hardware":
+        proposal["type"] = subtype or "other"
+    elif target == "sensor":
+        proposal["kind"] = subtype or "other"
+        # If the user picked Sensor, the proposal might still have a `type`
+        # field from when the row was unclassified — drop it so pydantic
+        # validation against the Sensor model doesn't choke.
+        proposal.pop("type", None)
+    elif target == "application":
+        proposal["type"] = subtype or "other"
+    elif target == "host":
+        pass
+    else:
+        raise ValueError(f"unsupported target: {target}")
+
+    re_keyed_cand = {**cand, "kind": target, "proposal": proposal}
+    result = _do_import(re_keyed_cand, overrides)
+    del data["candidates"][key]
+    _save(data)
+    return result
 
 
 def _ensure_unique_id(item, existing_ids: set):

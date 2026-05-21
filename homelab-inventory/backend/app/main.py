@@ -42,7 +42,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.3.0")
+app = FastAPI(title="Homelab Inventory", version="1.4.0")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS
@@ -277,6 +277,31 @@ def discovery_import(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="missing 'key'")
     try:
         return discovery.import_candidate(key, payload.get("overrides"))
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.errors())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/discovery/resolve")
+def discovery_resolve(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """User assigns an unclassified candidate to a section.
+
+    Body: {key, target: "hardware"|"sensor"|"application"|"host"|"skip", subtype, overrides}
+    """
+    key = payload.get("key")
+    target = payload.get("target")
+    if not key or not target:
+        raise HTTPException(status_code=400, detail="missing 'key' or 'target'")
+    try:
+        return discovery.resolve(
+            key=key,
+            target=target,
+            subtype=payload.get("subtype"),
+            overrides=payload.get("overrides"),
+        )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValidationError as e:

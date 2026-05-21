@@ -351,13 +351,19 @@
         </div>
 
         <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          Pulls candidates from the Home Assistant device registry, HA entity attributes (IP/MAC), and a LAN ARP sweep
-          (<code>arp-scan --localnet</code>, falls back to the kernel ARP cache). Nothing is written to
-          <code>infrastructure.yaml</code> until you click Import.
+          Every scan <strong>auto-imports</strong> HA devices the classifier can pin down (vendor/model match, sensor entities, or HA add-on identifier).
+          Devices it can't pin down land in <strong>"Needs your input"</strong> below — pick a section per row, or dismiss.
+          LAN-ARP and HA-entity host candidates still need manual import (they're network decisions).
         </p>
 
+        <div x-show="discovery.last_auto_imported > 0"
+             class="text-xs mb-3 p-2 rounded border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200">
+          <span x-text="discovery.last_auto_imported + ' item' + (discovery.last_auto_imported === 1 ? '' : 's') + ' auto-imported in the last scan.'"></span>
+          Check the Hardware / Sensors / Applications tabs to see what landed.
+        </div>
+
         <template x-for="group in discoveryGroups()" :key="group.title">
-          <div class="mb-4">
+          <div class="mb-4" x-show="group.items.length || group.alwaysShow">
             <h3 class="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200"
                 x-text="group.title + ' (' + group.items.length + ')'"></h3>
             <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -379,14 +385,50 @@
                       <td class="px-3 py-2 align-top text-xs font-mono text-slate-400" x-text="c.source"></td>
                       <td class="px-3 py-2 align-top text-xs text-slate-400" x-text="fmtAgo(c.first_seen)"></td>
                       <td class="px-3 py-2 text-right whitespace-nowrap">
-                        <button @click="importCandidate(c)"
-                                class="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-xs">
-                          Import
-                        </button>
-                        <button @click="dismissCandidate(c)"
-                                class="ml-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs">
-                          Dismiss
-                        </button>
+                        <!-- Unclassified rows: per-row picker + Resolve button -->
+                        <template x-if="c.kind === 'unclassified'">
+                          <span class="inline-flex items-center gap-1">
+                            <select
+                              x-model="resolvePicks[c.key]"
+                              class="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded px-1 py-1 text-xs">
+                              <option value="">Add as…</option>
+                              <optgroup label="Hardware">
+                                <template x-for="t in hardwareTypes" :key="t">
+                                  <option :value="'hardware:' + t" x-text="'Hardware — ' + t"></option>
+                                </template>
+                              </optgroup>
+                              <optgroup label="Sensor">
+                                <template x-for="k in sensorKinds" :key="k">
+                                  <option :value="'sensor:' + k" x-text="'Sensor — ' + k"></option>
+                                </template>
+                              </optgroup>
+                              <optgroup label="Application">
+                                <template x-for="t in appTypes" :key="t">
+                                  <option :value="'application:' + t" x-text="'App — ' + t"></option>
+                                </template>
+                              </optgroup>
+                              <option value="skip">Skip / Dismiss</option>
+                            </select>
+                            <button @click="resolveCandidate(c)"
+                                    :disabled="!resolvePicks[c.key]"
+                                    class="btn-primary px-2 py-1 rounded text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                              Resolve
+                            </button>
+                          </span>
+                        </template>
+                        <!-- Host / non-unclassified rows: import + dismiss -->
+                        <template x-if="c.kind !== 'unclassified'">
+                          <span class="inline-flex items-center gap-1">
+                            <button @click="importCandidate(c)"
+                                    class="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-xs">
+                              Import
+                            </button>
+                            <button @click="dismissCandidate(c)"
+                                    class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs">
+                              Dismiss
+                            </button>
+                          </span>
+                        </template>
                       </td>
                     </tr>
                   </template>

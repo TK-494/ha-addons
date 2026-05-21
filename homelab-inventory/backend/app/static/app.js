@@ -168,7 +168,10 @@ function app() {
       return all.filter(s => (s.kind || 'other') === this.sensorKindFilter);
     },
 
-    discovery: { candidates: [], last_scan_at: 0, scan_in_progress: false, dismissed_count: 0 },
+    discovery: { candidates: [], last_scan_at: 0, last_auto_imported: 0, scan_in_progress: false, dismissed_count: 0 },
+    resolvePicks: {},   // candidate.key → "target:subtype" selected in the picker
+    hardwareTypes: ['server','nas','iot','network','av','compute','hub','other'],
+    appTypes:      ['ha_addon','container','native','vm','saas','other'],
 
     integrationCols: tableCols('integrations'),
 
@@ -247,24 +250,42 @@ function app() {
     },
 
     discoveryGroups() {
-      // Bucketed by what gets imported (hardware/sensor/application/host),
-      // not just by source. Keeps the queue legible when a lot of HA devices
-      // map to different inventory sections.
+      // Order matters — "Needs your input" appears first so unclassified
+      // items don't get lost below host buckets.
       const buckets = {
-        'HA → Hardware':    [],
-        'HA → Sensors':     [],
-        'HA → Applications': [],
-        'HA → Hosts (entity IP/MAC)': [],
-        'LAN (ARP)':        [],
+        'Needs your input (unclassified HA devices)': { items: [], alwaysShow: true },
+        'HA → Hosts (entity IP/MAC)':                 { items: [] },
+        'LAN (ARP)':                                  { items: [] },
       };
       (this.discovery.candidates || []).forEach(c => {
-        if (c.kind === 'hardware')         buckets['HA → Hardware'].push(c);
-        else if (c.kind === 'sensor')      buckets['HA → Sensors'].push(c);
-        else if (c.kind === 'application') buckets['HA → Applications'].push(c);
-        else if (c.source === 'ha-entity') buckets['HA → Hosts (entity IP/MAC)'].push(c);
-        else if (c.source === 'arp')       buckets['LAN (ARP)'].push(c);
+        if (c.kind === 'unclassified')     buckets['Needs your input (unclassified HA devices)'].items.push(c);
+        else if (c.source === 'ha-entity') buckets['HA → Hosts (entity IP/MAC)'].items.push(c);
+        else if (c.source === 'arp')       buckets['LAN (ARP)'].items.push(c);
+        // Confidently-classified HA devices don't appear here — they were
+        // already auto-imported and live in Hardware/Sensors/Applications.
       });
-      return Object.entries(buckets).map(([title, items]) => ({ title, items }));
+      return Object.entries(buckets).map(([title, b]) => ({ title, items: b.items, alwaysShow: b.alwaysShow }));
+    },
+
+    async resolveCandidate(c) {
+      const pick = this.resolvePicks[c.key];
+      if (!pick) return;
+      const [target, subtype] = pick.split(':');
+      try {
+        const r = await fetch(`${API}/discovery/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: c.key, target, subtype }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          alert('Resolve failed: ' + (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)));
+          return;
+        }
+        delete this.resolvePicks[c.key];
+        await Promise.all([this.reload(), this.loadDiscovery()]);
+        this.markSaved();
+      } catch (e) { alert('Resolve error: ' + e); }
     },
 
     async importCandidate(c) {
