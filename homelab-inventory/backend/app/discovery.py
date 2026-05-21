@@ -31,7 +31,7 @@ from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import ha_client, storage
-from .schemas import Hardware, Host
+from .schemas import Application, Hardware, Host, Sensor
 
 
 DISCOVERY_PATH = Path(os.getenv("DISCOVERY_PATH", "/data/discovery.json"))
@@ -84,49 +84,253 @@ def _slug(s: str) -> str:
     return s or "item"
 
 
-def _known_inventory_keys() -> Tuple[set, set, set]:
-    """Return (hardware_ha_device_ids, host_ips, host_macs) already in inventory."""
+def _known_inventory_keys() -> Dict[str, set]:
+    """Return the set of HA device_ids / entity_ids / IPs already in inventory.
+
+    Used by classifiers to skip anything we've already imported (or that the
+    user imported manually and linked).
+    """
     inv = storage.load()
-    hw_ids = {h.ha_device_id for h in inv.hardware if h.ha_device_id}
-    host_ips: set = set()
-    host_macs: set = set()
-    for h in inv.network.hosts:
-        if h.ip:
-            host_ips.add(h.ip)
-    return hw_ids, host_ips, host_macs
+    return {
+        "hw_device_ids":     {h.ha_device_id for h in inv.hardware if h.ha_device_id},
+        "app_entity_ids":    {a.ha_entity_id for a in inv.applications if a.ha_entity_id},
+        "sensor_device_ids": {s.ha_device_id for s in inv.sensors if s.ha_device_id},
+        "sensor_entity_ids": {s.ha_entity_id for s in inv.sensors if s.ha_entity_id},
+        "host_ips":          {h.ip for h in inv.network.hosts if h.ip},
+    }
 
 
-# ─── source: HA device registry ─────────────────────────────────────────────
+# ─── source: HA device registry, properly classified ──────────────────────
+
+# device_class → SensorKind. We pass HA's device_class through unchanged
+# where our SensorKind literal covers it; everything else falls to "other".
+_KNOWN_SENSOR_KINDS = {
+    "motion", "occupancy", "presence",
+    "door", "window", "opening", "garage_door",
+    "temperature", "humidity", "pressure", "illuminance",
+    "moisture", "water", "leak",
+    "smoke", "gas", "co", "co2",
+    "vibration", "tamper", "sound",
+    "battery", "power", "energy",
+}
+
+# Manufacturer/model substring → HardwareType. Lower-case match.
+_HW_TYPE_HINTS: List[Tuple[str, str]] = [
+    # Network
+    ("ubiquiti", "network"), ("unifi", "network"), ("mikrotik", "network"),
+    ("tp-link", "network"), ("netgear", "network"), ("fritz", "network"),
+    ("router", "network"), ("switch", "network"), ("access point", "network"),
+    # AV
+    ("philips tv", "av"), ("philips android tv", "av"),
+    ("samsung tv", "av"), ("sony tv", "av"),
+    ("apple tv", "av"), ("homepod", "av"),
+    ("harman", "av"), ("sonos", "av"), ("denon", "av"), ("yamaha", "av"),
+    ("speaker", "av"), ("receiver", "av"),
+    # Hub
+    ("zigbee", "hub"), ("z-wave", "hub"), ("hue bridge", "hub"),
+    ("conbee", "hub"), ("deconz", "hub"),
+    # Compute / NAS
+    ("synology", "nas"), ("qnap", "nas"),
+    ("raspberry pi", "compute"), ("nuc", "compute"), ("home assistant", "server"),
+]
+
+
+def _hw_type_from_hints(vendor: Optional[str], model: Optional[str]) -> str:
+    """Best-effort HardwareType from vendor+model strings."""
+    blob = f"{(vendor or '').lower()} {(model or '').lower()}".strip()
+    if not blob:
+        return "other"
+    for needle, t in _HW_TYPE_HINTS:
+        if needle in blob:
+            return t
+    return "iot"  # has a real vendor/model but no specific hint → assume IoT
+
+
+def _device_entities_index(entities: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Group entity registry entries by device_id."""
+    idx: Dict[str, List[Dict[str, Any]]] = {}
+    for e in entities or []:
+        did = e.get("device_id")
+        if not did:
+            continue
+        idx.setdefault(did, []).append(e)
+    return idx
+
+
+def _sensor_kind_for_entities(entities: List[Dict[str, Any]]) -> Optional[str]:
+    """Pick the most representative sensor kind across a device's entities.
+
+    Strategy: pull device_class values for binary_sensor/sensor entities. If
+    any maps to a known SensorKind, prefer "physical-event" kinds (motion/door)
+    over scalar ones (battery/illuminance) since those are what users actually
+    inventory.
+    """
+    classes: List[str] = []
+    for e in entities:
+        eid = (e.get("entity_id") or "")
+        dc = (e.get("original_device_class") or e.get("device_class") or "").lower()
+        if not dc:
+            # Fall back to entity_id name heuristics for older HA versions.
+            for needle in ("motion", "door", "window", "leak", "smoke", "presence",
+                           "occupancy", "temperature", "humidity"):
+                if needle in eid:
+                    dc = needle
+                    break
+        if dc in _KNOWN_SENSOR_KINDS:
+            classes.append(dc)
+    if not classes:
+        return None
+    # Priority — physical events first.
+    for preferred in ("motion", "occupancy", "presence",
+                      "door", "window", "opening", "garage_door",
+                      "smoke", "gas", "co", "co2",
+                      "leak", "moisture", "water",
+                      "vibration", "tamper",
+                      "temperature", "humidity", "illuminance", "pressure",
+                      "energy", "power", "battery"):
+        if preferred in classes:
+            return preferred
+    return classes[0]
+
+
+def _primary_sensor_entity(entities: List[Dict[str, Any]], kind: str) -> Optional[str]:
+    """Pick the entity_id that best represents the sensor's primary reading."""
+    # Prefer entities whose device_class matches the chosen kind exactly.
+    for e in entities:
+        dc = (e.get("original_device_class") or e.get("device_class") or "").lower()
+        if dc == kind:
+            return e.get("entity_id")
+    # Otherwise the first binary_sensor/sensor entity.
+    for prefix in ("binary_sensor.", "sensor."):
+        for e in entities:
+            eid = e.get("entity_id") or ""
+            if eid.startswith(prefix):
+                return eid
+    return (entities[0].get("entity_id") if entities else None)
+
+
+def _classify_device(
+    d: Dict[str, Any],
+    entities: List[Dict[str, Any]],
+) -> Tuple[str, Optional[str]]:
+    """Return (candidate_kind, subtype_hint).
+
+    candidate_kind: "skip" | "hardware" | "sensor" | "application"
+    subtype_hint:   HardwareType / SensorKind / AppType depending on kind.
+    """
+    # 1. HA service-only entries — these are virtual (Sun, Backup, Cloud, ...).
+    if (d.get("entry_type") or "").lower() == "service":
+        return ("skip", None)
+
+    vendor = d.get("manufacturer") or ""
+    model = d.get("model") or ""
+    # 2. HA add-ons / Supervisor entries: integration name in identifiers.
+    # HA stores identifiers as a list of [domain, unique_id] pairs.
+    identifiers = d.get("identifiers") or []
+    flat_ids = ",".join(
+        ":".join(str(x) for x in p)
+        for p in identifiers
+        if isinstance(p, (list, tuple)) and len(p) >= 2
+    ).lower()
+    if "hassio" in flat_ids or "supervisor" in flat_ids:
+        return ("application", "ha_addon")
+
+    # 3. If the device exposes mostly classified sensor entities → Sensor.
+    kind = _sensor_kind_for_entities(entities)
+    if kind:
+        return ("sensor", kind)
+
+    # 4. Device with a real vendor / model → Hardware, with a best-effort type.
+    if vendor or model:
+        return ("hardware", _hw_type_from_hints(vendor, model))
+
+    # 5. No vendor, no sensor entities, not a service — best guess: skip.
+    # These are usually integration shells (e.g. "Cast", "Apple TV"). Suppress
+    # by default rather than create noise; if the user wants them they can
+    # add manually.
+    return ("skip", None)
+
 
 async def _ha_device_candidates() -> List[Dict[str, Any]]:
     devices = await ha_client.list_devices()
     if not devices:
         return []
-    hw_ids, _, _ = _known_inventory_keys()
+    try:
+        entities = await ha_client.list_entities_for_devices()
+    except Exception:
+        entities = []
+    ent_idx = _device_entities_index(entities)
+    known = _known_inventory_keys()
+
     out: List[Dict[str, Any]] = []
     for d in devices:
         did = d.get("id")
-        if not did or did in hw_ids:
+        if not did:
+            continue
+        if did in known["hw_device_ids"] or did in known["sensor_device_ids"]:
+            continue
+        kind, subtype = _classify_device(d, ent_idx.get(did, []))
+        if kind == "skip":
             continue
         name = d.get("name_by_user") or d.get("name") or did
-        proposal = Hardware(
-            id=_slug(f"ha-{name}-{did[:6]}"),
-            name=name,
-            type="other",
-            vendor=d.get("manufacturer") or None,
-            model=d.get("model") or None,
-            ha_device_id=did,
-            notes=f"Discovered from HA device registry. Area: {d.get('area_id') or 'n/a'}.",
-            tags=["discovered", "ha"],
-        ).model_dump(mode="json")
-        out.append({
-            "key": f"hw:ha:{did}",
-            "kind": "hardware",
-            "source": "ha-device",
-            "label": name,
-            "subtitle": " • ".join([x for x in [d.get("manufacturer"), d.get("model")] if x]) or "—",
-            "proposal": proposal,
-        })
+        vendor = d.get("manufacturer") or None
+        model = d.get("model") or None
+        area = d.get("area_id") or None
+        common = {
+            "id": _slug(f"ha-{name}-{did[:6]}"),
+            "name": name,
+            "vendor": vendor,
+            "model": model,
+            "ha_device_id": did,
+            "notes": f"Discovered from HA device registry. Area: {area or 'n/a'}.",
+            "tags": ["discovered", "ha"],
+        }
+
+        if kind == "hardware":
+            proposal = Hardware(type=subtype or "other", **common).model_dump(mode="json")
+            out.append({
+                "key": f"hw:ha:{did}",
+                "kind": "hardware",
+                "source": "ha-device",
+                "label": name,
+                "subtitle": " • ".join(x for x in [subtype, vendor, model] if x) or "—",
+                "proposal": proposal,
+            })
+        elif kind == "sensor":
+            ent = ent_idx.get(did, [])
+            primary = _primary_sensor_entity(ent, subtype or "other")
+            proposal = Sensor(
+                kind=subtype or "other",
+                location=area,
+                ha_entity_id=primary,
+                **common,
+            ).model_dump(mode="json")
+            out.append({
+                "key": f"sensor:ha:{did}",
+                "kind": "sensor",
+                "source": "ha-device",
+                "label": name,
+                "subtitle": " • ".join(x for x in [subtype, vendor, model, primary] if x) or "—",
+                "proposal": proposal,
+            })
+        elif kind == "application":
+            if did in known["app_entity_ids"]:
+                continue
+            proposal = Application(
+                id=common["id"],
+                name=name,
+                type=subtype or "ha_addon",
+                notes=common["notes"],
+                tags=["discovered", "ha"],
+            ).model_dump(mode="json")
+            out.append({
+                "key": f"app:ha:{did}",
+                "kind": "application",
+                "source": "ha-device",
+                "label": name,
+                "subtitle": " • ".join(x for x in ["ha_addon", vendor, model] if x) or "ha_addon",
+                "proposal": proposal,
+            })
     return out
 
 
@@ -136,7 +340,7 @@ async def _ha_host_candidates() -> List[Dict[str, Any]]:
     states = await ha_client.list_states()
     if not states:
         return []
-    _, host_ips, host_macs = _known_inventory_keys()
+    host_ips = _known_inventory_keys()["host_ips"]
     out: List[Dict[str, Any]] = []
     seen_ips: set = set()
     for s in states:
@@ -207,7 +411,7 @@ def _arp_scan_pairs() -> List[Tuple[str, str, str]]:
 
 
 def _arp_candidates() -> List[Dict[str, Any]]:
-    _, host_ips, _ = _known_inventory_keys()
+    host_ips = _known_inventory_keys()["host_ips"]
     pairs = _arp_scan_pairs()
     out: List[Dict[str, Any]] = []
     for ip, mac, vendor in pairs:
@@ -325,10 +529,21 @@ def import_candidate(key: str, overrides: Optional[Dict[str, Any]] = None) -> Di
     inv = storage.load()
     if cand["kind"] == "hardware":
         item = Hardware.model_validate(proposal)
-        # If id collides, append a short suffix.
         existing_ids = {h.id for h in inv.hardware}
         item = _ensure_unique_id(item, existing_ids)
         inv.hardware.append(item)
+        saved = item.model_dump(mode="json")
+    elif cand["kind"] == "sensor":
+        item = Sensor.model_validate(proposal)
+        existing_ids = {s.id for s in inv.sensors}
+        item = _ensure_unique_id(item, existing_ids)
+        inv.sensors.append(item)
+        saved = item.model_dump(mode="json")
+    elif cand["kind"] == "application":
+        item = Application.model_validate(proposal)
+        existing_ids = {a.id for a in inv.applications}
+        item = _ensure_unique_id(item, existing_ids)
+        inv.applications.append(item)
         saved = item.model_dump(mode="json")
     elif cand["kind"] == "host":
         item = Host.model_validate(proposal)

@@ -10,10 +10,24 @@ from pydantic import BaseModel, Field
 
 
 HardwareType = Literal[
-    "server", "nas", "iot", "network", "av", "compute", "sensor", "hub", "other"
+    "server", "nas", "iot", "network", "av", "compute", "hub", "other"
 ]
 AppType = Literal["ha_addon", "container", "native", "vm", "saas", "other"]
 IntegrationType = Literal["ha_integration", "cloud", "api", "service", "other"]
+
+# Sensors are their own section now. Kinds match HA's device_class values
+# wherever possible so discovery classification can pass them straight through.
+SensorKind = Literal[
+    "motion", "occupancy", "presence",
+    "door", "window", "opening", "garage_door",
+    "contact",
+    "temperature", "humidity", "pressure", "illuminance",
+    "moisture", "water", "leak",
+    "smoke", "gas", "co", "co2",
+    "vibration", "tamper", "sound",
+    "battery", "power", "energy",
+    "other",
+]
 
 
 class Hardware(BaseModel):
@@ -81,6 +95,22 @@ class Application(BaseModel):
     ha_entity_id: Optional[str] = None
 
 
+class Sensor(BaseModel):
+    """A discrete sensor — typically maps to one HA device with one primary entity."""
+    id: str
+    name: str
+    kind: SensorKind = "other"
+    location: Optional[str] = None
+    vendor: Optional[str] = None
+    model: Optional[str] = None
+    hardware_id: Optional[str] = None      # links to Hardware.id when the sensor is part of a larger unit (e.g. an alarm hub)
+    ha_device_id: Optional[str] = None
+    ha_entity_id: Optional[str] = None     # primary entity (the one whose state = the sensor reading)
+    battery_powered: bool = False
+    notes: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
 class Integration(BaseModel):
     id: str
     name: str
@@ -97,5 +127,6 @@ class Inventory(BaseModel):
     hardware: List[Hardware] = Field(default_factory=list)
     network: Network = Field(default_factory=Network)
     applications: List[Application] = Field(default_factory=list)
+    sensors: List[Sensor] = Field(default_factory=list)
     integrations: List[Integration] = Field(default_factory=list)
     meta: Dict[str, Any] = Field(default_factory=dict)

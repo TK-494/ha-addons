@@ -47,10 +47,11 @@
 
       <!-- Overview -->
       <section x-show="tab === 'overview'" x-cloak>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
           <template x-for="card in [
             {label: 'Hardware', val: inv.hardware?.length || 0, color: 'bg-emerald-500'},
             {label: 'Applications', val: inv.applications?.length || 0, color: 'bg-violet-500'},
+            {label: 'Sensors', val: inv.sensors?.length || 0, color: 'bg-rose-500'},
             {label: 'Integrations', val: inv.integrations?.length || 0, color: 'bg-amber-500'},
             {label: 'Hosts', val: inv.network?.hosts?.length || 0, color: 'bg-ha-500'},
           ]" :key="card.label">
@@ -182,6 +183,58 @@
             </table>
           </div>
         </template>
+      </section>
+
+      <!-- Sensors -->
+      <section x-show="tab === 'sensors'" x-cloak>
+        <div class="flex items-center mb-3 flex-wrap gap-2">
+          <h2 class="text-lg font-semibold">Sensors</h2>
+          <span class="ml-2 text-sm text-slate-400" x-text="(inv.sensors?.length || 0) + ' items'"></span>
+          <label class="text-xs text-slate-500 dark:text-slate-400 ml-4">Kind:
+            <select x-model="sensorKindFilter"
+                    class="ml-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded px-1 py-0.5 text-xs">
+              <option value="">all</option>
+              <template x-for="k in sensorKinds" :key="k">
+                <option :value="k" x-text="k"></option>
+              </template>
+            </select>
+          </label>
+          <button @click="openNew('sensors')"
+                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
+            + Add
+          </button>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-left">
+              <tr>
+                <template x-for="col in sensorCols" :key="col.key">
+                  <th class="px-3 py-2 font-medium" x-text="col.label"></th>
+                </template>
+                <th class="px-3 py-2 w-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in filteredSensors()" :key="item.id">
+                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                    @click="openEdit('sensors', item)">
+                  <template x-for="col in sensorCols" :key="col.key">
+                    <td class="px-3 py-2 align-top" x-text="renderCell(item, col)"></td>
+                  </template>
+                  <td class="px-3 py-2 text-right">
+                    <button @click.stop="del('sensors', item.id)"
+                            class="text-slate-400 hover:text-red-600 text-xs">✕</button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!filteredSensors().length">
+                <td :colspan="sensorCols.length + 1" class="px-3 py-6 text-center text-slate-400">
+                  Nothing here yet. Click + Add — or run Discovery and import detected sensors.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- Integrations -->

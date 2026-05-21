@@ -3,12 +3,24 @@
  * relative to the ingress URL so everything Just Works.
  */
 
+const SENSOR_KINDS = [
+  'motion','occupancy','presence',
+  'door','window','opening','garage_door',
+  'contact',
+  'temperature','humidity','pressure','illuminance',
+  'moisture','water','leak',
+  'smoke','gas','co','co2',
+  'vibration','tamper','sound',
+  'battery','power','energy',
+  'other',
+];
+
 const SECTION_FIELDS = {
   hardware: [
     { key: 'id',          label: 'ID',          table: true },
     { key: 'name',        label: 'Name',        table: true },
     { key: 'type',        label: 'Type',        table: true, type: 'select',
-      options: ['server','nas','iot','network','av','compute','sensor','hub','other'] },
+      options: ['server','nas','iot','network','av','compute','hub','other'] },
     { key: 'location',    label: 'Location',    table: true },
     { key: 'vendor',      label: 'Vendor' },
     { key: 'model',       label: 'Model' },
@@ -34,6 +46,19 @@ const SECTION_FIELDS = {
     { key: 'ha_entity_id',label: 'HA entity ID (for uptime)' },
     { key: 'notes',       label: 'Notes',       type: 'textarea' },
     { key: 'tags',        label: 'Tags',        type: 'tags' },
+  ],
+  sensors: [
+    { key: 'id',           label: 'ID',           table: true },
+    { key: 'name',         label: 'Name',         table: true },
+    { key: 'kind',         label: 'Kind',         table: true, type: 'select', options: SENSOR_KINDS },
+    { key: 'location',     label: 'Location',     table: true },
+    { key: 'vendor',       label: 'Vendor' },
+    { key: 'model',        label: 'Model' },
+    { key: 'hardware_id',  label: 'Part of hardware (id)' },
+    { key: 'ha_device_id', label: 'HA device ID' },
+    { key: 'ha_entity_id', label: 'HA entity ID (primary reading)', table: true },
+    { key: 'notes',        label: 'Notes',        type: 'textarea' },
+    { key: 'tags',         label: 'Tags',         type: 'tags' },
   ],
   integrations: [
     { key: 'id',       label: 'ID',       table: true },
@@ -103,7 +128,7 @@ function fmtDuration(seconds) {
 function app() {
   return {
     tab: 'overview',
-    inv: { hardware: [], applications: [], integrations: [], network: { subnets: [], vlans: [], hosts: [] } },
+    inv: { hardware: [], applications: [], sensors: [], integrations: [], network: { subnets: [], vlans: [], hosts: [] } },
     rawYaml: '',
     rawError: '',
     saving: false,
@@ -124,6 +149,7 @@ function app() {
       { id: 'overview',     label: 'Overview' },
       { id: 'hardware',     label: 'Hardware' },
       { id: 'applications', label: 'Applications' },
+      { id: 'sensors',      label: 'Sensors' },
       { id: 'network',      label: 'Network' },
       { id: 'integrations', label: 'Integrations' },
       { id: 'topology',     label: 'Topology' },
@@ -131,6 +157,16 @@ function app() {
       { id: 'ha',           label: 'HA Devices' },
       { id: 'yaml',         label: 'YAML' },
     ],
+
+    sensorCols: tableCols('sensors'),
+    sensorKinds: SENSOR_KINDS,
+    sensorKindFilter: '',
+
+    filteredSensors() {
+      const all = this.inv.sensors || [];
+      if (!this.sensorKindFilter) return all;
+      return all.filter(s => (s.kind || 'other') === this.sensorKindFilter);
+    },
 
     discovery: { candidates: [], last_scan_at: 0, scan_in_progress: false, dismissed_count: 0 },
 
@@ -211,14 +247,21 @@ function app() {
     },
 
     discoveryGroups() {
+      // Bucketed by what gets imported (hardware/sensor/application/host),
+      // not just by source. Keeps the queue legible when a lot of HA devices
+      // map to different inventory sections.
       const buckets = {
-        'HA devices': [],
-        'HA hosts (entity IP/MAC)': [],
-        'LAN (ARP)': [],
+        'HA → Hardware':    [],
+        'HA → Sensors':     [],
+        'HA → Applications': [],
+        'HA → Hosts (entity IP/MAC)': [],
+        'LAN (ARP)':        [],
       };
       (this.discovery.candidates || []).forEach(c => {
-        if (c.source === 'ha-device')      buckets['HA devices'].push(c);
-        else if (c.source === 'ha-entity') buckets['HA hosts (entity IP/MAC)'].push(c);
+        if (c.kind === 'hardware')         buckets['HA → Hardware'].push(c);
+        else if (c.kind === 'sensor')      buckets['HA → Sensors'].push(c);
+        else if (c.kind === 'application') buckets['HA → Applications'].push(c);
+        else if (c.source === 'ha-entity') buckets['HA → Hosts (entity IP/MAC)'].push(c);
         else if (c.source === 'arp')       buckets['LAN (ARP)'].push(c);
       });
       return Object.entries(buckets).map(([title, items]) => ({ title, items }));

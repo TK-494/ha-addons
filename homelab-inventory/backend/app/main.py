@@ -32,6 +32,7 @@ from . import discovery, ha_client, storage, uptime
 from .schemas import (
     Hardware,
     Application,
+    Sensor,
     Integration,
     Subnet,
     Vlan,
@@ -41,7 +42,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.2.6")
+app = FastAPI(title="Homelab Inventory", version="1.3.0")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS
@@ -109,6 +110,7 @@ app.add_middleware(IngressOnlyMiddleware)
 SECTION_MODELS = {
     "hardware": Hardware,
     "applications": Application,
+    "sensors": Sensor,
     "integrations": Integration,
 }
 
@@ -128,6 +130,7 @@ async def on_startup() -> None:
     if (
         not inv.hardware
         and not inv.applications
+        and not inv.sensors
         and not inv.integrations
         and not inv.network.hosts
         and not inv.network.subnets
