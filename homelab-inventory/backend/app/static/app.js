@@ -353,35 +353,32 @@ function app() {
     },
 
     appsByHardware() {
+      // Only show groups that actually contain applications. The earlier
+      // "also list every hardware row even when empty" behaviour turned this
+      // tab into a wall of hardware names with empty tables — which read as
+      // "the apps tab is full of devices". The Hardware tab is the right
+      // place to see hardware; this tab is for apps.
       const hwById = Object.fromEntries((this.inv.hardware || []).map(h => [h.id, h]));
       const groups = new Map();
       (this.inv.applications || []).forEach(a => {
-        const key = a.runs_on || '';
+        const key = a.runs_on || '__unassigned__';
         if (!groups.has(key)) {
           const hw = hwById[a.runs_on];
           groups.set(key, {
             hardware_id: a.runs_on || null,
-            hardware_name: hw ? hw.name : (a.runs_on ? `(unknown: ${a.runs_on})` : 'Unassigned'),
+            hardware_name: hw ? hw.name : (a.runs_on ? `(unknown hardware: ${a.runs_on})` : 'Unassigned'),
             hardware_type: hw ? hw.type : null,
             apps: [],
           });
         }
         groups.get(key).apps.push(a);
       });
-      // Also include hardware rows that have zero apps but exist — easier to spot empty hosts.
-      (this.inv.hardware || []).forEach(h => {
-        if (!groups.has(h.id)) {
-          groups.set(h.id, {
-            hardware_id: h.id, hardware_name: h.name, hardware_type: h.type, apps: [],
-          });
-        }
-      });
       // Sort: real hardware first (by name), Unassigned last.
       return Array.from(groups.values()).sort((a, b) => {
         if (!a.hardware_id && b.hardware_id) return 1;
         if (a.hardware_id && !b.hardware_id) return -1;
         return (a.hardware_name || '').localeCompare(b.hardware_name || '');
-      }).filter(g => g.apps.length > 0 || g.hardware_id);
+      });
     },
 
     renderCell(item, col) {
