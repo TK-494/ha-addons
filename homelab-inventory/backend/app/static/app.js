@@ -267,6 +267,31 @@ function app() {
       return Object.entries(buckets).map(([title, b]) => ({ title, items: b.items, alwaysShow: b.alwaysShow }));
     },
 
+    discoveredCount(section) {
+      const items = this.inv[section] || [];
+      return items.filter(x => (x.tags || []).includes('discovered')).length;
+    },
+
+    async cleanupDiscovered(section) {
+      const n = this.discoveredCount(section);
+      if (!n) return;
+      if (!confirm(`Remove ${n} auto-discovered ${section} entries? This cannot be undone.`)) return;
+      try {
+        const r = await fetch(`${API}/cleanup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ section, tag: 'discovered' }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          alert('Cleanup failed: ' + (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)));
+          return;
+        }
+        await this.reload();
+        this.markSaved();
+      } catch (e) { alert('Cleanup error: ' + e); }
+    },
+
     async resolveCandidate(c) {
       const pick = this.resolvePicks[c.key];
       if (!pick) return;

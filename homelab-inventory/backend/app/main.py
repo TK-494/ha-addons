@@ -42,7 +42,7 @@ from .schemas import (
 from .seed import initial_inventory
 
 
-app = FastAPI(title="Homelab Inventory", version="1.4.1")
+app = FastAPI(title="Homelab Inventory", version="1.4.2")
 
 
 # Security headers. The app is served same-origin under HA Ingress, so no CORS
@@ -255,6 +255,31 @@ async def ha_entities() -> Dict[str, Any]:
 @app.get("/api/uptime")
 def uptime_snapshot() -> Dict[str, Any]:
     return uptime.snapshot()
+
+
+# ─── Cleanup ───────────────────────────────────────────────────────────────
+
+@app.post("/api/cleanup")
+def cleanup(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Bulk-delete rows in a section whose `tags` include the given tag.
+
+    Body: {section: "hardware"|"applications"|"sensors", tag: "discovered"}
+    Returns: {deleted: <count>, kept: <count>, section, tag}
+    """
+    section = payload.get("section")
+    tag = payload.get("tag")
+    if section not in ("hardware", "applications", "sensors"):
+        raise HTTPException(status_code=400, detail="section must be one of hardware/applications/sensors")
+    if not tag:
+        raise HTTPException(status_code=400, detail="missing 'tag'")
+
+    inv = storage.load()
+    items = getattr(inv, section)
+    keep = [x for x in items if tag not in (x.tags or [])]
+    deleted = len(items) - len(keep)
+    setattr(inv, section, keep)
+    storage.save(inv)
+    return {"deleted": deleted, "kept": len(keep), "section": section, "tag": tag}
 
 
 # ─── Discovery ─────────────────────────────────────────────────────────────

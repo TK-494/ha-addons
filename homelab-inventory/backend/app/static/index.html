@@ -82,11 +82,18 @@
 
       <!-- Hardware -->
       <section x-show="tab === 'hardware'" x-cloak>
-        <div class="flex items-center mb-3">
+        <div class="flex items-center mb-3 gap-2">
           <h2 class="text-lg font-semibold">Hardware infrastructure</h2>
           <span class="ml-2 text-sm text-slate-400" x-text="(inv.hardware?.length || 0) + ' items'"></span>
+          <button @click="cleanupDiscovered('hardware')"
+                  x-show="discoveredCount('hardware') > 0"
+                  class="ml-auto px-3 py-1.5 rounded-md text-sm bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-900/60"
+                  :title="'Removes ' + discoveredCount('hardware') + ' auto-discovered rows'">
+            <span x-text="'Remove ' + discoveredCount('hardware') + ' auto-discovered'"></span>
+          </button>
           <button @click="openNew('hardware')"
-                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
+                  :class="discoveredCount('hardware') > 0 ? '' : 'ml-auto'"
+                  class="btn-primary px-3 py-1.5 rounded-md text-sm">
             + Add
           </button>
         </div>
@@ -133,11 +140,18 @@
 
       <!-- Applications (grouped by runs_on) -->
       <section x-show="tab === 'applications'" x-cloak>
-        <div class="flex items-center mb-3">
+        <div class="flex items-center mb-3 gap-2">
           <h2 class="text-lg font-semibold">Application landscape</h2>
           <span class="ml-2 text-sm text-slate-400" x-text="(inv.applications?.length || 0) + ' items'"></span>
+          <button @click="cleanupDiscovered('applications')"
+                  x-show="discoveredCount('applications') > 0"
+                  class="ml-auto px-3 py-1.5 rounded-md text-sm bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-900/60"
+                  :title="'Removes ' + discoveredCount('applications') + ' auto-discovered rows'">
+            <span x-text="'Remove ' + discoveredCount('applications') + ' auto-discovered'"></span>
+          </button>
           <button @click="openNew('applications')"
-                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
+                  :class="discoveredCount('applications') > 0 ? '' : 'ml-auto'"
+                  class="btn-primary px-3 py-1.5 rounded-md text-sm">
             + Add
           </button>
         </div>
@@ -199,8 +213,15 @@
               </template>
             </select>
           </label>
+          <button @click="cleanupDiscovered('sensors')"
+                  x-show="discoveredCount('sensors') > 0"
+                  class="ml-auto px-3 py-1.5 rounded-md text-sm bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-900/60"
+                  :title="'Removes ' + discoveredCount('sensors') + ' auto-discovered rows'">
+            <span x-text="'Remove ' + discoveredCount('sensors') + ' auto-discovered'"></span>
+          </button>
           <button @click="openNew('sensors')"
-                  class="btn-primary ml-auto px-3 py-1.5 rounded-md text-sm">
+                  :class="discoveredCount('sensors') > 0 ? '' : 'ml-auto'"
+                  class="btn-primary px-3 py-1.5 rounded-md text-sm">
             + Add
           </button>
         </div>
