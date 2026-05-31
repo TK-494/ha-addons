@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="aurora-dark" data-density="standaard">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Health Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260515e">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234aa8ff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-4l-3 9L9 3l-3 9H2'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <h1>Health<span class="dot"> </span>Dashboard</h1>
+    </div>
+    <div class="topbar-right">
+      <div id="date-badge" class="badge">…</div>
+      <button id="settings-cog" class="cog-btn" aria-label="Instellingen" title="Instellingen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="stale-banner" class="stale-banner hidden"></div>
+
+  <main>
+    <!-- Dagconclusie: kernboodschap in 3 regels -->
+    <section class="section" id="conclusion-section" data-widget="conclusion">
+      <div class="conclusion-card">
+        <div class="conclusion-row status" id="conc-status">
+          <span class="conc-icon">•</span>
+          <span class="conc-text">…</span>
+        </div>
+        <div class="conclusion-row focus" id="conc-focus">
+          <span class="conc-icon">▸</span>
+          <span class="conc-label">Sterk punt</span>
+          <span class="conc-text">…</span>
+        </div>
+        <div class="conclusion-row attention" id="conc-attention">
+          <span class="conc-icon">▸</span>
+          <span class="conc-label">Aandachtspunt</span>
+          <span class="conc-text">…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Insights: Dit valt op (auto-gegenereerde bevindingen) -->
+    <section class="section" id="insights-section" data-widget="insights">
+      <div class="section-head">
+        <h2>Dit valt op</h2>
+        <span class="sub">automatische bevindingen</span>
+      </div>
+      <div id="insights-grid" class="insights-grid">…</div>
+    </section>
+
+    <!-- Fitnessprofiel: 6-assige radar (vandaag/30d/365d) -->
+    <section class="section" id="fitness-profile-section" data-widget="fitness-profile">
+      <div class="section-head">
+        <h2>Fitnessprofiel</h2>
+        <span class="sub">vandaag vs. 30d gem vs. 365d gem</span>
+      </div>
+      <div class="fitness-grid">
+        <div class="chart-wrap radar"><canvas id="fitness-radar"></canvas></div>
+        <div class="fitness-legend" id="fitness-legend">…</div>
+      </div>
+    </section>
+
+    <!-- Hero: Activity rings + Bergtocht -->
+    <section class="section hero" data-widget="hero">
+      <div class="hero-grid">
+        <div class="rings-card">
+          <div class="rings-head">
+            <h2>Vandaag</h2>
+            <span class="sub" id="rings-date">—</span>
+          </div>
+          <div class="rings-body">
+            <div class="rings-svg-wrap">
+              <svg id="activity-rings" viewBox="0 0 200 200" aria-label="Activity rings"></svg>
+            </div>
+            <ul class="rings-legend">
+              <li class="ring-legend move"><span class="dot"></span>Move<span class="val" id="ring-move">—</span></li>
+              <li class="ring-legend exercise"><span class="dot"></span>Exercise<span class="val" id="ring-exercise">—</span></li>
+              <li class="ring-legend stand"><span class="dot"></span>Stand<span class="val" id="ring-stand">—</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="hiking-card" id="hiking">
+          <div class="hike-head">
+            <h2>Bergtocht-doel</h2>
+            <span class="sub">richting je geplande bergtocht</span>
+          </div>
+          <div class="hike-countdown">
+            <span class="big" id="hike-days">—</span>
+            <span class="lbl">dagen te gaan</span>
+          </div>
+          <div class="hike-goals" id="hike-goals">…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bergtocht Coach: readiness score + week-todo's -->
+    <section class="section" data-widget="coach">
+      <div class="section-head">
+        <h2>Bergtocht-coach</h2>
+        <span class="sub">readiness &amp; week-todo's</span>
+      </div>
+      <div class="percentile-row" id="percentile-row">…</div>
+      <div class="coach-grid">
+        <div class="coach-card readiness-card">
+          <div class="readiness-gauge">
+            <svg id="readiness-gauge" viewBox="0 0 160 160" aria-label="Readiness score"></svg>
+            <div class="gauge-center">
+              <span class="gauge-score" id="gauge-score">—</span>
+              <span class="gauge-label">readiness</span>
+            </div>
+          </div>
+          <div class="readiness-explain">
+            <div class="explain-block good">
+              <h4>Wat gaat goed</h4>
+              <ul id="readiness-good">…</ul>
+            </div>
+            <div class="explain-block attention">
+              <h4>Aandacht</h4>
+              <ul id="readiness-attention">…</ul>
+            </div>
+          </div>
+        </div>
+        <div class="coach-card todos-card">
+          <div class="todos-head">
+            <h3>Deze week nog te doen</h3>
+            <span class="sub" id="todos-window">…</span>
+          </div>
+          <ul class="todos-list" id="todos-list">…</ul>
+        </div>
+      </div>
+      <div class="coach-meta-grid">
+        <div class="coach-card pillars-card">
+          <h3>Bergtocht-pijlers</h3>
+          <div class="pillars-grid" id="hike-pillars">…</div>
+        </div>
+        <div class="coach-card actions-card">
+          <h3>Acties deze week</h3>
+          <ol class="actions-list" id="hike-actions">…</ol>
+        </div>
+      </div>
+      <details class="readiness-detail">
+        <summary>Volledige readiness-onderdelen</summary>
+        <div class="readiness-breakdown" id="readiness-breakdown">…</div>
+      </details>
+    </section>
+
+    <!-- Today tiles, gegroepeerd -->
+    <section class="section" data-widget="dagstats">
+      <div class="section-head">
+        <h2>Dagstats</h2>
+        <span class="sub">vs. 7-daags gemiddelde</span>
+      </div>
+      <div class="stats-group">
+        <h3 class="stats-group-head">Beweging</h3>
+        <div id="tiles-beweging" class="tiles">…</div>
+      </div>
+      <div class="stats-group">
+        <h3 class="stats-group-head">Training</h3>
+        <div id="tiles-training" class="tiles">…</div>
+      </div>
+      <div class="stats-group">
+        <h3 class="stats-group-head">Herstel</h3>
+        <div id="tiles-herstel" class="tiles">…</div>
+      </div>
+    </section>
+
+    <!-- Overzichts-totalen -->
+    <section class="section" data-widget="overview">
+      <div class="section-head">
+        <h2>Overzicht</h2>
+        <span class="sub">7 / 30 / 90 dagen</span>
+      </div>
+      <div id="overview-grid" class="overview-grid">…</div>
+    </section>
+
+    <!-- Year-over-year vergelijking -->
+    <section class="section" id="yoy-section" data-widget="yoy">
+      <div class="section-head">
+        <h2>Dit jaar vs. vorig jaar</h2>
+        <span class="sub">zelfde 30 dagen</span>
+      </div>
+      <div id="yoy-grid" class="yoy-grid">…</div>
+    </section>
+
+    <!-- Records & streaks -->
+    <section class="section" data-widget="records">
+      <div class="section-head">
+        <h2>Records &amp; streaks</h2>
+        <span class="sub">laatste 365 dagen</span>
+      </div>
+      <div id="records-grid" class="records-grid">…</div>
+    </section>
+
+    <!-- Workout heatmap -->
+    <section class="section" data-widget="heatmap">
+      <div class="section-head">
+        <h2>Workout-kalender</h2>
+        <span class="sub" id="heatmap-sub">laatste 365 dagen</span>
+      </div>
+      <div class="heatmap-wrap">
+        <div id="heatmap" class="heatmap">…</div>
+        <div id="heatmap-popover" class="heatmap-popover hidden">…</div>
+        <div class="heatmap-legend">
+          <span>minder</span>
+          <span class="cell lvl-0"></span>
+          <span class="cell lvl-1"></span>
+          <span class="cell lvl-2"></span>
+          <span class="cell lvl-3"></span>
+          <span class="cell lvl-4"></span>
+          <span>meer</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stappen chart + range toggle -->
+    <section class="section" data-widget="chart-steps">
+      <div class="section-head">
+        <h2>Stappen</h2>
+        <div class="range-toggle" data-target="steps">
+          <button data-days="7">7d</button>
+          <button data-days="30" class="active">30d</button>
+          <button data-days="90">90d</button>
+          <button data-days="365">1j</button>
+        </div>
+      </div>
+      <p class="chart-caption" id="cap-steps">…</p>
+      <div class="chart-wrap"><canvas id="steps-chart"></canvas></div>
+    </section>
+
+    <!-- Afstand & trappen -->
+    <section class="section" data-widget="chart-distflights">
+      <div class="section-head">
+        <h2>Afstand &amp; trappen</h2>
+        <div class="range-toggle" data-target="distflights">
+          <button data-days="7">7d</button>
+          <button data-days="30" class="active">30d</button>
+          <button data-days="90">90d</button>
+          <button data-days="365">1j</button>
+        </div>
+      </div>
+      <p class="chart-caption" id="cap-flights">…</p>
+      <div class="charts-grid">
+        <div class="chart-wrap"><canvas id="distance-chart"></canvas></div>
+        <div class="chart-wrap"><canvas id="flights-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- HR + slaap -->
+    <section class="section" data-widget="chart-hrsleep">
+      <div class="section-head">
+        <h2>Hartslag &amp; slaap</h2>
+        <div class="range-toggle" data-target="hrsleep">
+          <button data-days="7">7d</button>
+          <button data-days="30" class="active">30d</button>
+          <button data-days="90">90d</button>
+          <button data-days="365">1j</button>
+        </div>
+      </div>
+      <p class="chart-caption" id="cap-sleep">…</p>
+      <div class="charts-grid">
+        <div class="chart-wrap"><canvas id="hr-chart"></canvas></div>
+        <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Kcal -->
+    <section class="section" data-widget="chart-kcal">
+      <div class="section-head">
+        <h2>Actieve calorieën</h2>
+        <div class="range-toggle" data-target="kcal">
+          <button data-days="7">7d</button>
+          <button data-days="30" class="active">30d</button>
+          <button data-days="90">90d</button>
+          <button data-days="365">1j</button>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="kcal-chart"></canvas></div>
+    </section>
+
+    <!-- Patronen: stappen per weekdag + workouts per week -->
+    <section class="section" data-widget="patterns">
+      <div class="section-head">
+        <h2>Patronen</h2>
+        <span class="sub">90-daags gemiddelde / wekelijkse frequentie</span>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-wrap"><canvas id="weekday-chart"></canvas></div>
+        <div class="chart-wrap"><canvas id="workout-freq-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Workouts breakdown -->
+    <section class="section" data-widget="workouts-detail">
+      <div class="section-head">
+        <h2>Workouts — laatste 90 dagen</h2>
+      </div>
+      <p class="chart-caption" id="cap-workouts">…</p>
+      <div class="donut-grid">
+        <div class="chart-wrap donut"><canvas id="workouts-donut"></canvas></div>
+        <div id="workouts-table" class="workouts-table">…</div>
+      </div>
+    </section>
+
+    <!-- Import-status + Datakwaliteit -->
+    <section class="section" data-widget="import-data">
+      <div class="section-head">
+        <h2>Import &amp; data</h2>
+        <span class="sub">parser-run en kwaliteit</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-card">
+          <h3>Laatste import</h3>
+          <ul id="import-status">…</ul>
+        </div>
+        <div class="info-card">
+          <h3>Datakwaliteit</h3>
+          <ul id="data-quality">…</ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="freshness-dot" class="dot"></span>
+    <span id="loaded-at"></span>
+  </footer>
+
+  <dialog id="drilldown-modal" class="drilldown-modal" aria-label="Detail">
+    <div class="drill-head">
+      <h3 id="drill-title">…</h3>
+      <button id="drill-close" class="drawer-close" aria-label="Sluiten">×</button>
+    </div>
+    <div class="drill-body">
+      <div class="chart-wrap drill-chart"><canvas id="drill-chart"></canvas></div>
+      <div class="drill-stats" id="drill-stats">…</div>
+      <div class="drill-histogram-wrap">
+        <h4>Verdeling laatste 365 dagen</h4>
+        <div class="drill-histogram" id="drill-histogram">…</div>
+      </div>
+      <p class="drill-note" id="drill-note">…</p>
+    </div>
+  </dialog>
+
+  <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+  <aside id="settings-drawer" class="settings-drawer" hidden aria-label="Instellingen">
+    <header class="drawer-head">
+      <h2>Instellingen</h2>
+      <button id="drawer-close" class="drawer-close" aria-label="Sluiten">×</button>
+    </header>
+    <div class="drawer-body">
+      <section class="drawer-group">
+        <h3>Thema</h3>
+        <div id="theme-picker" class="theme-picker"></div>
+      </section>
+      <section class="drawer-group">
+        <h3>Dichtheid</h3>
+        <div id="density-picker" class="density-picker">
+          <label><input type="radio" name="density" value="compact"><span>Compact</span></label>
+          <label><input type="radio" name="density" value="standaard" checked><span>Standaard</span></label>
+          <label><input type="radio" name="density" value="ruim"><span>Ruim</span></label>
+        </div>
+      </section>
+      <section class="drawer-group">
+        <h3>Widgets</h3>
+        <div id="widget-picker" class="widget-picker">…</div>
+      </section>
+      <section class="drawer-group">
+        <button id="drawer-reset" class="drawer-reset">Herstel standaard</button>
+      </section>
+    </div>
+  </aside>
+
+  <script src="/static/vendor/chart.umd.js"></script>
+  <script src="/static/app.js?v=20260515e"></script>
+</body>
+</html>

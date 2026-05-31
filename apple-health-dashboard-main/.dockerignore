@@ -1,0 +1,15 @@
+.git
+.env
+.venv
+venv
+__pycache__
+*.pyc
+data
+uploads
+exports
+backups
+*.zip
+export.xml
+*.db
+*.sqlite*
+*.bak*

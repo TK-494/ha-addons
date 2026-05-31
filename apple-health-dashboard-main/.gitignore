@@ -1,0 +1,36 @@
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Backups / temp
+*.bak
+*.bak-*
+*.backup
+*.backup-*
+*.orig
+*.tmp
+
+# Health data & uploads (blijft offline)
+data/
+uploads/
+exports/
+backups/
+parsed/
+
+# Exports & databases
+*.zip
+export.xml
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log

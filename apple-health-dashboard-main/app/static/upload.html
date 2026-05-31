@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload · Health Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260514c">
+  <style>
+    .upload-wrap { max-width: 560px; margin: 40px auto; padding: 28px; }
+    .upload-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; box-shadow: var(--shadow-card); }
+    .upload-card h2 { margin: 0 0 4px; font-size: 18px; }
+    .upload-card .lead { margin: 0 0 22px; color: var(--text-dim); font-size: 13px; }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); font-weight: 500; }
+    .field input[type="password"], .field input[type="file"] { background: var(--bg-elev); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 13px; }
+    .field input[type="file"] { padding: 8px 12px; }
+    .field input[type="file"]::-webkit-file-upload-button { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; margin-right: 10px; cursor: pointer; font: inherit; }
+    .actions { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+    button.primary { background: linear-gradient(135deg, var(--blue), var(--purple)); border: none; color: #fff; padding: 10px 18px; border-radius: 10px; font: inherit; font-weight: 500; cursor: pointer; font-size: 13.5px; }
+    button.primary:disabled { opacity: 0.5; cursor: wait; }
+    button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 9px 14px; border-radius: 10px; font: inherit; cursor: pointer; font-size: 12.5px; }
+    .status { margin-top: 18px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 12.5px; line-height: 1.5; display: none; }
+    .status.show { display: block; }
+    .status.ok { background: rgba(74, 222, 128, 0.08); border-color: rgba(74, 222, 128, 0.35); color: var(--green); }
+    .status.err { background: rgba(248, 113, 113, 0.08); border-color: rgba(248, 113, 113, 0.35); color: #f87171; }
+    .status.run { background: rgba(74, 168, 255, 0.08); border-color: rgba(74, 168, 255, 0.30); color: var(--blue); }
+    .status pre { margin: 6px 0 0; font-size: 11px; color: var(--text-dim); white-space: pre-wrap; word-break: break-word; }
+    .progress { margin-top: 10px; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--purple)); width: 0%; transition: width 0.2s ease; }
+    .back-link { display: inline-block; margin-top: 16px; color: var(--text-dim); font-size: 12px; text-decoration: none; }
+    .back-link:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <h1>Health<span class="dot"> </span>Dashboard</h1>
+    </div>
+    <a href="/" class="badge" style="text-decoration: none;">terug naar dashboard</a>
+  </header>
+
+  <div class="upload-wrap">
+    <div class="upload-card">
+      <h2>Apple Health export uploaden</h2>
+      <p class="lead">Sleep hier je <code>export.zip</code> uit de Health-app. De server parset hem en het dashboard ververst automatisch.</p>
+
+      <form id="upload-form">
+        <div class="field">
+          <label for="file">export.zip</label>
+          <input type="file" id="file" accept=".zip,application/zip" required>
+        </div>
+        <div class="actions">
+          <button class="primary" type="submit" id="submit-btn">Uploaden &amp; parsen</button>
+        </div>
+        <div class="progress" id="progress" style="display: none;"><div class="progress-fill" id="progress-fill"></div></div>
+      </form>
+
+      <div id="status" class="status"></div>
+      <a class="back-link" href="/">← terug naar dashboard</a>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function showStatus(kind, text, detail) {
+      const el = $("status");
+      el.className = "status show " + (kind === "ok" ? "ok" : kind === "err" ? "err" : "run");
+      el.innerHTML = text + (detail ? `<pre>${detail}</pre>` : "");
+    }
+
+    $("upload-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const file = $("file").files[0];
+      if (!file) { showStatus("err", "Kies een export.zip."); return; }
+
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload");
+
+      $("submit-btn").disabled = true;
+      $("progress").style.display = "block";
+      $("progress-fill").style.width = "0%";
+      showStatus("run", `Uploaden van ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)…`);
+
+      xhr.upload.addEventListener("progress", (ev) => {
+        if (ev.lengthComputable) {
+          const pct = (ev.loaded / ev.total) * 100;
+          $("progress-fill").style.width = pct.toFixed(0) + "%";
+          if (pct >= 100) showStatus("run", "Upload klaar, parser draait… (5-30s)");
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        $("submit-btn").disabled = false;
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          if (xhr.status === 200) {
+            showStatus("ok",
+              `✅ Gelukt — laatste data: <strong>${resp.latest_date}</strong>`,
+              `${resp.days} dagen · ${resp.workouts} workouts · ${resp.size_mb} MB · ${resp.duration_s}s\nArchief: ${resp.archived}`);
+            setTimeout(() => window.location.href = "/", 2500);
+          } else {
+            showStatus("err", `Fout (${xhr.status}): ${resp.detail || "onbekend"}`, resp.detail);
+          }
+        } catch (err) {
+          showStatus("err", `HTTP ${xhr.status}`, xhr.responseText.slice(0, 500));
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        $("submit-btn").disabled = false;
+        showStatus("err", "Netwerkfout — kon de server niet bereiken.");
+      });
+
+      xhr.send(fd);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+name: "Apple Health Dashboard"
+version: "0.2.0"
+slug: "apple_health_dashboard"
+description: "Lokaal gezondheidsdashboard op basis van je Apple Health-export. Upload je export.zip en bekijk trends voor stappen, workouts, slaap en conditie."
+url: "https://github.com/TK-494/Claude-projects"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+ports:
+  8095/tcp: 8095
+ports_description:
+  8095/tcp: "Dashboard web UI"
+options:
+  reload_token: "changeme"
+schema:
+  reload_token: str
+map:
+  - data:rw
+panel_icon: mdi:heart-pulse
+panel_title: "Health Dashboard"
