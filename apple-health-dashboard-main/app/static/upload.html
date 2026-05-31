@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Upload · Health Dashboard</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260514c">
+  <link rel="stylesheet" href="static/styles.css?v=20260514c">
   <style>
     .upload-wrap { max-width: 560px; margin: 40px auto; padding: 28px; }
     .upload-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; box-shadow: var(--shadow-card); }
@@ -37,7 +37,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       <h1>Health<span class="dot"> </span>Dashboard</h1>
     </div>
-    <a href="/" class="badge" style="text-decoration: none;">terug naar dashboard</a>
+    <a href="./" class="badge" style="text-decoration: none;">terug naar dashboard</a>
   </header>
 
   <div class="upload-wrap">
@@ -57,7 +57,7 @@
       </form>
 
       <div id="status" class="status"></div>
-      <a class="back-link" href="/">← terug naar dashboard</a>
+      <a class="back-link" href="./">← terug naar dashboard</a>
     </div>
   </div>
 
@@ -79,7 +79,7 @@
       fd.append("file", file);
 
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/upload");
+      xhr.open("POST", "api/upload");
 
       $("submit-btn").disabled = true;
       $("progress").style.display = "block";
@@ -102,7 +102,7 @@
             showStatus("ok",
               `✅ Gelukt — laatste data: <strong>${resp.latest_date}</strong>`,
               `${resp.days} dagen · ${resp.workouts} workouts · ${resp.size_mb} MB · ${resp.duration_s}s\nArchief: ${resp.archived}`);
-            setTimeout(() => window.location.href = "/", 2500);
+            setTimeout(() => window.location.href = "./", 2500);
           } else {
             showStatus("err", `Fout (${xhr.status}): ${resp.detail || "onbekend"}`, resp.detail);
           }

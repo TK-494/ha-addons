@@ -1,23 +1,27 @@
 name: "Apple Health Dashboard"
-version: "0.2.0"
+version: "0.3.0"
 slug: "apple_health_dashboard"
 description: "Lokaal gezondheidsdashboard op basis van je Apple Health-export. Upload je export.zip en bekijk trends voor stappen, workouts, slaap en conditie."
-url: "https://github.com/TK-494/Claude-projects"
+url: "https://github.com/TK-494/ha-addons/tree/main/apple-health-dashboard-main"
 arch:
   - aarch64
   - amd64
   - armv7
 startup: application
 boot: auto
+# Sidebar via HA ingress. Host port stays optional (null = not exposed by
+# default); users can map 8095 from the HA UI if they want LAN access too.
+ingress: true
+ingress_port: 8095
+panel_icon: mdi:heart-pulse
+panel_title: "Health Dashboard"
 ports:
-  8095/tcp: 8095
+  8095/tcp: null
 ports_description:
-  8095/tcp: "Dashboard web UI"
+  8095/tcp: "Dashboard web UI (optioneel, ingress werkt zonder)"
 options:
   reload_token: "changeme"
 schema:
   reload_token: str
 map:
   - data:rw
-panel_icon: mdi:heart-pulse
-panel_title: "Health Dashboard"

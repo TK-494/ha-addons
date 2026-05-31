@@ -1173,7 +1173,7 @@ function renderFooter(today, range30) {
 // ---------- Range toggle ----------
 async function getRange(days) {
   if (STATE.ranges[days]) return STATE.ranges[days];
-  const r = await fetchJSON(`/api/range?days=${days}&fields=${encodeURIComponent(RANGE_FIELDS)}`);
+  const r = await fetchJSON(`api/range?days=${days}&fields=${encodeURIComponent(RANGE_FIELDS)}`);
   STATE.ranges[days] = r;
   return r;
 }
@@ -1967,10 +1967,10 @@ function bootSettings() {
 async function init() {
   try {
     const [summary, range30, range90, range365] = await Promise.all([
-      fetchJSON("/api/summary"),
-      fetchJSON(`/api/range?days=30&fields=${encodeURIComponent(RANGE_FIELDS)}`),
-      fetchJSON(`/api/range?days=90&fields=${encodeURIComponent(RANGE_FIELDS)}`),
-      fetchJSON(`/api/range?days=365&fields=${encodeURIComponent(RANGE_FIELDS)}`),
+      fetchJSON("api/summary"),
+      fetchJSON(`api/range?days=30&fields=${encodeURIComponent(RANGE_FIELDS)}`),
+      fetchJSON(`api/range?days=90&fields=${encodeURIComponent(RANGE_FIELDS)}`),
+      fetchJSON(`api/range?days=365&fields=${encodeURIComponent(RANGE_FIELDS)}`),
     ]);
     STATE.summary = summary;
     STATE.ranges = { 30: range30, 90: range90, 365: range365 };
@@ -2055,12 +2055,12 @@ document.addEventListener("DOMContentLoaded", () => {
     card.setAttribute('style', 'margin:16px 28px;padding:20px 24px;border-radius:12px;background:rgba(80,140,255,.10);border:1px solid rgba(80,140,255,.35);');
     card.innerHTML =
       '<h2 style="margin:0 0 6px;font-size:1.15rem;">Nog geen gezondheidsdata ge&iuml;mporteerd</h2>' +
-      '<p style="margin:0 0 14px;opacity:.85;">Upload eerst je Apple Health-export (<code>export.zip</code>) via <code>/upload</code>. Daarna vullen het dashboard en de grafieken zich vanzelf.</p>' +
-      '<a href="/upload" style="display:inline-block;padding:9px 16px;border-radius:8px;background:#2d6cdf;color:#fff;text-decoration:none;font-weight:600;">Data uploaden</a>';
+      '<p style="margin:0 0 14px;opacity:.85;">Upload eerst je Apple Health-export (<code>export.zip</code>) via <code>upload</code>. Daarna vullen het dashboard en de grafieken zich vanzelf.</p>' +
+      '<a href="upload" style="display:inline-block;padding:9px 16px;border-radius:8px;background:#2d6cdf;color:#fff;text-decoration:none;font-weight:600;">Data uploaden</a>';
     document.body.insertAdjacentElement('afterbegin', card);
   }
   function check() {
-    fetch('/api/import/status').then(function (r) { return r.ok ? r.json() : null; }).then(function (s) {
+    fetch('api/import/status').then(function (r) { return r.ok ? r.json() : null; }).then(function (s) {
       if (s && s.has_import === false) showEmptyState();
     }).catch(function () {});
   }
