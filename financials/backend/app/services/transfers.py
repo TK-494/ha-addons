@@ -225,6 +225,25 @@ def _match_card_settlements(
                 used.add(best.id)
                 stats.settlements_matched += 1
 
+        # Money sent to the card whose card-side row was never imported — the
+        # card export usually covers a far shorter period than the current
+        # account. These are unmistakably card movements (the bank's own `cc`
+        # code, or the card number in the description), so counting them as
+        # household spend would double the card's real cost. Flagged pending,
+        # exactly like a half-imported IBAN transfer.
+        for debit in debits:
+            if debit.id in used or debit.is_internal:
+                continue
+            haystack = f"{debit.description} {debit.counter_name}".lower()
+            if debit.bank_code in SETTLEMENT_BANK_CODES or (
+                card.card_last4 and card.card_last4 in haystack
+            ):
+                debit.is_internal = True
+                debit.transfer_pending = True
+                debit.category_id = None
+                used.add(debit.id)
+                stats.legs_pending += 1
+
 
 def link_manually(db: Session, tx_id_a: int, tx_id_b: int) -> str:
     """Link two transactions the matcher missed. Returns the group id."""

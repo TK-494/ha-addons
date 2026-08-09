@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import { amountClass, bankCodeLabel, money, shortDate } from "../format.js";
@@ -9,7 +10,16 @@ const EMPTY_FILTERS = {
 };
 
 export default function Transactions() {
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  // Links from the overview arrive with filters in the URL, so a click on a
+  // category slice or a worklist row lands on exactly that selection.
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState(() => ({
+    ...EMPTY_FILTERS,
+    search: searchParams.get("search") || "",
+    category_id: searchParams.get("category_id") || "",
+    account_id: searchParams.get("account_id") || "",
+    uncategorised: searchParams.get("uncategorised") === "1",
+  }));
   const [data, setData] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);

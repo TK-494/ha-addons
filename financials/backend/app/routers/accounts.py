@@ -76,6 +76,47 @@ def _serialise(db: Session, account: Account) -> dict:
     }
 
 
+class AccountCreate(BaseModel):
+    """Declare an account as yours before its CSV exists.
+
+    Accounts are normally created by importing their export, which leaves a
+    gap: money sent to an account you own but have not imported looks exactly
+    like spending. Registering the IBAN here closes it — transfers to it are
+    recognised immediately and flagged as awaiting the other side.
+    """
+
+    iban: str = Field(..., min_length=8, max_length=40)
+    display_name: str | None = Field(default=None, max_length=120)
+    kind: str = "checking"
+    include_in_networth: bool = False
+
+
+@router.post("/")
+def create_account(payload: AccountCreate, db: Session = Depends(get_db)):
+    if payload.kind not in ACCOUNT_KINDS:
+        raise HTTPException(422, f"kind moet één van {ACCOUNT_KINDS} zijn.")
+
+    iban = payload.iban.replace(" ", "").upper()
+    if db.scalar(select(Account).where(Account.key == iban)) is not None:
+        raise HTTPException(409, "Deze rekening bestaat al.")
+
+    account = Account(
+        key=iban, iban=iban, kind=payload.kind,
+        display_name=(payload.display_name or "").strip() or None,
+        # An account with no imported transactions has no known balance, so it
+        # would drag the net-worth total to a wrong number if counted.
+        include_in_networth=payload.include_in_networth,
+    )
+    db.add(account)
+    db.commit()
+
+    stats = transfers.rematch_all(db)
+    return {
+        **_serialise(db, account),
+        "rematched": {"pairs": stats.pairs_matched, "pending": stats.legs_pending},
+    }
+
+
 @router.get("/")
 def list_accounts(db: Session = Depends(get_db)):
     accounts = db.scalars(select(Account).order_by(Account.kind, Account.id)).all()

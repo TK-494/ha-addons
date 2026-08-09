@@ -62,7 +62,19 @@ export const api = {
     request(`/imports/${id}`, { method: "DELETE", params: { delete_transactions: deleteTransactions } }),
   downloadUrl: (id) => `${API_BASE}/imports/${id}/download`,
 
+  summary: (params) => request("/dashboard/summary", { params }),
+  cashflow: (params) => request("/dashboard/cashflow", { params }),
+  byCategory: (params) => request("/dashboard/by-category", { params }),
+  balanceHistory: (months) => request("/dashboard/balance-history", { params: { months } }),
+  fixedVariable: (months) => request("/dashboard/fixed-variable", { params: { months } }),
+  recurring: (onlyActive) => request("/dashboard/recurring", { params: { only_active: onlyActive } }),
+  topCounterparties: (params) => request("/dashboard/top-counterparties", { params }),
+  yearOverYear: (years) => request("/dashboard/year-over-year", { params: { years } }),
+  categoryDetail: (id, months) => request(`/dashboard/category/${id}`, { params: { months } }),
+  uncategorised: (limit) => request("/dashboard/uncategorised", { params: { limit } }),
+
   accounts: () => request("/accounts/"),
+  createAccount: (payload) => request("/accounts/", { method: "POST", body: payload }),
   updateAccount: (id, payload) => request(`/accounts/${id}`, { method: "PATCH", body: payload }),
   rematchTransfers: () => request("/accounts/rematch-transfers", { method: "POST" }),
 

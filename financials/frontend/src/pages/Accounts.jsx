@@ -9,6 +9,50 @@ const KINDS = [
   { value: "credit_card", label: "Creditcard" },
 ];
 
+function AddAccount({ onDone, onError }) {
+  const [form, setForm] = useState({ iban: "", display_name: "", kind: "checking" });
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const result = await api.createAccount({ ...form, include_in_networth: false });
+      onDone(
+        `Rekening toegevoegd. ${result.rematched.pending} overboekingen staan nu als intern gemarkeerd ` +
+        "(de andere kant is niet geïmporteerd)."
+      );
+      setForm({ iban: "", display_name: "", kind: "checking" });
+    } catch (e) {
+      onError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="grid gap-2 sm:grid-cols-4" onSubmit={submit}>
+      <input
+        className="input"
+        placeholder="NL00BANK0123456789"
+        value={form.iban}
+        onChange={(e) => setForm({ ...form, iban: e.target.value })}
+        required
+      />
+      <input
+        className="input"
+        placeholder="Naam (bijv. Gezamenlijke rekening)"
+        value={form.display_name}
+        onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+      />
+      <select className="input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+        {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+      </select>
+      <button className="btn-primary" disabled={busy || form.iban.trim().length < 8}>Toevoegen</button>
+    </form>
+  );
+}
+
 /**
  * Each account stands on its own. `kind` is what decides how it reads at
  * household level: money moved to a savings account is saved, not spent.
@@ -134,6 +178,16 @@ export default function Accounts() {
           ))}
         </div>
       )}
+
+      <section className="card mt-6">
+        <h3 className="mb-1 font-semibold">Eigen rekening toevoegen zonder import</h3>
+        <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+          Heb je een rekening waarvan je geen CSV importeert — een gezamenlijke rekening bijvoorbeeld? Geld
+          dat je daarheen overmaakt telt nu als uitgave. Geef het rekeningnummer hier op, dan worden die
+          overboekingen herkend als intern (met de melding dat de andere kant ontbreekt).
+        </p>
+        <AddAccount onDone={(message) => { setNotice(message); load(); }} onError={setError} />
+      </section>
 
       <p className="mt-6 text-xs text-slate-500 dark:text-slate-400">
         Zet een rekening op <strong>Spaarrekening</strong> om geld dat je erheen overmaakt als gespaard te

@@ -1,12 +1,17 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import Overview from "./pages/Overview.jsx";
 import Import from "./pages/Import.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Accounts from "./pages/Accounts.jsx";
+import CategoryDetail from "./pages/CategoryDetail.jsx";
+import Recurring from "./pages/Recurring.jsx";
 import Rules from "./pages/Rules.jsx";
 import Settings from "./pages/Settings.jsx";
 
 const NAV = [
+  { to: "/overzicht", label: "Overzicht", icon: "◧" },
   { to: "/transacties", label: "Transacties", icon: "≡" },
+  { to: "/terugkerend", label: "Terugkerend", icon: "↻" },
   { to: "/rekeningen", label: "Rekeningen", icon: "▤" },
   { to: "/importeren", label: "Importeren", icon: "↑" },
   { to: "/regels", label: "Categorieën & regels", icon: "⚑" },
@@ -61,13 +66,16 @@ export default function App() {
         </div>
 
         <Routes>
-          <Route path="/" element={<Navigate to="/transacties" replace />} />
+          <Route path="/" element={<Navigate to="/overzicht" replace />} />
+          <Route path="/overzicht" element={<Overview />} />
           <Route path="/transacties" element={<Transactions />} />
+          <Route path="/terugkerend" element={<Recurring />} />
+          <Route path="/categorie/:id" element={<CategoryDetail />} />
           <Route path="/rekeningen" element={<Accounts />} />
           <Route path="/importeren" element={<Import />} />
           <Route path="/regels" element={<Rules />} />
           <Route path="/instellingen" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/transacties" replace />} />
+          <Route path="*" element={<Navigate to="/overzicht" replace />} />
         </Routes>
       </main>
     </div>

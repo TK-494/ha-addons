@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.orm import Session
 
 from ..models import Category, Setting, Transaction
@@ -82,7 +82,7 @@ def detect_salary_day(db: Session) -> Optional[int]:
     cutoff = date.today() - timedelta(days=730)
     rows = db.execute(
         select(
-            func.cast(func.strftime("%d", Transaction.booked_on), func.INTEGER().type).label("dom"),
+            cast(func.strftime("%d", Transaction.booked_on), Integer).label("dom"),
             func.count().label("n"),
         )
         .where(
