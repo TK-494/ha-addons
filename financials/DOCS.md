@@ -99,6 +99,25 @@ laat de app hem met rust:
 Wil je toch alles gelijktrekken met de regels, dan is daar één knop voor: *Ook handmatige keuzes
 overschrijven…*. Die vraagt eerst hoeveel van jouw keuzes eraan gaan en doet niets tot je bevestigt.
 
+### Een regel aanpassen
+
+Klik op de waarde van een regel, of op **Bewerken**. Je kunt alles wijzigen: de categorie, waar hij
+naar kijkt, of hij *bevat* / *is exact* / *begint met* gebruikt, de waarde zelf, een bedragbereik, en
+of hij actief is.
+
+Terwijl je typt telt de app mee: hoeveel transacties de regel raakt, hoeveel er al in die categorie
+staan, hoeveel je handmatig hebt vastgezet (die blijven ongewijzigd) en hoeveel er dus echt zouden
+verhuizen — met een paar voorbeelden erbij. Zo zie je vóór het opslaan of je een regel te breed
+maakt.
+
+**Prioriteit** pas je direct in de tabel aan, zonder het scherm te openen. Een lager getal wint: bij
+twee regels die dezelfde transactie vangen, telt die met het laagste nummer. De standaardregels
+zitten op 10–270, de tweede set op 500 en hoger, en regels die je zelf maakt op 1 — die winnen dus
+standaard van alles.
+
+Na een wijziging klik je op **Regels opnieuw toepassen** om bestaande transacties bij te werken. Wat
+je handmatig hebt ingesteld blijft daarbij staan.
+
 ### Regels exporteren en importeren
 
 **Regels exporteren** geeft een JSON-bestand met álle regels: naar welke categorie ze wijzen, hoe ze

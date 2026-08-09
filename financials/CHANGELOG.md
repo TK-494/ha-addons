@@ -1,5 +1,25 @@
 # Changelog — Financials
 
+## 0.8.0 — 2026-08-09
+
+### Nieuw
+- **Regels zijn volledig te bewerken.** Tot nu toe kon je een regel alleen uitzetten of verwijderen;
+  nu pas je categorie, veld, vergelijking (bevat / is exact / begint met), waarde, bedragbereik en
+  actief-status aan in één scherm.
+- **Prioriteit direct in de tabel** aanpasbaar, zonder het bewerkscherm te openen — dat is de knop
+  die je nodig hebt als twee regels om dezelfde transactie vechten.
+- **Live voorbeeld tijdens het bewerken**: hoeveel transacties de regel raakt, hoeveel er al in die
+  categorie staan, hoeveel handmatig vastgezet zijn en hoeveel er dus werkelijk zouden verhuizen,
+  met voorbeeldregels. Zo maak je een regel niet per ongeluk te breed.
+- Waarschuwing in het bewerkscherm als een waarde een spatie aan het begin of eind heeft, zodat je
+  hem niet per ongeluk weghaalt.
+- De herkomstkolom toont nu ook wélke batch, of dat een regel vanaf een transactie of via import is
+  ontstaan.
+
+### Techniek
+- 160 tests, waaronder één die bewijst dat het verlagen van een prioriteit daadwerkelijk een andere
+  regel laat winnen.
+
 ## 0.7.0 — 2026-08-09
 
 ### Nieuw

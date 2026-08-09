@@ -131,6 +131,7 @@ export const api = {
   importRules: (payload, dryRun) =>
     request("/rules/import", { method: "POST", body: payload, params: { dry_run: dryRun } }),
   ruleConflicts: () => request("/rules/conflicts"),
+  previewRule: (params) => request("/rules/preview", { params }),
   reseed: () => request("/rules/reseed", { method: "POST" }),
   reapplyRules: (includeLocked, dryRun) =>
     request("/rules/reapply", {

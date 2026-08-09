@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -159,6 +159,83 @@ def list_rules(
         }
         for r in db.scalars(stmt).all()
     ]
+
+
+@router.get("/rules/preview")
+def preview_rule(
+    db: Session = Depends(get_db),
+    field: RuleField = "any",
+    operator: RuleOperator = "contains",
+    value: str = Query(..., min_length=1, max_length=200),
+    category_id: Optional[int] = None,
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    account_id: Optional[int] = None,
+):
+    """How many transactions a pattern touches, before you commit to it.
+
+    Editing a rule is otherwise a blind action: you cannot see whether widening
+    `esso` to `es` is harmless or catastrophic until after you saved it and
+    re-ran everything.
+    """
+    haystacks = {
+        "description": [Transaction.description],
+        "counter_name": [Transaction.counter_name, Transaction.ultimate_party],
+        "counter_iban": [Transaction.counter_iban],
+        "creditor_id": [Transaction.creditor_id],
+        "bank_code": [Transaction.bank_code],
+    }.get(field, [Transaction.description, Transaction.counter_name, Transaction.ultimate_party])
+
+    needle = value.lower()
+    if operator == "equals":
+        pattern = needle
+        conditions = [func.lower(column) == pattern for column in haystacks]
+    elif operator == "startswith":
+        conditions = [func.lower(column).like(f"{needle}%") for column in haystacks]
+    else:
+        conditions = [func.lower(column).like(f"%{needle}%") for column in haystacks]
+
+    condition = or_(*conditions)
+    filters = [condition, Transaction.is_internal.is_(False)]
+    if amount_min is not None:
+        filters.append(Transaction.amount_cents >= int(round(amount_min * 100)))
+    if amount_max is not None:
+        filters.append(Transaction.amount_cents <= int(round(amount_max * 100)))
+    if account_id:
+        filters.append(Transaction.account_id == account_id)
+
+    total = db.scalar(select(func.count()).select_from(Transaction).where(*filters)) or 0
+    locked = db.scalar(
+        select(func.count()).select_from(Transaction)
+        .where(*filters, Transaction.category_locked.is_(True))
+    ) or 0
+    already = 0
+    if category_id:
+        already = db.scalar(
+            select(func.count()).select_from(Transaction)
+            .where(*filters, Transaction.category_id == category_id)
+        ) or 0
+
+    samples = db.scalars(
+        select(Transaction).where(*filters).order_by(func.abs(Transaction.amount_cents).desc()).limit(5)
+    ).all()
+
+    return {
+        "matches": total,
+        "locked": locked,
+        "already_in_category": already,
+        "would_change": max(0, total - already - locked),
+        "samples": [
+            {
+                "booked_on": s.booked_on.isoformat(),
+                "amount": s.amount_cents / 100,
+                "description": s.description[:60],
+                "counter_name": s.counter_name[:40],
+                "category": s.category.name if s.category else None,
+            }
+            for s in samples
+        ],
+    }
 
 
 @router.post("/rules/")

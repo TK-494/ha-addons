@@ -7,6 +7,200 @@ const FIELDS = {
   counter_iban: "Tegenrekening", creditor_id: "Incassant-ID", bank_code: "Bankcode",
 };
 
+const OPERATORS = {
+  contains: "bevat",
+  equals: "is exact",
+  startswith: "begint met",
+};
+
+/** Edit every part of a rule, with a live count of what it would touch. */
+function RuleEditor({ rule, categories, onClose, onSaved, onError }) {
+  const [form, setForm] = useState({
+    category_id: rule.category_id,
+    field: rule.field,
+    operator: rule.operator,
+    value: rule.value,
+    priority: rule.priority,
+    active: rule.active,
+    amount_min: rule.amount_min ?? "",
+    amount_max: rule.amount_max ?? "",
+  });
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!form.value) { setPreview(null); return; }
+    const timer = setTimeout(() => {
+      api.previewRule({
+        field: form.field,
+        operator: form.operator,
+        value: form.value,
+        category_id: form.category_id,
+        amount_min: form.amount_min === "" ? undefined : form.amount_min,
+        amount_max: form.amount_max === "" ? undefined : form.amount_max,
+      }).then(setPreview).catch(() => setPreview(null));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [form.field, form.operator, form.value, form.category_id, form.amount_min, form.amount_max]);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api.updateRule(rule.id, {
+        category_id: Number(form.category_id),
+        field: form.field,
+        operator: form.operator,
+        value: form.value,
+        priority: Number(form.priority),
+        active: form.active,
+        amount_min: form.amount_min === "" ? null : Number(form.amount_min),
+        amount_max: form.amount_max === "" ? null : Number(form.amount_max),
+        account_id: rule.account_id ?? null,
+      });
+      onSaved("Regel aangepast. Klik op ‘Regels opnieuw toepassen’ om bestaande transacties bij te werken.");
+    } catch (e) {
+      onError(e.message);
+      setBusy(false);
+    }
+  }
+
+  const trailingSpace = form.value !== form.value.trim();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+        <h3 className="mb-3 text-lg font-semibold">Regel bewerken</h3>
+
+        <div className="mb-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label">Categorie</label>
+            <select
+              className="input"
+              value={form.category_id}
+              onChange={(e) => setForm({ ...form, category_id: Number(e.target.value) })}
+            >
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Prioriteit</label>
+            <input
+              type="number"
+              min="1"
+              max="10000"
+              className="input"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Lager wint. Standaardregels zitten op 10–270, de tweede set op 500+.
+            </p>
+          </div>
+          <div>
+            <label className="label">Kijkt naar</label>
+            <select
+              className="input"
+              value={form.field}
+              onChange={(e) => setForm({ ...form, field: e.target.value })}
+            >
+              {Object.entries(FIELDS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Vergelijking</label>
+            <select
+              className="input"
+              value={form.operator}
+              onChange={(e) => setForm({ ...form, operator: e.target.value })}
+            >
+              {Object.entries(OPERATORS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Waarde</label>
+            <input
+              className="input font-mono"
+              value={form.value}
+              maxLength={200}
+              onChange={(e) => setForm({ ...form, value: e.target.value })}
+            />
+            {trailingSpace && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                Deze waarde heeft een spatie aan het begin of eind — dat is bewust bruikbaar
+                (<code>ns </code> vangt wél de NS, niet “jetbrains”), maar let op dat je hem niet per
+                ongeluk weghaalt.
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="label">Bedrag vanaf (optioneel)</label>
+            <input
+              type="number"
+              step="0.01"
+              className="input"
+              value={form.amount_min}
+              onChange={(e) => setForm({ ...form, amount_min: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Bedrag tot (optioneel)</label>
+            <input
+              type="number"
+              step="0.01"
+              className="input"
+              value={form.amount_max}
+              onChange={(e) => setForm({ ...form, amount_max: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <label className="mb-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.active}
+            onChange={(e) => setForm({ ...form, active: e.target.checked })}
+          />
+          Regel is actief
+        </label>
+
+        <div className="mb-4 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700">
+          {preview === null ? (
+            <p className="text-slate-500 dark:text-slate-400">Bezig met tellen…</p>
+          ) : (
+            <>
+              <p>
+                Raakt <strong>{preview.matches}</strong> transacties.{" "}
+                {preview.already_in_category > 0 && <>{preview.already_in_category} staan al in deze categorie. </>}
+                {preview.locked > 0 && <>{preview.locked} zijn handmatig ingesteld en blijven ongewijzigd. </>}
+                <strong>{preview.would_change}</strong> zouden verplaatst worden.
+              </p>
+              {preview.samples.length > 0 && (
+                <ul className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {preview.samples.map((s, i) => (
+                    <li key={i} className="truncate">
+                      {s.booked_on} · {s.counter_name || s.description}
+                      {s.category && <> · nu: {s.category}</>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={onClose} disabled={busy}>Annuleren</button>
+          <button className="btn-primary" onClick={save} disabled={busy || !form.value}>Opslaan</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Create or edit a category. */
 function CategoryDialog({ category, onClose, onSaved, onError }) {
   const isNew = Boolean(category.isNew);
@@ -122,6 +316,7 @@ export default function Rules() {
   const [confirmOverride, setConfirmOverride] = useState(null);
   const [conflicts, setConflicts] = useState(null);
   const [importResult, setImportResult] = useState(null);
+  const [editRule, setEditRule] = useState(null);
   const [draft, setDraft] = useState({ value: "", field: "counter_name", category_id: "" });
 
   const load = () => {
@@ -357,16 +552,49 @@ export default function Rules() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {rules.map((rule) => (
                 <tr key={rule.id} className={rule.active ? "" : "opacity-50"}>
-                  <td className="td">{rule.priority}</td>
+                  <td className="td">
+                    {/* Priority decides which rule wins, so it is the thing you
+                        reach for most — inline rather than behind a dialog. */}
+                    <input
+                      type="number"
+                      min="1"
+                      max="10000"
+                      className="input w-20 py-1 text-right"
+                      defaultValue={rule.priority}
+                      title="Lager getal wint"
+                      onBlur={async (e) => {
+                        const next = Number(e.target.value);
+                        if (!next || next === rule.priority) return;
+                        try {
+                          await api.updateRule(rule.id, { ...rule, priority: next });
+                          setNotice("Prioriteit aangepast. Klik op ‘Regels opnieuw toepassen’ om het te laten gelden.");
+                          load();
+                        } catch (err) {
+                          setError(err.message);
+                        }
+                      }}
+                    />
+                  </td>
                   <td className="td">{FIELDS[rule.field] || rule.field}</td>
-                  <td className="td font-mono text-xs">{rule.value}</td>
+                  <td className="td">
+                    <button
+                      className="font-mono text-xs hover:underline"
+                      title="Regel bewerken"
+                      onClick={() => setEditRule(rule)}
+                    >
+                      {rule.value}
+                    </button>
+                  </td>
                   <td className="td">{rule.category_name}</td>
                   <td className="td text-xs text-slate-500 dark:text-slate-400">
-                    {rule.is_seed ? "standaard" : "eigen"}
+                    {rule.origin === "seed" ? `standaard (batch ${rule.seed_batch})`
+                      : rule.origin === "transaction" ? "vanaf transactie"
+                      : rule.origin === "import" ? "geïmporteerd" : "handmatig"}
                   </td>
                   <td className="td text-right">
+                    <button className="btn-ghost" onClick={() => setEditRule(rule)}>Bewerken</button>
                     <button
-                      className="btn-ghost"
+                      className="btn-ghost ml-1"
                       onClick={async () => {
                         await api.updateRule(rule.id, { ...rule, active: !rule.active });
                         load();
@@ -462,6 +690,16 @@ export default function Rules() {
           <em> Regels opnieuw toepassen</em> om de nieuwe regels te laten werken.
         </p>
       </Confirm>
+
+      {editRule && (
+        <RuleEditor
+          rule={editRule}
+          categories={categories}
+          onClose={() => setEditRule(null)}
+          onSaved={(message) => { setEditRule(null); setNotice(message); load(); }}
+          onError={setError}
+        />
+      )}
 
       {editCategory && (
         <CategoryDialog

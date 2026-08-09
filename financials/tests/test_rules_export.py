@@ -175,3 +175,91 @@ def test_a_keyword_already_present_is_not_added_twice(client):
     keywords under a second rule."""
     values = [r["value"] for r in client.get("/api/rules/").json()]
     assert len(values) == len(set(values))
+
+
+# ─── editing a rule ─────────────────────────────────────────────────────────
+
+def test_every_part_of_a_rule_can_be_changed(client):
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    energie = category_id(client, "Energie")
+    rule_id = client.post("/api/rules/", json={
+        "category_id": wonen, "value": "oud", "field": "any",
+        "operator": "contains", "priority": 100,
+    }).json()["id"]
+
+    client.put(f"/api/rules/{rule_id}", json={
+        "category_id": energie, "value": "nieuw", "field": "counter_name",
+        "operator": "startswith", "priority": 7, "active": False,
+        "amount_min": 5, "amount_max": 500,
+    })
+
+    rule = next(r for r in client.get("/api/rules/").json() if r["id"] == rule_id)
+    assert rule["category_name"] == "Energie"
+    assert rule["value"] == "nieuw"
+    assert rule["field"] == "counter_name"
+    assert rule["operator"] == "startswith"
+    assert rule["priority"] == 7
+    assert rule["active"] is False
+    assert rule["amount_min"] == 5 and rule["amount_max"] == 500
+
+
+def test_priority_change_reorders_which_rule_wins(client):
+    """Two rules matching the same row: the lower priority number decides."""
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    energie = category_id(client, "Energie")
+
+    items = client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+    target = next(i for i in items if "Supermarkt" in (i["counter_name"] or ""))
+
+    first = client.post("/api/rules/", json={
+        "category_id": wonen, "value": "Supermarkt", "priority": 5,
+    }).json()["id"]
+    client.post("/api/rules/", json={
+        "category_id": energie, "value": "Supermarkt Voorbeeld", "priority": 6,
+    })
+    client.post("/api/rules/reapply", params={"include_locked": True})
+    assert next(i for i in client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+                if i["id"] == target["id"])["category_name"] == "Wonen"
+
+    # Push the broad rule behind the specific one.
+    rule = next(r for r in client.get("/api/rules/").json() if r["id"] == first)
+    client.put(f"/api/rules/{first}", json={**{
+        k: rule[k] for k in ("category_id", "value", "field", "operator", "active")
+    }, "priority": 9})
+    client.post("/api/rules/reapply", params={"include_locked": True})
+
+    assert next(i for i in client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+                if i["id"] == target["id"])["category_name"] == "Energie"
+
+
+def test_preview_counts_before_you_save(client):
+    import_fixture(client, "rabobank_current.csv")
+    preview = client.get("/api/rules/preview", params={
+        "field": "counter_name", "operator": "contains", "value": "Voorbeeld",
+    }).json()
+    assert preview["matches"] >= 1
+    assert len(preview["samples"]) >= 1
+    assert "would_change" in preview
+
+
+def test_preview_respects_the_trailing_space(client):
+    import_fixture(client, "rabobank_current.csv")
+    wide = client.get("/api/rules/preview", params={"value": "ver"}).json()["matches"]
+    narrow = client.get("/api/rules/preview", params={"value": "verhuurder "}).json()["matches"]
+    assert narrow < wide
+
+
+def test_preview_separates_locked_transactions(client):
+    import_fixture(client, "rabobank_current.csv")
+    items = client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+    target = next(i for i in items if "Supermarkt" in (i["counter_name"] or ""))
+    client.patch(f"/api/transactions/{target['id']}/category",
+                 json={"category_id": category_id(client, "Wonen")})
+
+    preview = client.get("/api/rules/preview", params={
+        "field": "counter_name", "value": "Supermarkt",
+    }).json()
+    assert preview["locked"] >= 1
+    assert preview["would_change"] <= preview["matches"] - preview["locked"]
