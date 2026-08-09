@@ -12,6 +12,9 @@
   door 9.193 regels te importeren.
 
 ### Fixed
+- **Testaantallen klopten niet.** Vanaf 0.9.0 stonden er te hoge getallen in dit changelog — geschat
+  in plaats van geteld. De suite telt **201 gevallen** uit 189 testfuncties (parametrisering telt
+  door). Er ontbreekt niets; alleen het getal was mis.
 - **Schemaversie stond op 3** terwijl er migraties voor 4, 5 en 6 bestonden. Een bestaande database
   werd daardoor bij elke start opnieuw door de migratiestappen gehaald (onschadelijk — de
   kolomcontrole is idempotent) en de beveiliging tegen een terugval naar een oudere add-on-versie
@@ -37,7 +40,7 @@
   heuristiek dat zou kunnen.
 
 ### Techniek
-- 208 tests.
+- 201 tests. (Eerdere regels in dit changelog noemen te hoge aantallen; zie 0.13.1.)
 
 ## 0.12.0 — 2026-08-09
 

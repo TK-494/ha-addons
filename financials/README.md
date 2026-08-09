@@ -67,7 +67,7 @@ change afterwards.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt pytest httpx
-.venv/bin/python -m pytest                 # 208 tests, synthetic fixtures
+.venv/bin/python -m pytest                 # 201 tests, synthetic fixtures
 ./scripts/audit.sh                         # dependency advisories
 ./scripts/check-no-personal-data.sh        # refuses IBANs, exports, databases
 ```
