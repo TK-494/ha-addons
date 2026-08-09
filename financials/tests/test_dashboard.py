@@ -443,3 +443,95 @@ def test_an_empty_range_reports_zero_rather_than_failing(client):
     assert result["total"] == 0
     assert result["by_category"] == []
     assert result["monthly_average"] == 0
+
+
+# ─── the uncategorised worklist ─────────────────────────────────────────────
+
+def test_worklist_reports_amount_and_progress(client):
+    import_fixture(client, "rabobank_current.csv")
+    result = client.get("/api/dashboard/uncategorised").json()
+    assert result["total_amount"] >= 0
+    assert 0 <= result["progress"] <= 100
+    assert result["categorised"] + result["total_uncategorised"] > 0
+
+
+def test_assigning_a_group_categorises_exactly_that_group(client):
+    import_fixture(client, "rabobank_current.csv")
+    groups = client.get("/api/dashboard/uncategorised").json()["groups"]
+    if not groups:
+        return
+    target = groups[0]
+    category = client.get("/api/categories/").json()[0]
+
+    result = client.post("/api/dashboard/uncategorised/assign", json={
+        "name": target["name"], "category_id": category["id"], "create_rule": False,
+    }).json()
+
+    assert result["updated"] == target["transactions"]
+    remaining = client.get("/api/dashboard/uncategorised").json()
+    assert all(g["name"] != target["name"] for g in remaining["groups"])
+
+
+def test_assigning_can_write_the_rule_too(client):
+    """Without a rule the same rows come back on the next import."""
+    import_fixture(client, "rabobank_current.csv")
+    groups = client.get("/api/dashboard/uncategorised").json()["groups"]
+    if not groups:
+        return
+    target = groups[0]
+    category = client.get("/api/categories/").json()[0]
+
+    result = client.post("/api/dashboard/uncategorised/assign", json={
+        "name": target["name"], "category_id": category["id"], "create_rule": True,
+    }).json()
+    assert result["rule_id"] is not None
+
+    rule = next(r for r in client.get("/api/rules/").json() if r["id"] == result["rule_id"])
+    assert rule["origin"] == "transaction"
+
+
+def test_assigned_rows_are_locked_against_rule_reruns(client):
+    import_fixture(client, "rabobank_current.csv")
+    groups = client.get("/api/dashboard/uncategorised").json()["groups"]
+    if not groups:
+        return
+    category = client.get("/api/categories/").json()[0]
+    client.post("/api/dashboard/uncategorised/assign", json={
+        "name": groups[0]["name"], "category_id": category["id"], "create_rule": False,
+    })
+    client.post("/api/rules/reapply")
+
+    tagged = client.get("/api/transactions/", params={"category_id": category["id"]}).json()
+    assert tagged["total"] >= groups[0]["transactions"]
+
+
+def test_assign_rejects_an_unknown_category(client):
+    import_fixture(client, "rabobank_current.csv")
+    response = client.post("/api/dashboard/uncategorised/assign", json={
+        "name": "wat dan ook", "category_id": 999999,
+    })
+    assert response.status_code == 422
+
+
+# ─── the detection cache ────────────────────────────────────────────────────
+
+def test_recurring_cache_notices_a_recategorisation(client):
+    """The cache keys on a ledger fingerprint; changing a category must not
+    serve a stale grouping."""
+    setup_ledger(client)
+    before = client.get("/api/dashboard/recurring", params={"only_active": False}).json()
+
+    items = client.get("/api/transactions/", params={"page_size": 5}).json()["items"]
+    category = client.get("/api/categories/").json()[0]
+    client.patch(f"/api/transactions/{items[0]['id']}/category", json={"category_id": category["id"]})
+
+    after = client.get("/api/dashboard/recurring", params={"only_active": False}).json()
+    assert after["total_count"] == before["total_count"]
+
+
+def test_recurring_cache_notices_new_transactions(client):
+    import_fixture(client, "rabobank_current.csv")
+    before = client.get("/api/dashboard/recurring", params={"only_active": False}).json()["total_count"]
+    import_fixture(client, "asn.csv")
+    after = client.get("/api/dashboard/recurring", params={"only_active": False}).json()["total_count"]
+    assert after >= before

@@ -16,11 +16,12 @@ from datetime import date, timedelta
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import Integer, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Account, Category, Transaction, TransactionSplit
+from ..models import Account, Category, Rule, Transaction, TransactionSplit
 from ..services import periods, recurring, workdays
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -890,6 +891,62 @@ def counterparty_detail(
     }
 
 
+class AssignGroup(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    category_id: int
+    # A rule means the next import lands correctly too; without one you are
+    # signing up to do this again next month.
+    create_rule: bool = True
+
+
+@router.post("/uncategorised/assign")
+def assign_group(payload: AssignGroup, db: Session = Depends(get_db)):
+    """Categorise a whole worklist group at once.
+
+    Matching uses the same expression the grouping does, so what you clicked is
+    exactly what gets changed — no wider, no narrower.
+    """
+    if db.get(Category, payload.category_id) is None:
+        raise HTTPException(422, "Categorie bestaat niet.")
+
+    grouped = func.coalesce(func.nullif(Transaction.counter_name, ""), Transaction.description)
+    targets = db.scalars(
+        select(Transaction).where(
+            grouped == payload.name,
+            Transaction.category_id.is_(None),
+            Transaction.is_internal.is_(False),
+        )
+    ).all()
+
+    for tx in targets:
+        tx.category_id = payload.category_id
+        tx.category_locked = True
+
+    rule_id = None
+    if payload.create_rule and targets:
+        sample = targets[0]
+        field = "counter_name" if sample.counter_name.strip() else "description"
+        value = payload.name[:200]
+        exists = db.scalar(
+            select(Rule.id).where(
+                Rule.field == field, Rule.operator == "contains",
+                func.lower(Rule.value) == value.lower(),
+            ).limit(1)
+        )
+        if exists is None:
+            rule = Rule(
+                priority=1, field=field, operator="contains", value=value,
+                category_id=payload.category_id, origin="transaction",
+                source_transaction_id=sample.id,
+            )
+            db.add(rule)
+            db.flush()
+            rule_id = rule.id
+
+    db.commit()
+    return {"updated": len(targets), "rule_id": rule_id}
+
+
 @router.get("/uncategorised")
 def uncategorised(db: Session = Depends(get_db), limit: int = Query(25, ge=1, le=100)):
     """Worklist: what the rules did not catch, biggest amounts first, so the
@@ -903,13 +960,25 @@ def uncategorised(db: Session = Depends(get_db), limit: int = Query(25, ge=1, le
         .limit(limit)
     ).all()
 
-    total = db.scalar(
+    total, amount = db.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(func.abs(Transaction.amount_cents)), 0),
+        ).where(Transaction.category_id.is_(None), Transaction.is_internal.is_(False))
+    ).one()
+
+    categorised = db.scalar(
         select(func.count()).select_from(Transaction)
-        .where(Transaction.category_id.is_(None), Transaction.is_internal.is_(False))
+        .where(Transaction.category_id.isnot(None), Transaction.is_internal.is_(False))
     ) or 0
 
     return {
         "total_uncategorised": total,
+        "total_amount": (amount or 0) / 100,
+        "categorised": categorised,
+        # What fraction of the ledger is already sorted — the number that tells
+        # you whether working this list is nearly done or barely started.
+        "progress": round(100 * categorised / (categorised + total), 1) if (categorised + total) else 100.0,
         "groups": [
             {
                 "name": n,

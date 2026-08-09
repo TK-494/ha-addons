@@ -10,6 +10,7 @@ import CategoryDetail from "./pages/CategoryDetail.jsx";
 import Recurring from "./pages/Recurring.jsx";
 import Budgets from "./pages/Budgets.jsx";
 import Expenses from "./pages/Expenses.jsx";
+import Uncategorised from "./pages/Uncategorised.jsx";
 import Salary from "./pages/Salary.jsx";
 import Counterparty from "./pages/Counterparty.jsx";
 import Tags from "./pages/Tags.jsx";
@@ -24,6 +25,7 @@ const NAV = [
   { to: "/vaste-lasten", label: "Vaste lasten", icon: "⛓" },
   { to: "/variabele-uitgaven", label: "Variabele uitgaven", icon: "◇" },
   { to: "/terugkerend", label: "Terugkerend", icon: "↻" },
+  { to: "/te-categoriseren", label: "Nog te categoriseren", icon: "?" },
   { to: "/labels", label: "Labels", icon: "◆" },
   { to: "/rekeningen", label: "Rekeningen", icon: "▤" },
   { to: "/importeren", label: "Importeren", icon: "↑" },
@@ -136,6 +138,7 @@ export default function App() {
           <Route path="/vaste-lasten" element={<Expenses kind="fixed" />} />
           <Route path="/variabele-uitgaven" element={<Expenses kind="variable" />} />
           <Route path="/terugkerend" element={<Recurring />} />
+          <Route path="/te-categoriseren" element={<Uncategorised />} />
           <Route path="/categorie/:id" element={<CategoryDetail />} />
           <Route path="/tegenpartij" element={<Counterparty />} />
           <Route path="/labels" element={<Tags />} />

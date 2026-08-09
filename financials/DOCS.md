@@ -255,6 +255,16 @@ zinvoller — één maand boodschappen zegt weinig, zes maanden wel.
 Het aandeelblok laat steeds de andere kant zien, zodat je de verhouding niet hoeft te onthouden: op
 Vaste lasten staat hoeveel er variabel was, en andersom.
 
+## Nog te categoriseren
+
+Een eigen tabblad met alles wat nog geen categorie heeft, gegroepeerd per tegenpartij en met de
+grootste bedragen bovenaan — daar vertekent een ontbrekende categorie je cijfers het meest. De balk
+bovenin laat zien hoeveel procent van je grootboek al ingedeeld is.
+
+Kies een categorie in de lijst en de hele groep is in één keer klaar. Staat **ook een regel maken**
+aangevinkt (standaard), dan wordt de keuze onthouden en staat dezelfde tegenpartij bij de volgende
+import meteen goed. Zonder dat komt dezelfde groep volgende maand gewoon terug.
+
 ## Vaste en variabele lasten
 
 Op het overzicht staat een blok dat je uitgaven in tweeën deelt, met bovenaan drie getallen: wat er
@@ -412,6 +422,16 @@ zinvoller — één maand boodschappen zegt weinig, zes maanden wel.
 
 Het aandeelblok laat steeds de andere kant zien, zodat je de verhouding niet hoeft te onthouden: op
 Vaste lasten staat hoeveel er variabel was, en andersom.
+
+## Nog te categoriseren
+
+Een eigen tabblad met alles wat nog geen categorie heeft, gegroepeerd per tegenpartij en met de
+grootste bedragen bovenaan — daar vertekent een ontbrekende categorie je cijfers het meest. De balk
+bovenin laat zien hoeveel procent van je grootboek al ingedeeld is.
+
+Kies een categorie in de lijst en de hele groep is in één keer klaar. Staat **ook een regel maken**
+aangevinkt (standaard), dan wordt de keuze onthouden en staat dezelfde tegenpartij bij de volgende
+import meteen goed. Zonder dat komt dezelfde groep volgende maand gewoon terug.
 
 ## Vaste en variabele lasten
 

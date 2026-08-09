@@ -75,6 +75,11 @@ export const api = {
   yearOverYear: (years) => request("/dashboard/year-over-year", { params: { years } }),
   categoryDetail: (id, months) => request(`/dashboard/category/${id}`, { params: { months } }),
   uncategorised: (limit) => request("/dashboard/uncategorised", { params: { limit } }),
+  assignUncategorised: (name, categoryId, createRule) =>
+    request("/dashboard/uncategorised/assign", {
+      method: "POST",
+      body: { name, category_id: categoryId, create_rule: createRule },
+    }),
   availableThisPeriod: (params) => request("/dashboard/available", { params }),
 
   salary: (limit) => request("/salary/", { params: { limit } }),

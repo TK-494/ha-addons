@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
+import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { money, shortDate } from "../format.js";
 
 const KINDS = [
@@ -59,12 +60,17 @@ function AddAccount({ onDone, onError }) {
  */
 export default function Accounts() {
   const [accounts, setAccounts] = useState(null);
+  const [history, setHistory] = useState(null);
+  const [historyMonths, setHistoryMonths] = useState(12);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const load = () => api.accounts().then(setAccounts).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.balanceHistory(historyMonths).then(setHistory).catch(() => {});
+  }, [historyMonths]);
 
   async function patch(id, payload) {
     try {
@@ -177,6 +183,48 @@ export default function Accounts() {
             </article>
           ))}
         </div>
+      )}
+
+      {history && history.periods.length > 1 && (
+        <section className="card mt-6">
+          <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Saldoverloop</h3>
+            <select
+              className="input w-auto"
+              value={historyMonths}
+              onChange={(e) => setHistoryMonths(Number(e.target.value))}
+            >
+              {[6, 12, 24, 60].map((m) => <option key={m} value={m}>{m} maanden</option>)}
+            </select>
+          </div>
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+            Uit het saldo dat de bank zelf per transactie meestuurt — dus gelijk aan je afschrift.
+            Een rekening zonder mutaties houdt zijn laatst bekende stand vast.
+          </p>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={history.periods.map((label, index) => ({
+              label,
+              Totaal: history.total[index],
+              ...Object.fromEntries(history.series.map((s) => [s.label, s.values[index]])),
+            }))}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="label" fontSize={11} />
+              <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
+              <Tooltip formatter={(v) => money(v)} />
+              <Line type="monotone" dataKey="Totaal" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+              {history.series.map((s, index) => (
+                <Line
+                  key={s.account_id}
+                  type="monotone"
+                  dataKey={s.label}
+                  stroke={["#94a3b8", "#a78bfa", "#fbbf24", "#34d399", "#fb7185"][index % 5]}
+                  strokeWidth={1}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </section>
       )}
 
       <section className="card mt-6">

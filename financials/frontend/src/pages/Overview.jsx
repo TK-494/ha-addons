@@ -7,7 +7,6 @@ import {
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import AvailablePanel from "../components/AvailablePanel.jsx";
-import CostStructure from "../components/CostStructure.jsx";
 import CategoryDonut from "../components/CategoryDonut.jsx";
 import { money } from "../format.js";
 
@@ -36,16 +35,12 @@ export default function Overview() {
       api.cashflow({ months: 12, account_id: accountId || undefined }),
       api.byCategory(params),
       api.byCategory({ ...params, direction: "in" }),
-      api.balanceHistory(12),
-      api.fixedVariable(6),
-      api.topCounterparties({ ...params, limit: 8 }),
       api.uncategorised(5),
       api.yearOverYear(4),
       api.availableThisPeriod(period || {}),
-      api.costStructure(period || {}),
     ])
-      .then(([summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available, costs]) => {
-        setData({ summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available, costs });
+      .then(([summary, cashflow, categories, incomeCategories, todo, yoy, available]) => {
+        setData({ summary, cashflow, categories, incomeCategories, todo, yoy, available });
         if (!period) setPeriod({ year: summary.year, month: summary.month });
       })
       .catch((e) => setError(e.message))
@@ -59,7 +54,7 @@ export default function Overview() {
   };
 
   if (loading && !data.summary) return <Spinner label="Overzicht laden…" />;
-  const { summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available, costs } = data;
+  const { summary, cashflow, categories, incomeCategories, todo, yoy, available } = data;
   if (!summary) return <Empty>Nog geen gegevens. Importeer eerst een CSV-bestand.</Empty>;
 
 
@@ -147,40 +142,7 @@ export default function Overview() {
         />
       </section>
 
-      <section className="mb-6">
-        <div className="card">
-          <h3 className="mb-1 font-semibold">Saldoverloop</h3>
-          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-            Uit het saldo dat de bank zelf per transactie meestuurt — dus gelijk aan je afschrift.
-          </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={(balances.periods || []).map((label, index) => ({
-              label,
-              total: balances.total[index],
-              ...Object.fromEntries(balances.series.map((s) => [s.label, s.values[index]])),
-            }))}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
-              <Tooltip formatter={(v) => money(v)} />
-              <Line type="monotone" dataKey="total" name="Totaal" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-              {balances.series.map((s, index) => (
-                <Line
-                  key={s.account_id}
-                  type="monotone"
-                  dataKey={s.label}
-                  stroke={["#94a3b8", "#a78bfa", "#fbbf24", "#34d399", "#fb7185"][index % 5]}
-                  strokeWidth={1}
-                  dot={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
 
-      </section>
-
-      <CostStructure data={costs} trend={fixed} />
 
       <section className="card mb-6">
         <h3 className="mb-1 font-semibold">Jaar op jaar</h3>
@@ -216,33 +178,13 @@ export default function Overview() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card">
-          <h3 className="mb-3 font-semibold">Grootste tegenpartijen deze periode</h3>
-          {counterparties.length === 0 ? (
-            <Empty>Geen uitgaven in deze periode.</Empty>
-          ) : (
-            <ul className="space-y-1 text-sm">
-              {counterparties.map((row) => (
-                <li key={row.name} className="flex justify-between gap-3">
-                  <Link
-                    className="truncate hover:underline"
-                    to={`/tegenpartij?name=${encodeURIComponent(row.name.slice(0, 40))}`}
-                  >
-                    {row.name}
-                  </Link>
-                  <span className="whitespace-nowrap tabular-nums">
-                    {money(row.amount)}
-                    <span className="ml-1 text-xs text-slate-500">{row.transactions}×</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="mb-1 font-semibold">Nog te categoriseren</h3>
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h3 className="font-semibold">Nog te categoriseren</h3>
+            <Link className="text-sm hover:underline" to="/te-categoriseren">Aan de slag →</Link>
+          </div>
           <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-            {todo.total_uncategorised} transacties zonder categorie — grootste bedragen eerst, want daar zit het geld.
+            {todo.total_uncategorised} transacties zonder categorie, samen {money(todo.total_amount)}.
+            Grootste bedragen eerst — daar vertekent het je cijfers het meest.
           </p>
           {todo.groups.length === 0 ? (
             <Empty>Alles is gecategoriseerd.</Empty>
@@ -264,6 +206,38 @@ export default function Overview() {
               ))}
             </ul>
           )}
+        </div>
+
+        {/* The detail these used to show on this page now lives on its own tab;
+            what belongs here is the way in, not a second copy. */}
+        <div className="card">
+          <h3 className="mb-3 font-semibold">Verder kijken</h3>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <Link className="font-medium hover:underline" to="/vaste-lasten">Vaste lasten →</Link>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                Wat er hoe dan ook afgaat, per categorie en over 1 tot 12 maanden of alles.
+              </span>
+            </li>
+            <li>
+              <Link className="font-medium hover:underline" to="/variabele-uitgaven">Variabele uitgaven →</Link>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                Waar je zelf aan kunt draaien, met de grootste tegenpartijen.
+              </span>
+            </li>
+            <li>
+              <Link className="font-medium hover:underline" to="/rekeningen">Rekeningen →</Link>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                Saldi per rekening en het saldoverloop over de tijd.
+              </span>
+            </li>
+            <li>
+              <Link className="font-medium hover:underline" to="/terugkerend">Terugkerend →</Link>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                Abonnementen en incasso's, te filteren op ritme en bedrag.
+              </span>
+            </li>
+          </ul>
         </div>
       </section>
     </>

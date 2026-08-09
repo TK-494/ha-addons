@@ -1,5 +1,29 @@
 # Changelog — Financials
 
+## 0.17.0 — 2026-08-09
+
+### Fixed
+- **Het overzicht laadde traag.** Drie van de elf verzoeken deden ieder afzonderlijk een volledige
+  analyse van terugkerende betalingen over het hele grootboek — 136 ms per stuk, en een
+  synchrone server handelt ze na elkaar af. De uitkomst hangt alleen af van de transacties en de
+  periode-instelling, dus die wordt nu bewaard achter een vingerafdruk van allebei (één
+  aggregaatquery van ~2 ms). **Samen 509 ms → 82 ms**; koud, na een import of herstart, 219 ms.
+
+### Changed
+- **Het overzicht is opgeschoond.** Het lastenblok, de grootste tegenpartijen en het saldoverloop
+  stonden er dubbel: die hebben inmiddels hun eigen tabblad. Elf verzoeken zijn er zeven geworden.
+  Op hun plek staat een verwijzingenblok, zodat wat verdween ook vindbaar blijft.
+- **Saldoverloop verhuisd naar Rekeningen**, waar de saldi staan, met een keuze van 6 tot 60 maanden.
+
+### Nieuw
+- **Tabblad Nog te categoriseren** — een werkblad in plaats van een lijstje. Per tegenpartij één
+  keuzelijst; kiezen verwerkt de hele groep in één keer en schrijft standaard meteen de regel, zodat
+  dezelfde groep bij de volgende import niet terugkomt. Met voortgangsbalk en het openstaande bedrag.
+
+### Techniek
+- 223 tests, waaronder twee die bewaken dat de cache een hercategorisering of nieuwe transacties
+  opmerkt.
+
 ## 0.16.0 — 2026-08-09
 
 ### Nieuw

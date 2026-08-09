@@ -67,7 +67,7 @@ change afterwards.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt pytest httpx
-.venv/bin/python -m pytest                 # 201 tests, synthetic fixtures
+.venv/bin/python -m pytest                 # 223 tests, synthetic fixtures
 ./scripts/audit.sh                         # dependency advisories
 ./scripts/check-no-personal-data.sh        # refuses IBANs, exports, databases
 ```
@@ -133,6 +133,7 @@ Deliberate choices worth knowing:
 - Non-root operation depends on `su-exec` and on `/data` being chown-able. When
   it is not, the app logs a warning and continues as root rather than
   crash-looping.
-- The Docker image and the React bundle have never been built on the
-  development machine (no Docker, no Node); they are exercised for the first
-  time by Home Assistant's own build.
+- The Docker image and the React bundle cannot be built on the development
+  machine (no Docker, no Node), so Home Assistant's build is the first
+  compile. Confirmed working there as of v0.16.0 — every tab renders — but a
+  frontend change still cannot be verified locally before it ships.

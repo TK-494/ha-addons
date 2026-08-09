@@ -30,7 +30,7 @@ from ..models import Account, ImportBatch, Transaction
 from ..parsers import ParsedAccount, ParseError, ParseResult, decode_csv_bytes, parse_csv
 from ..security import mask_iban
 from . import accounts as account_service
-from . import categorize, ha, transfers
+from . import categorize, ha, recurring, transfers
 
 log = logging.getLogger("financials.import")
 
@@ -241,6 +241,7 @@ def commit_import(db: Session, batch: ImportBatch, result: ParseResult) -> Impor
     # Transfer matching runs over the whole table, not just the new rows: an
     # IBAN only becomes "one of yours" once its own export has been imported,
     # so earlier transfers to it pair up retroactively right here.
+    recurring.invalidate()
     transfers.rematch_all(db)
     # Runs after matching: the savings signal is "almost all traffic is
     # internal", which only exists once transfers have been paired.
