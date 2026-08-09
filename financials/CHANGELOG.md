@@ -1,5 +1,27 @@
 # Changelog — Financials
 
+## 0.16.0 — 2026-08-09
+
+### Nieuw
+- **Kleurenthema instelbaar** onder Instellingen → Uiterlijk, met een **Google**-thema dat de
+  kleuren van het Google-thema in Home Assistant volgt: blauw #1a73e8, rood, geel en groen uit het
+  Material-palet, vlakke kaarten en ronde knoppen. Licht/donker blijft je systeeminstelling volgen.
+- De keuze staat bij de add-on opgeslagen, niet in de browser, dus telefoon en laptop zien er
+  hetzelfde uit.
+
+### Techniek
+- Kleurschalen lopen nu via CSS-variabelen die Tailwind uitleest, zodat een thema één attribuut op
+  `<html>` is in plaats van een herschrijving van 360 kleurklassen in 20 bestanden. Met
+  `<alpha-value>` blijven opacity-varianten (`bg-slate-500/40`) werken.
+- Het thema wordt vóór de eerste render uit een lokale cache toegepast en daarna verzoend met de
+  opgeslagen instelling — anders zie je bij elke keer laden even het verkeerde palet.
+- Gecontroleerd dat alle 51 gebruikte kleurklassen in beide paletten gedefinieerd zijn.
+- 216 tests.
+
+### Note
+- Home Assistant geeft zijn thema niet door aan een add-on-iframe; daar is geen API voor. Dit is
+  daarom een bijpassend voorkeursthema, geen live synchronisatie — dat staat ook zo in de UI.
+
 ## 0.15.0 — 2026-08-09
 
 ### Nieuw

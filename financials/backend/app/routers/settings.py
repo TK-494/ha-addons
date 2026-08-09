@@ -28,6 +28,14 @@ class SalarySourceIn(BaseModel):
     min_amount: float = Field(500.0, ge=0)
 
 
+SETTING_THEME = "appearance_theme"
+THEMES = ("default", "google")
+
+
+class ThemeIn(BaseModel):
+    theme: Literal["default", "google"] = "default"
+
+
 class OverrideIn(BaseModel):
     year: int = Field(..., ge=2000, le=2100)
     month: int = Field(..., ge=1, le=12)
@@ -57,6 +65,27 @@ def _payload(db: Session) -> dict:
 @router.get("/period")
 def get_period_settings(db: Session = Depends(get_db)):
     return _payload(db)
+
+
+@router.get("/appearance")
+def get_appearance(db: Session = Depends(get_db)):
+    """Which colour preset to render in.
+
+    Home Assistant does not pass its active theme into an add-on iframe, so the
+    add-on cannot follow it automatically. This is a matching preset the user
+    picks to line up with whatever theme they run in HA.
+    """
+    return {
+        "theme": periods.get_setting(db, SETTING_THEME, "default"),
+        "available": list(THEMES),
+    }
+
+
+@router.put("/appearance")
+def set_appearance(payload: ThemeIn, db: Session = Depends(get_db)):
+    periods.set_setting(db, SETTING_THEME, payload.theme)
+    db.commit()
+    return get_appearance(db)
 
 
 @router.put("/period")

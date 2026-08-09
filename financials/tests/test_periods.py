@@ -193,3 +193,29 @@ def test_the_may_case(client):
     assert may["start"] == "2026-05-22"
     assert may["income"] == 3000.0
     assert april["income"] == 3000.0, "April keeps its own salary, not two of them"
+
+
+# ─── appearance ─────────────────────────────────────────────────────────────
+
+def test_theme_defaults_to_the_neutral_palette(client):
+    result = client.get("/api/settings/appearance").json()
+    assert result["theme"] == "default"
+    assert "google" in result["available"]
+
+
+def test_theme_is_stored_on_the_install_not_the_browser(client):
+    """Stored server-side so the phone and the laptop look the same."""
+    client.put("/api/settings/appearance", json={"theme": "google"})
+    assert client.get("/api/settings/appearance").json()["theme"] == "google"
+
+
+def test_an_unknown_theme_is_rejected(client):
+    assert client.put("/api/settings/appearance", json={"theme": "hotdog"}).status_code == 422
+
+
+def test_theme_does_not_disturb_the_period_settings(client):
+    client.put("/api/settings/period", json={"mode": "day", "start_day": 12})
+    client.put("/api/settings/appearance", json={"theme": "google"})
+    period = client.get("/api/settings/period").json()
+    assert period["mode"] == "day"
+    assert period["effective_day"] == 12

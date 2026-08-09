@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Alert, PageHeader, Spinner } from "../components/Bits.jsx";
 import { money, shortDate } from "../format.js";
+import { THEMES, applyTheme } from "../theme.js";
 
 const MODES = [
   { value: "calendar", label: "Kalendermaand (1e van de maand)" },
@@ -18,10 +19,12 @@ export default function Settings() {
   const [accounts, setAccounts] = useState([]);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [theme, setTheme] = useState(null);
 
   useEffect(() => {
     api.periodSettings().then(setSettings).catch((e) => setError(e.message));
     api.accounts().then(setAccounts).catch(() => {});
+    api.appearance().then((a) => setTheme(a.theme)).catch(() => {});
   }, []);
 
   const apply = (promise, message) =>
@@ -59,6 +62,46 @@ export default function Settings() {
 
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
       {notice && <Alert kind="success" onDismiss={() => setNotice(null)}>{notice}</Alert>}
+
+      <section className="card mb-4 max-w-2xl">
+        <h3 className="mb-1 font-semibold">Uiterlijk</h3>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Home Assistant geeft zijn eigen thema niet door aan een add-on — die draait in een eigen
+          venster en daar is geen koppeling voor. Kies hier dus hetzelfde thema als in HA, dan sluiten
+          ze op elkaar aan. Licht of donker volgt je systeeminstelling, net als in HA.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {THEMES.map((option) => (
+            <button
+              key={option.value}
+              onClick={async () => {
+                setTheme(option.value);
+                applyTheme(option.value);
+                try { localStorage.setItem("financials.theme", option.value); } catch { /* ignore */ }
+                try {
+                  await api.saveAppearance(option.value);
+                  setNotice(`Thema ${option.label} ingesteld.`);
+                } catch (e) {
+                  setError(e.message);
+                }
+              }}
+              className={`rounded-xl border p-3 text-left transition-colors ${
+                theme === option.value
+                  ? "border-sky-500 ring-2 ring-sky-500/40"
+                  : "border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"
+              }`}
+            >
+              <span className="mb-2 flex gap-1">
+                {option.swatches.map((colour) => (
+                  <span key={colour} className="h-5 w-5 rounded-full" style={{ backgroundColor: colour }} />
+                ))}
+              </span>
+              <span className="block font-medium">{option.label}</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">{option.description}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="card mb-4 max-w-2xl">
         <h3 className="mb-1 font-semibold">Maandgrens</h3>

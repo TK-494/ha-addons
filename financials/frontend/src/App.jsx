@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { api } from "./api.js";
+import { applyTheme } from "./theme.js";
 import Overview from "./pages/Overview.jsx";
 import Import from "./pages/Import.jsx";
 import Transactions from "./pages/Transactions.jsx";
@@ -42,6 +44,16 @@ export default function App() {
       return false;
     }
   });
+
+  // The stored theme is the source of truth; the cache only prevents a flash.
+  useEffect(() => {
+    api.appearance()
+      .then(({ theme }) => {
+        applyTheme(theme);
+        try { localStorage.setItem("financials.theme", theme); } catch { /* ignore */ }
+      })
+      .catch(() => { /* keep whatever the cache applied */ });
+  }, []);
 
   useEffect(() => {
     try {

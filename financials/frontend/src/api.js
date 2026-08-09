@@ -154,6 +154,9 @@ export const api = {
       params: { include_locked: includeLocked, dry_run: dryRun },
     }),
 
+  appearance: () => request("/settings/appearance"),
+  saveAppearance: (theme) => request("/settings/appearance", { method: "PUT", body: { theme } }),
+
   periodSettings: () => request("/settings/period"),
   savePeriodSettings: (payload) => request("/settings/period", { method: "PUT", body: payload }),
   saveSalarySource: (payload) => request("/settings/salary-source", { method: "PUT", body: payload }),

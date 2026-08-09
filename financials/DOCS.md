@@ -377,6 +377,23 @@ Je kunt daar dashboardkaarten en automatiseringen op bouwen — bijvoorbeeld een
 uitgaven deze maand boven een bedrag komen. De waarden worden bijgewerkt na elke import en verder
 elk half uur.
 
+## Uiterlijk
+
+Onder **Instellingen → Uiterlijk** kies je een kleurenthema:
+
+- **Standaard** — neutrale grijstinten met een blauw accent.
+- **Google** — Google Material: dezelfde blauw (#1a73e8), rood, geel en groen als het Google-thema
+  in Home Assistant, met vlakke kaarten en ronde knoppen.
+
+Licht of donker volgt je systeeminstelling, net als in Home Assistant zelf.
+
+Home Assistant geeft zijn actieve thema **niet** door aan een add-on: die draait in een eigen venster
+en daar bestaat geen koppeling voor. Dit is dus een bijpassend thema dat je zelf kiest, geen
+automatische overname. Zet hem op hetzelfde als in HA en de twee sluiten op elkaar aan.
+
+De keuze wordt bij de add-on opgeslagen, niet in je browser — op je telefoon ziet het er dus hetzelfde
+uit als op je laptop.
+
 ## Instellingen
 
 Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag, of op een vaste dag
