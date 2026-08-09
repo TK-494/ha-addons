@@ -1,5 +1,27 @@
 # Changelog — Financials
 
+## 0.13.0 — 2026-08-09
+
+### Nieuw
+- **Filteren en zoeken op de pagina Terugkerend**: op ritme, categorie, soort (vast of variabel),
+  herkomst (incassant-ID of naam), bedragbereik per maand, en alleen gewijzigde bedragen. Zoeken op
+  naam en categorie, sorteren op zes velden op- of aflopend.
+- **Het totaal rekent mee met het filter.** "Alleen maandelijks" beantwoordt daarmee direct wat je
+  maandabonnementen samen kosten, in plaats van een kortere lijst te geven om zelf op te tellen.
+- De keuzelijsten tonen hoeveel posten er per ritme en per categorie zijn.
+- Elke post laat nu zien of hij als vaste last of als variabel telt, met uitleg bij het label.
+
+### Note
+- Overwogen om de detectie strenger te maken zodat losse aankopen niet als "jaarlijks" opduiken,
+  maar op echte gegevens blijkt regelmaat van tussenpozen daar geen bruikbaar signaal voor: Netflix,
+  HBO Max en Amazon hebben grillige tussenpozen door gaten in de historie, terwijl drie
+  supermarktbezoeken toevallig regelmatig kunnen liggen. Een drempel die de ruis wegfiltert sloopt
+  ook zeventien echte incasso's. Het filter *alleen vaste lasten* doet dit werk beter dan een
+  heuristiek dat zou kunnen.
+
+### Techniek
+- 208 tests.
+
 ## 0.12.0 — 2026-08-09
 
 ### Nieuw

@@ -318,6 +318,22 @@ Alles wordt omgerekend naar een bedrag per maand, zodat een jaarpolis en een maa
 vergelijkbaar zijn. Verandert een bedrag ten opzichte van wat gebruikelijk was, dan krijgt de regel
 het label *gewijzigd* — handig om stille prijsverhogingen te zien.
 
+### Filteren en zoeken
+
+Boven de lijst staan filters op **ritme** (wekelijks, maandelijks, per kwartaal, half jaarlijks,
+jaarlijks), **categorie**, **soort** (vast of variabel), **herkomst** (incassant-ID of op naam),
+een bedragbereik per maand, en een vinkje voor *alleen gewijzigd bedrag*. Zoeken gaat op naam én
+categorie. Sorteren kan op bedrag per maand, bedrag per keer, laatst gezien, sinds wanneer, aantal
+keer of naam — op- of aflopend.
+
+Het totaal boven de lijst rekent mee met je filter. Zo beantwoordt "alleen maandelijks" meteen wat
+al je maandabonnementen samen kosten, in plaats van je een kortere lijst te geven om zelf op te
+tellen.
+
+Let op: een lang ritme is niet hetzelfde als een abonnement. Drie supermarktbezoeken verspreid over
+jaren komen ook als *jaarlijks* naar boven. Filter op *alleen vaste lasten* voor uitsluitend echte
+verplichtingen.
+
 ## Sensoren in Home Assistant
 
 De add-on zet een paar waarden als sensor in Home Assistant, zonder dat je iets hoeft in te stellen:

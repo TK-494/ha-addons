@@ -495,15 +495,103 @@ def fixed_variable(
     }
 
 
+RECURRING_SORTS = ("monthly", "amount", "last_seen", "first_seen", "label", "occurrences")
+
+
 @router.get("/recurring")
-def recurring_payments(db: Session = Depends(get_db), only_active: bool = True):
-    """Detected subscriptions and standing charges."""
+def recurring_payments(
+    db: Session = Depends(get_db),
+    only_active: bool = True,
+    search: Optional[str] = Query(None, max_length=100),
+    interval: Optional[str] = Query(None, max_length=20),
+    category: Optional[str] = Query(None, max_length=80),
+    kind: Optional[Literal["fixed", "variable"]] = None,
+    source: Optional[Literal["mandate", "name"]] = None,
+    changed_only: bool = False,
+    min_monthly: Optional[float] = None,
+    max_monthly: Optional[float] = None,
+    sort: Literal["monthly", "amount", "last_seen", "first_seen", "label", "occurrences"] = "monthly",
+    desc: bool = True,
+):
+    """Detected subscriptions and standing charges, filterable.
+
+    The unfiltered list is long enough that scanning it stops being useful, and
+    the questions people actually ask are narrow: what do my monthly
+    subscriptions cost together, which annual policies are coming up, what
+    changed price. Totals are computed over the *filtered* set so those
+    questions get a number rather than a list to add up by hand.
+    """
     config = periods.load_config(db)
-    groups = recurring.detect(db, config)
+    everything = recurring.detect(db, config)
     if only_active:
-        groups = [g for g in groups if g.is_active]
-    groups.sort(key=lambda g: abs(g.monthly_equivalent_cents), reverse=True)
-    return [recurring.serialise(g) for g in groups]
+        everything = [g for g in everything if g.is_active]
+
+    # Facet counts come from the pre-filter set, so the dropdown still shows
+    # what else is available once a filter is on.
+    intervals: dict[str, int] = {}
+    categories: dict[str, int] = {}
+    for group in everything:
+        intervals[group.interval] = intervals.get(group.interval, 0) + 1
+        name = group.category_name or "Zonder categorie"
+        categories[name] = categories.get(name, 0) + 1
+
+    groups = everything
+    if search:
+        needle = search.strip().lower()
+        groups = [
+            g for g in groups
+            if needle in g.label.lower() or needle in (g.category_name or "").lower()
+        ]
+    if interval:
+        groups = [g for g in groups if g.interval == interval]
+    if category:
+        groups = [g for g in groups if (g.category_name or "Zonder categorie") == category]
+    if kind == "fixed":
+        groups = [g for g in groups if g.is_committed]
+    elif kind == "variable":
+        groups = [g for g in groups if not g.is_committed]
+    if source == "mandate":
+        groups = [g for g in groups if g.creditor_id]
+    elif source == "name":
+        groups = [g for g in groups if not g.creditor_id]
+    if changed_only:
+        groups = [g for g in groups if g.amount_changed]
+    if min_monthly is not None:
+        groups = [g for g in groups if abs(g.monthly_equivalent_cents) >= min_monthly * 100]
+    if max_monthly is not None:
+        groups = [g for g in groups if abs(g.monthly_equivalent_cents) <= max_monthly * 100]
+
+    keys = {
+        "monthly": lambda g: abs(g.monthly_equivalent_cents),
+        "amount": lambda g: abs(g.typical_amount_cents),
+        "last_seen": lambda g: g.last_seen,
+        "first_seen": lambda g: g.first_seen,
+        "label": lambda g: g.label.lower(),
+        "occurrences": lambda g: g.occurrences,
+    }
+    groups.sort(key=keys[sort], reverse=desc)
+
+    monthly_total = sum(abs(g.monthly_equivalent_cents) for g in groups) / 100
+    return {
+        "items": [recurring.serialise(g) for g in groups],
+        "count": len(groups),
+        "total_count": len(everything),
+        "monthly_total": round(monthly_total, 2),
+        "yearly_total": round(monthly_total * 12, 2),
+        "fixed_total": round(
+            sum(abs(g.monthly_equivalent_cents) for g in groups if g.is_committed) / 100, 2
+        ),
+        "facets": {
+            "intervals": [
+                {"value": k, "count": v}
+                for k, v in sorted(intervals.items(), key=lambda kv: -kv[1])
+            ],
+            "categories": [
+                {"value": k, "count": v}
+                for k, v in sorted(categories.items(), key=lambda kv: -kv[1])
+            ],
+        },
+    }
 
 
 @router.get("/top-counterparties")

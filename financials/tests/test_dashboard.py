@@ -132,7 +132,7 @@ def test_recurring_needs_three_months_of_evidence(client):
     """The fixture has one rent payment, so nothing qualifies yet — better to
     report nothing than to invent a subscription from a single row."""
     setup_ledger(client)
-    assert client.get("/api/dashboard/recurring").json() == []
+    assert client.get("/api/dashboard/recurring").json()["items"] == []
 
 
 def test_recurring_groups_on_creditor_id(client):
@@ -161,7 +161,7 @@ def test_recurring_groups_on_creditor_id(client):
     ).json()
     client.post(f"/api/imports/{preview['batch_id']}/commit", params={"format_key": "rabobank_current"})
 
-    recurring = client.get("/api/dashboard/recurring", params={"only_active": False}).json()
+    recurring = client.get("/api/dashboard/recurring", params={"only_active": False}).json()["items"]
     subscription = next(r for r in recurring if "Streamdienst" in r["label"])
     assert subscription["from_creditor_id"] is True
     assert subscription["interval"] == "maandelijks"
@@ -305,3 +305,84 @@ def test_share_and_leftover_are_reported(client):
     result = client.get("/api/dashboard/cost-structure", params={"year": 2026, "month": 8}).json()
     assert result["share_fixed"] == 100.0
     assert result["left_after_fixed"] == -100.0
+
+
+# ─── filtering the recurring list ───────────────────────────────────────────
+
+def two_streams(client):
+    """A monthly mandated subscription and a quarterly one, both real."""
+    header = (
+        '"IBAN/BBAN","Munt","Volgnr","Datum","Bedrag","Saldo na trn",'
+        '"Tegenrekening IBAN/BBAN","Naam tegenpartij","Code","Incassant ID","Omschrijving-1"'
+    )
+    rows = [header]
+    for index, day in enumerate(["2026-05-10", "2026-06-10", "2026-07-10", "2026-08-01"], start=700):
+        rows.append(
+            f'"NL00TEST0000000001","EUR","{index}","{day}","-9,99","900,00",'
+            f'"NL00TEST0000000060","Maandstream BV","ei","NL00ZZZ222222222222","Abonnement"'
+        )
+    for index, day in enumerate(["2026-02-15", "2026-05-15", "2026-08-01"], start=800):
+        rows.append(
+            f'"NL00TEST0000000001","EUR","{index}","{day}","-60,00","900,00",'
+            f'"NL00TEST0000000061","Kwartaalpolis NV","ei","NL00ZZZ333333333333","Premie"'
+        )
+    csv = ("\n".join(rows) + "\n").encode("utf-8")
+    preview = client.post(
+        "/api/imports/upload",
+        files={"file": ("streams.csv", csv, "text/csv")},
+        data={"format_key": "rabobank_current"},
+    ).json()
+    client.post(f"/api/imports/{preview['batch_id']}/commit", params={"format_key": "rabobank_current"})
+
+
+def test_filter_by_interval(client):
+    two_streams(client)
+    monthly = client.get("/api/dashboard/recurring", params={"interval": "maandelijks"}).json()
+    assert monthly["count"] >= 1
+    assert all(item["interval"] == "maandelijks" for item in monthly["items"])
+
+
+def test_search_matches_name_and_category(client):
+    two_streams(client)
+    result = client.get("/api/dashboard/recurring", params={"search": "kwartaal"}).json()
+    assert result["count"] == 1
+    assert "Kwartaalpolis" in result["items"][0]["label"]
+
+
+def test_totals_follow_the_filter(client):
+    """Filtering has to answer "what do these cost together", or it is just a
+    shorter list."""
+    two_streams(client)
+    everything = client.get("/api/dashboard/recurring").json()
+    filtered = client.get("/api/dashboard/recurring", params={"interval": "maandelijks"}).json()
+    assert filtered["monthly_total"] < everything["monthly_total"]
+    assert filtered["total_count"] == everything["count"]
+    assert filtered["yearly_total"] == round(filtered["monthly_total"] * 12, 2)
+
+
+def test_facets_list_the_available_intervals(client):
+    two_streams(client)
+    facets = client.get("/api/dashboard/recurring").json()["facets"]
+    values = {f["value"] for f in facets["intervals"]}
+    assert "maandelijks" in values
+    assert all(f["count"] > 0 for f in facets["intervals"])
+
+
+def test_filter_by_amount_range(client):
+    two_streams(client)
+    result = client.get("/api/dashboard/recurring", params={"min_monthly": 15}).json()
+    assert all(abs(item["monthly_equivalent"]) >= 15 for item in result["items"])
+
+
+def test_filter_fixed_versus_variable(client):
+    two_streams(client)
+    fixed = client.get("/api/dashboard/recurring", params={"kind": "fixed"}).json()
+    assert fixed["count"] >= 1
+    assert all(item["committed"] for item in fixed["items"])
+
+
+def test_sorting_can_be_reversed(client):
+    two_streams(client)
+    down = client.get("/api/dashboard/recurring", params={"sort": "monthly", "desc": True}).json()["items"]
+    up = client.get("/api/dashboard/recurring", params={"sort": "monthly", "desc": False}).json()["items"]
+    assert [i["label"] for i in down] == [i["label"] for i in up][::-1]
