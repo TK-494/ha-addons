@@ -1,5 +1,31 @@
 # Changelog — Financials
 
+## 0.9.0 — 2026-08-09
+
+### Nieuw
+- **Balk bovenaan het overzicht** met vrij besteedbaar bedrag, dagen tot het volgende loon, de
+  verdeling vast/variabel inkomen, en tot welke datum de gegevens lopen.
+- **Vrij besteedbaar** trekt niet alleen af wat je al uitgaf, maar ook de incasso's die deze periode
+  nog komen. Alleen betalingen met een machtiging tellen mee — de supermarkt herhaalt zich ook, maar
+  wordt niet geïncasseerd.
+- **Dagen tot loon** uit je eigen betaalgeschiedenis, met weekends en Nederlandse feestdagen. Op 39
+  historische betalingen voorspelt de regel er 36 exact, inclusief de verschuiving voor
+  Pinkstermaandag. December wisselt te veel en wordt als schatting gemarkeerd in plaats van als feit.
+- **Transacties verdelen over meerdere categorieën.** Bedoeld voor loon — basissalaris apart van
+  reiskosten- en thuiswerkvergoeding — maar werkt net zo goed voor een bouwmarktbon. De delen moeten
+  tot op de cent kloppen met het bedrag.
+- **Variabel inkomen** als eigenschap van een categorie, zodat het overzicht vaste en wisselende
+  inkomsten uit elkaar houdt.
+- **Datumdekking per rekening**, met waarschuwing welke rekening achterloopt en hoeveel dagen.
+- **Uitgebreidere regelcontrole**: naast dubbele en overschaduwde regels nu ook identieke regels,
+  dezelfde organisatie in twee categorieën, en (op verzoek) regels die op geen enkele transactie
+  passen.
+
+### Techniek
+- Categorie-overzichten lezen de delen van een verdeelde transactie in plaats van het totaalbedrag.
+- Schemaversie 6: tabel `transaction_splits`, kolom `categories.variable_income`.
+- 174 tests.
+
 ## 0.8.1 — 2026-08-09
 
 ### Fixed

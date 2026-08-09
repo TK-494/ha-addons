@@ -72,6 +72,11 @@ export const api = {
   yearOverYear: (years) => request("/dashboard/year-over-year", { params: { years } }),
   categoryDetail: (id, months) => request(`/dashboard/category/${id}`, { params: { months } }),
   uncategorised: (limit) => request("/dashboard/uncategorised", { params: { limit } }),
+  availableThisPeriod: (params) => request("/dashboard/available", { params }),
+
+  getSplit: (id) => request(`/splits/${id}`),
+  setSplit: (id, parts) => request(`/splits/${id}`, { method: "PUT", body: { parts } }),
+  clearSplit: (id) => request(`/splits/${id}`, { method: "DELETE" }),
 
   budgets: (params) => request("/budgets/", { params }),
   upsertBudget: (payload) => request("/budgets/", { method: "POST", body: payload }),

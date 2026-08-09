@@ -80,6 +80,10 @@ class Category(Base):
     color: Mapped[str] = mapped_column(String(9), default="#64748b")
     icon: Mapped[Optional[str]] = mapped_column(String(40))
     is_income: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Income you cannot count on: travel allowance, working-from-home
+    # allowance, overtime. Kept apart from the base salary because "what can I
+    # commit to every month" is a different number from "what came in".
+    variable_income: Mapped[bool] = mapped_column(Boolean, default=False)
     excluded_from_budget: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=100)
 
@@ -232,6 +236,38 @@ class Transaction(Base):
     tags: Mapped[list["Tag"]] = relationship(
         secondary=transaction_tags, back_populates="transactions", lazy="selectin"
     )
+    splits: Mapped[list["TransactionSplit"]] = relationship(
+        back_populates="transaction", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class TransactionSplit(Base):
+    """One transaction divided across categories.
+
+    A salary is one bank line but several things at once: base pay plus travel
+    and working-from-home allowances. The bank cannot tell them apart, so the
+    split is recorded here — and the parts, not the lump sum, are what the
+    category reporting uses.
+
+    Splits must add up to the transaction exactly. A split that does not
+    reconcile is worse than no split at all, because every total built on it
+    would be quietly wrong.
+    """
+
+    __tablename__ = "transaction_splits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), index=True
+    )
+    category_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL")
+    )
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    note: Mapped[Optional[str]] = mapped_column(String(200))
+
+    transaction: Mapped["Transaction"] = relationship(back_populates="splits")
+    category: Mapped[Optional["Category"]] = relationship()
 
 
 class Setting(Base):

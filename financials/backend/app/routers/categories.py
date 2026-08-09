@@ -26,6 +26,9 @@ class CategoryIn(BaseModel):
     icon: Optional[str] = Field(None, max_length=40)
     parent_id: Optional[int] = None
     is_income: bool = False
+    # Income you cannot count on — travel allowance, working-from-home
+    # allowance, overtime. Reported apart from base pay.
+    variable_income: bool = False
     excluded_from_budget: bool = False
     sort_order: int = 100
 
@@ -44,6 +47,7 @@ def list_categories(db: Session = Depends(get_db)):
             "color": c.color,
             "icon": c.icon,
             "is_income": c.is_income,
+            "variable_income": c.variable_income,
             "excluded_from_budget": c.excluded_from_budget,
             "sort_order": c.sort_order,
             "transaction_count": counts.get(c.id, 0),
@@ -344,7 +348,8 @@ def export_rules(db: Session = Depends(get_db), include_counts: bool = Query(Tru
         "categories": [
             {
                 "name": c.name, "color": c.color, "icon": c.icon,
-                "is_income": c.is_income, "excluded_from_budget": c.excluded_from_budget,
+                "is_income": c.is_income, "variable_income": c.variable_income,
+                "excluded_from_budget": c.excluded_from_budget,
                 "sort_order": c.sort_order,
             }
             for c in db.scalars(select(Category).order_by(Category.sort_order, Category.name)).all()
@@ -458,7 +463,10 @@ def categorize_rule_exists(db: Session, item: RuleImportItem) -> bool:
 
 
 @router.get("/rules/conflicts")
-def rule_conflicts(db: Session = Depends(get_db)):
+def rule_conflicts(
+    db: Session = Depends(get_db),
+    include_unused: bool = Query(False),
+):
     """Rules that fight each other, so a growing rule set stays trustworthy.
 
     Two kinds are reported:
@@ -516,9 +524,66 @@ def rule_conflicts(db: Session = Depends(get_db)):
                 })
                 break
 
+    # Two rules with the same pattern *and* the same category: harmless but
+    # dead weight, and confusing when you later edit one of them.
+    identical = []
+    seen_same: dict[tuple, Rule] = {}
+    for rule in rules:
+        key = (rule.field, rule.operator, rule.value.lower(), rule.category_id)
+        if key in seen_same:
+            identical.append({"value": rule.value, "category": names.get(rule.category_id)})
+        else:
+            seen_same[key] = rule
+
+    # The same organisation landing in two categories. Sometimes deliberate
+    # (YouTube under Media, Google Storage under Abonnementen), sometimes a
+    # slip — so it is reported, not corrected.
+    by_prefix: dict[str, dict[str, list[str]]] = {}
+    for rule in rules:
+        token = rule.value.lower().strip().split(" ")[0]
+        if len(token) < 5:
+            continue
+        entry = by_prefix.setdefault(token[:9], {})
+        entry.setdefault(names.get(rule.category_id) or "?", []).append(rule.value)
+
+    ambiguous = [
+        {
+            "prefix": prefix,
+            "categories": sorted(cats),
+            "examples": sorted({v for values in cats.values() for v in values})[:4],
+        }
+        for prefix, cats in sorted(by_prefix.items())
+        if len(cats) > 1
+    ]
+
+    unused = []
+    if include_unused:
+        # One LIKE per rule over the ledger. Deliberately opt-in: it is the
+        # slow check, and it is only interesting when tidying up.
+        for rule in rules:
+            needle = f"%{rule.value.lower()}%"
+            hit = db.scalar(
+                select(Transaction.id).where(
+                    or_(
+                        func.lower(Transaction.description).like(needle),
+                        func.lower(Transaction.counter_name).like(needle),
+                    )
+                ).limit(1)
+            )
+            if hit is None:
+                unused.append({
+                    "value": rule.value,
+                    "category": names.get(rule.category_id),
+                    "origin": rule.origin,
+                })
+
     return {
         "duplicates": duplicates,
+        "identical": identical,
         "shadowed": shadowed,
+        "ambiguous": ambiguous,
+        "unused": unused,
+        "unused_checked": include_unused,
         "total_active_rules": len(rules),
     }
 

@@ -99,6 +99,11 @@ def apply_migrations() -> None:
                 "WHERE is_seed = 1 AND seed_batch IS NULL"
             ))
 
+        if current < 6:
+            _add_column_if_missing(
+                conn, "categories", "variable_income", "BOOLEAN NOT NULL DEFAULT 0"
+            )
+
         conn.execute(text("UPDATE schema_version SET version = :v"), {"v": SCHEMA_VERSION})
 
 

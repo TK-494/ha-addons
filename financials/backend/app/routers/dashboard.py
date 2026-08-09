@@ -12,7 +12,7 @@ Two reading levels, and the difference matters:
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,8 +20,8 @@ from sqlalchemy import Integer, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Account, Category, Transaction
-from ..services import periods, recurring
+from ..models import Account, Category, Transaction, TransactionSplit
+from ..services import periods, recurring, workdays
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -202,26 +202,57 @@ def by_category(
     start, end = periods.period_bounds(year, month, config)
 
     amount_filter = Transaction.amount_cents < 0 if direction == "out" else Transaction.amount_cents > 0
-    stmt = _scope(
+
+    # Whole transactions — everything that has not been split apart.
+    split_ids = select(TransactionSplit.transaction_id).distinct()
+    whole = _scope(
         select(
             Category.id, Category.name, Category.color,
             func.coalesce(func.sum(Transaction.amount_cents), 0),
             func.count(),
         )
         .join(Category, Category.id == Transaction.category_id, isouter=True)
-        .where(Transaction.booked_on >= start, Transaction.booked_on < end, amount_filter),
+        .where(
+            Transaction.booked_on >= start, Transaction.booked_on < end, amount_filter,
+            Transaction.id.not_in(split_ids),
+        ),
         account_id,
-    ).group_by(Category.id).order_by(func.abs(func.sum(Transaction.amount_cents)).desc())
+    ).group_by(Category.id)
+
+    # The parts of split transactions count individually: a salary divided into
+    # base pay and travel allowance belongs to both, in the right proportions.
+    part_amount = TransactionSplit.amount_cents
+    parts = _scope(
+        select(
+            Category.id, Category.name, Category.color,
+            func.coalesce(func.sum(part_amount), 0),
+            func.count(),
+        )
+        .select_from(TransactionSplit)
+        .join(Transaction, Transaction.id == TransactionSplit.transaction_id)
+        .join(Category, Category.id == TransactionSplit.category_id, isouter=True)
+        .where(
+            Transaction.booked_on >= start, Transaction.booked_on < end,
+            part_amount < 0 if direction == "out" else part_amount > 0,
+        ),
+        account_id,
+    ).group_by(Category.id)
+
+    totals: dict = {}
+    for cid, name, color, total, count in db.execute(whole).all() + db.execute(parts).all():
+        entry = totals.setdefault(cid, {"name": name, "color": color, "cents": 0, "count": 0})
+        entry["cents"] += total or 0
+        entry["count"] += count
 
     return [
         {
             "category_id": cid,
-            "name": name or "Zonder categorie",
-            "color": color or "#94a3b8",
-            "amount": abs(total or 0) / 100,
-            "transactions": count,
+            "name": entry["name"] or "Zonder categorie",
+            "color": entry["color"] or "#94a3b8",
+            "amount": abs(entry["cents"]) / 100,
+            "transactions": entry["count"],
         }
-        for cid, name, color, total, count in db.execute(stmt).all()
+        for cid, entry in sorted(totals.items(), key=lambda kv: -abs(kv[1]["cents"]))
     ]
 
 
@@ -556,4 +587,143 @@ def uncategorised(db: Session = Depends(get_db), limit: int = Query(25, ge=1, le
             }
             for n, amount, count, sample_id in rows
         ],
+    }
+
+
+@router.get("/available")
+def available(
+    db: Session = Depends(get_db),
+    year: Optional[int] = None,
+    month: Optional[int] = Query(None, ge=1, le=12),
+):
+    """How much of this period is still yours to spend, and how long it has to
+    last.
+
+    "Income minus what you spent" is not the answer: the rent has not gone out
+    yet on the 3rd. So the recurring commitments still due before the period
+    ends are subtracted too — otherwise the figure looks generous exactly when
+    it should not.
+
+    Income is reported split into fixed and variable, because a travel
+    allowance is not something to build a standing commitment on.
+    """
+    config = periods.load_config(db)
+    if year is None or month is None:
+        year, month = periods.period_of(date.today(), config)
+    start, end = periods.period_bounds(year, month, config)
+    today = date.today()
+
+    # ── how far the data actually reaches ───────────────────────────────────
+    accounts = db.scalars(select(Account).where(Account.archived.is_(False))).all()
+    coverage = []
+    for account in accounts:
+        last = db.scalar(
+            select(func.max(Transaction.booked_on)).where(Transaction.account_id == account.id)
+        )
+        last_date = date.fromisoformat(last) if isinstance(last, str) else last
+        coverage.append({
+            "account_id": account.id,
+            "label": account.label,
+            "last_transaction": last_date.isoformat() if last_date else None,
+            "days_behind": (today - last_date).days if last_date else None,
+        })
+
+    dated = [c for c in coverage if c["last_transaction"]]
+    data_through = max((c["last_transaction"] for c in dated), default=None)
+    stale = [c for c in dated if c["days_behind"] is not None and c["days_behind"] > 10]
+
+    # ── income, split into what you can and cannot count on ─────────────────
+    def income_parts() -> tuple[int, int]:
+        fixed = variable = 0
+
+        split_ids = select(TransactionSplit.transaction_id).distinct()
+        rows = db.execute(
+            select(Transaction.amount_cents, Category.variable_income)
+            .join(Category, Category.id == Transaction.category_id, isouter=True)
+            .where(
+                Transaction.is_internal.is_(False),
+                Transaction.amount_cents > 0,
+                Transaction.booked_on >= start, Transaction.booked_on < end,
+                Transaction.id.not_in(split_ids),
+            )
+        ).all()
+        part_rows = db.execute(
+            select(TransactionSplit.amount_cents, Category.variable_income)
+            .select_from(TransactionSplit)
+            .join(Transaction, Transaction.id == TransactionSplit.transaction_id)
+            .join(Category, Category.id == TransactionSplit.category_id, isouter=True)
+            .where(
+                Transaction.is_internal.is_(False),
+                TransactionSplit.amount_cents > 0,
+                Transaction.booked_on >= start, Transaction.booked_on < end,
+            )
+        ).all()
+
+        for amount, is_variable in rows + part_rows:
+            if is_variable:
+                variable += amount
+            else:
+                fixed += amount
+        return fixed, variable
+
+    fixed_income, variable_income = income_parts()
+
+    spent = abs(db.scalar(
+        select(func.coalesce(func.sum(Transaction.amount_cents), 0)).where(
+            Transaction.is_internal.is_(False),
+            Transaction.amount_cents < 0,
+            Transaction.booked_on >= start, Transaction.booked_on < end,
+        )
+    ) or 0)
+
+    # ── recurring commitments still to come in this period ──────────────────
+    # Only genuine commitments, which means a direct-debit mandate. Recurring
+    # detection also finds the supermarket and the takeaway — those repeat, but
+    # nobody is going to collect them, and counting them as money already spoken
+    # for makes the free figure look far worse than it is.
+    groups = [g for g in recurring.detect(db, config) if g.is_active and g.creditor_id]
+    upcoming = []
+    for group in groups:
+        if any(start <= value < end for value in group.dates):
+            continue  # already collected this period
+        cadence = max(round(group.cadence_days or 30.0), 1)
+        expected = group.last_seen + timedelta(days=cadence)
+        # Roll forward rather than clamp: a date before the period start means
+        # the cadence has lapped, not that it is due today.
+        while expected < start:
+            expected += timedelta(days=cadence)
+        if expected >= end:
+            continue
+        upcoming.append({
+            "label": group.label,
+            "amount": abs(group.typical_amount_cents) / 100,
+            "expected": expected.isoformat(),
+            "category": group.category_name,
+        })
+    upcoming.sort(key=lambda item: item["expected"])
+    committed = int(round(sum(item["amount"] for item in upcoming) * 100))
+
+    income_total = fixed_income + variable_income
+    free = income_total - spent - committed
+
+    days_left = max(0, (end - max(today, start)).days)
+    salary = periods.next_salary_estimate(db, config)
+
+    return {
+        "period": {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat()},
+        "data_through": data_through,
+        "coverage": sorted(coverage, key=lambda c: c["last_transaction"] or ""),
+        "stale_accounts": stale,
+        "income": {
+            "total": income_total / 100,
+            "fixed": fixed_income / 100,
+            "variable": variable_income / 100,
+        },
+        "spent": spent / 100,
+        "committed": committed / 100,
+        "upcoming": upcoming[:12],
+        "available": free / 100,
+        "days_left": days_left,
+        "per_day": round(free / 100 / days_left, 2) if days_left else None,
+        "next_salary": salary,
     }

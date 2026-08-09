@@ -27,6 +27,7 @@ from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.orm import Session
 
 from ..models import Account, PeriodOverride, Setting, Transaction
+from .workdays import previous_working_day
 
 MODE_CALENDAR = "calendar"
 MODE_DAY = "day"
@@ -333,3 +334,63 @@ def boundary_overview(db: Session, config: PeriodConfig, months: int = 12) -> li
             "fixed_date": config.fixed_start(year, month).isoformat(),
         })
     return rows
+
+
+def next_salary_estimate(db: Session, config: PeriodConfig) -> Optional[dict]:
+    """When the next salary is expected.
+
+    Built from what actually happened rather than from a rule alone. The base
+    is the usual day of the month, moved back to a working day — that alone
+    predicted 36 of 39 real payments here, including the one that shifted for
+    Whit Monday.
+
+    The three it missed were all December, where the employer pays before
+    Christmas rather than merely avoiding the holiday. That is a policy, not a
+    calendar, so it is learned: when a calendar month has been seen at least
+    twice, that month's own median day wins over the global one.
+    """
+    found = salary_dates(db, config)
+    if not found:
+        return None
+
+    typical = detect_salary_day(db, config.salary) or config.effective_day
+
+    per_month: dict[int, list[int]] = {}
+    for (_, month), value in found.items():
+        per_month.setdefault(month, []).append(value.day)
+
+    def target_day(month: int) -> tuple[int, bool]:
+        """Returns (day, reliable).
+
+        A month's own history only wins when that history agrees with itself.
+        December here ran 20th, 21st and 22nd across three years — the employer
+        pays "before Christmas", which is a decision, not a date. Averaging
+        that produces a confident-looking number that is wrong as often as the
+        plain rule, so it is reported as an estimate instead.
+        """
+        observed = sorted(per_month.get(month, []))
+        if len(observed) >= 2 and observed[-1] - observed[0] <= 1:
+            return observed[len(observed) // 2], True
+        if len(observed) >= 2:
+            return typical, False
+        return typical, True
+
+    last = max(found.values())
+    today = date.today()
+
+    # Walk forward month by month until we find a payment date still ahead.
+    year, month = last.year, last.month
+    for _ in range(14):
+        year, month = shift_period(year, month, 1)
+        day, reliable = target_day(month)
+        candidate = previous_working_day(date(year, month, min(day, monthrange(year, month)[1])))
+        if candidate > today:
+            return {
+                "date": candidate.isoformat(),
+                "days": (candidate - today).days,
+                "reliable": reliable,
+                "note": None if reliable else
+                        "In deze maand wisselt de betaaldag; dit is een schatting.",
+                "last_salary": last.isoformat(),
+            }
+    return None

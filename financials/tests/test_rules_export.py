@@ -263,3 +263,36 @@ def test_preview_separates_locked_transactions(client):
     }).json()
     assert preview["locked"] >= 1
     assert preview["would_change"] <= preview["matches"] - preview["locked"]
+
+
+def test_identical_duplicate_rules_are_reported(client):
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    for _ in range(2):
+        client.post("/api/rules/", json={"category_id": wonen, "value": "dubbelop", "priority": 3})
+
+    report = client.get("/api/rules/conflicts").json()
+    assert any(item["value"] == "dubbelop" for item in report["identical"])
+
+
+def test_the_same_merchant_in_two_categories_is_flagged(client):
+    import_fixture(client, "rabobank_current.csv")
+    client.post("/api/rules/", json={
+        "category_id": category_id(client, "Wonen"), "value": "voorbeeldwinkel groot", "priority": 3,
+    })
+    client.post("/api/rules/", json={
+        "category_id": category_id(client, "Energie"), "value": "voorbeeldwinkel klein", "priority": 4,
+    })
+
+    report = client.get("/api/rules/conflicts").json()
+    hit = next(a for a in report["ambiguous"] if a["prefix"].startswith("voorbeeld"))
+    assert set(hit["categories"]) == {"Wonen", "Energie"}
+
+
+def test_unused_rules_are_only_computed_on_request(client):
+    import_fixture(client, "rabobank_current.csv")
+    assert client.get("/api/rules/conflicts").json()["unused_checked"] is False
+
+    report = client.get("/api/rules/conflicts", params={"include_unused": True}).json()
+    assert report["unused_checked"] is True
+    assert any(item["value"] == "ryanair" for item in report["unused"])

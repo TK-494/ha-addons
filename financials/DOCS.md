@@ -180,6 +180,43 @@ werkelijk gekost heeft, over alle categorieën heen.
 Labels veranderen niets aan je inkomsten-, uitgaven- of budgetcijfers. Ze zijn puur een extra manier
 om te filteren en op te tellen.
 
+## Wat is er nog vrij deze maand
+
+Bovenaan het overzicht staat een balk met vier dingen:
+
+- **Vrij te besteden** — wat er binnenkwam, min wat je al uitgaf, min de incasso's die vóór het einde
+  van de periode nog afgeschreven worden. Die laatste aftrek is het punt: op de 3e is de huur nog
+  niet afgeschreven, en zonder die correctie lijkt het bedrag royaal precies wanneer dat niet zo is.
+  Alleen betalingen met een incassomachtiging tellen mee — boodschappen herhalen zich ook, maar zijn
+  een keuze.
+- **Volgend loon** — over hoeveel dagen. Berekend uit je eigen betaalgeschiedenis, met weekends én
+  Nederlandse feestdagen erin (25 mei 2026 was Pinkstermaandag, vandaar dat je toen op de 22e betaald
+  kreeg). Wisselt de betaaldag in een bepaalde maand te veel — december meestal — dan staat erbij dat
+  het een schatting is.
+- **Inkomsten**, gesplitst in vast en variabel.
+- **Gegevens bijgewerkt tot** — de datum van de nieuwste transactie. Loopt een rekening achter, dan
+  staat eronder welke en hoeveel dagen. Zonder dat is "je hebt nog € 62 over" een misleidende
+  uitspraak als je laatste import drie weken oud is.
+
+Klik op *Hoe is dit berekend?* voor de som en de lijst met verwachte incasso's.
+
+## Vast en variabel inkomen
+
+Je loonstrook is één bankregel, maar bestaat uit meerdere delen: basissalaris plus reiskosten- en
+thuiswerkvergoeding. Die vergoedingen krijg je niet elke maand hetzelfde, dus het is nuttig ze apart
+te houden van waar je echt op kunt rekenen.
+
+1. Maak categorieën aan voor de vergoedingen (bijvoorbeeld *Reiskostenvergoeding*), vink daarbij
+   **Dit is een inkomstencategorie** én **Variabel inkomen** aan.
+2. Ga naar de loonbetaling in **Transacties** en klik op **Verdelen**.
+3. Vul de delen in. De app rekent mee en accepteert pas als het tot op de cent klopt met het
+   overgemaakte bedrag — een verdeling die niet sluit zou elk totaal eronder stilletjes fout maken.
+
+Daarna zie je in het overzicht bij Inkomsten hoeveel vast en hoeveel variabel was, en verschijnen de
+delen apart in de inkomstentaart.
+
+Verdelen werkt ook voor uitgaven: € 120 bij de bouwmarkt als € 80 tuin en € 40 huishouden.
+
 ## Budget
 
 Onder **Budget** stel je per categorie een maandbedrag in. Je ziet direct hoeveel er al op staat en

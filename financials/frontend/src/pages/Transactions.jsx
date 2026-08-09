@@ -31,6 +31,7 @@ export default function Transactions() {
   const [ruleFor, setRuleFor] = useState(null);
   const [noteFor, setNoteFor] = useState(null);
   const [tagFor, setTagFor] = useState(null);
+  const [splitFor, setSplitFor] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -361,6 +362,13 @@ export default function Transactions() {
                     <div className="flex justify-end gap-1">
                       <button
                         className="btn-ghost whitespace-nowrap"
+                        title="Verdeel dit bedrag over meerdere categorieën"
+                        onClick={() => setSplitFor(tx)}
+                      >
+                        Verdelen
+                      </button>
+                      <button
+                        className="btn-ghost whitespace-nowrap"
                         title="Labels beheren"
                         onClick={() => setTagFor(tx)}
                       >
@@ -399,6 +407,16 @@ export default function Transactions() {
         </div>
       )}
 
+      {splitFor && (
+        <SplitDialog
+          transaction={splitFor}
+          categories={categories}
+          onClose={() => setSplitFor(null)}
+          onSaved={(message) => { setSplitFor(null); setNotice(message); load(); }}
+          onError={setError}
+        />
+      )}
+
       {tagFor && (
         <TagPicker
           transaction={tagFor}
@@ -428,6 +446,152 @@ export default function Transactions() {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Divide one transaction across categories.
+ *
+ * Built for the salary case: one bank line that is base pay plus a travel
+ * allowance plus a working-from-home allowance. The parts must reconcile to the
+ * cent, because a split that does not add up would silently corrupt every total
+ * derived from it.
+ */
+function SplitDialog({ transaction, categories, onClose, onSaved, onError }) {
+  const [parts, setParts] = useState(
+    transaction.splits?.length
+      ? transaction.splits
+      : [
+          { category_id: transaction.category_id || "", amount: transaction.amount, note: "" },
+          { category_id: "", amount: 0, note: "" },
+        ]
+  );
+  const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    api.getSplit(transaction.id)
+      .then((data) => {
+        if (data.parts.length) {
+          setParts(data.parts.map((p) => ({
+            category_id: p.category_id || "", amount: p.amount, note: p.note || "",
+          })));
+        }
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, [transaction.id]);
+
+  const total = parts.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const difference = Math.round((transaction.amount - total) * 100) / 100;
+  const balanced = Math.abs(difference) < 0.005;
+
+  function update(index, patch) {
+    setParts(parts.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api.setSplit(transaction.id, parts.map((p) => ({
+        category_id: p.category_id ? Number(p.category_id) : null,
+        amount: Number(p.amount),
+        note: p.note || null,
+      })));
+      onSaved("Verdeling opgeslagen.");
+    } catch (e) {
+      onError(e.message);
+      setBusy(false);
+    }
+  }
+
+  if (!loaded) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto">
+        <h3 className="mb-1 text-lg font-semibold">Bedrag verdelen</h3>
+        <p className="mb-3 truncate text-sm text-slate-500 dark:text-slate-400">
+          {shortDate(transaction.booked_on)} · {money(transaction.amount)} · {transaction.description}
+        </p>
+        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+          Handig bij loon: het basissalaris apart van reiskosten- en thuiswerkvergoeding. Markeer die
+          vergoedingscategorieën als <em>variabel inkomen</em> op de pagina Categorieën, dan houdt het
+          overzicht ze uit elkaar.
+        </p>
+
+        <div className="mb-3 space-y-2">
+          {parts.map((part, index) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-[1fr_8rem_1fr_auto]">
+              <select
+                className="input"
+                value={part.category_id || ""}
+                onChange={(e) => update(index, { category_id: e.target.value })}
+              >
+                <option value="">— geen categorie —</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <input
+                type="number"
+                step="0.01"
+                className="input text-right"
+                value={part.amount}
+                onChange={(e) => update(index, { amount: e.target.value })}
+              />
+              <input
+                className="input"
+                placeholder="notitie"
+                value={part.note || ""}
+                onChange={(e) => update(index, { note: e.target.value })}
+              />
+              <button
+                className="btn-ghost"
+                disabled={parts.length <= 2}
+                onClick={() => setParts(parts.filter((_, i) => i !== index))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <button
+            className="btn-ghost"
+            onClick={() => setParts([...parts, { category_id: "", amount: difference, note: "" }])}
+            disabled={parts.length >= 20}
+          >
+            Deel toevoegen{!balanced && ` (${money(difference)})`}
+          </button>
+          <p className={`text-sm ${balanced ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+            {balanced
+              ? `Sluit precies op ${money(transaction.amount)}`
+              : `Verschil ${money(difference)} — moet 0 zijn`}
+          </p>
+        </div>
+
+        <div className="flex justify-between gap-2">
+          <button
+            className="btn-ghost"
+            disabled={busy}
+            onClick={async () => {
+              try {
+                await api.clearSplit(transaction.id);
+                onSaved("Verdeling verwijderd.");
+              } catch (e) {
+                onError(e.message);
+              }
+            }}
+          >
+            Verdeling verwijderen
+          </button>
+          <div className="flex gap-2">
+            <button className="btn-ghost" onClick={onClose} disabled={busy}>Annuleren</button>
+            <button className="btn-primary" onClick={save} disabled={busy || !balanced}>Opslaan</button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

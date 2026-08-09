@@ -106,6 +106,11 @@ def _serialise(tx: Transaction) -> dict:
         "fx_rate": tx.fx_rate,
         "note": tx.note,
         "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tx.tags],
+        # A split transaction has no single category; the parts carry it.
+        "splits": [
+            {"category_id": s.category_id, "amount": s.amount_cents / 100, "note": s.note}
+            for s in tx.splits
+        ],
     }
 
 

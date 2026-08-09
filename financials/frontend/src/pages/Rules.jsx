@@ -208,6 +208,7 @@ function CategoryDialog({ category, onClose, onSaved, onError }) {
     name: category.name || "",
     color: category.color || "#64748b",
     is_income: Boolean(category.is_income),
+    variable_income: Boolean(category.variable_income),
     excluded_from_budget: Boolean(category.excluded_from_budget),
   });
   const [busy, setBusy] = useState(false);
@@ -271,6 +272,24 @@ function CategoryDialog({ category, onClose, onSaved, onError }) {
             </span>
           </span>
         </label>
+
+        {form.is_income && (
+          <label className="mb-2 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.variable_income}
+              onChange={(e) => setForm({ ...form, variable_income: e.target.checked })}
+            />
+            <span>
+              Variabel inkomen
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                Voor reiskosten, thuiswerkvergoeding of overwerk — inkomsten waar je niet elke maand
+                op kunt rekenen. Het overzicht telt ze apart van je vaste inkomen.
+              </span>
+            </span>
+          </label>
+        )}
 
         <label className="mb-4 flex items-start gap-2 text-sm">
           <input

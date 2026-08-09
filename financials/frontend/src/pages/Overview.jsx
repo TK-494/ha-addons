@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
+import AvailablePanel from "../components/AvailablePanel.jsx";
 import { money } from "../format.js";
 
 const MONTHS = [
@@ -38,9 +39,10 @@ export default function Overview() {
       api.topCounterparties({ ...params, limit: 8 }),
       api.uncategorised(5),
       api.yearOverYear(4),
+      api.availableThisPeriod(period || {}),
     ])
-      .then(([summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy]) => {
-        setData({ summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy });
+      .then(([summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available]) => {
+        setData({ summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available });
         if (!period) setPeriod({ year: summary.year, month: summary.month });
       })
       .catch((e) => setError(e.message))
@@ -54,7 +56,7 @@ export default function Overview() {
   };
 
   if (loading && !data.summary) return <Spinner label="Overzicht laden…" />;
-  const { summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy } = data;
+  const { summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available } = data;
   if (!summary) return <Empty>Nog geen gegevens. Importeer eerst een CSV-bestand.</Empty>;
 
 
@@ -82,6 +84,8 @@ export default function Overview() {
       </PageHeader>
 
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
+
+      <AvailablePanel data={available} />
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Inkomsten" value={summary.income} delta={summary.delta_income} good="up" />
