@@ -388,3 +388,75 @@ def test_a_pattern_keeps_its_trailing_space_when_appended(client):
     result = client.post(f"/api/transactions/rules/{rule_id}/add-pattern",
                          json={"pattern": "ns "}).json()
     assert result["patterns"][-1] == "ns "
+
+
+# ─── merging near-duplicate rules ───────────────────────────────────────────
+
+def three_rules_one_category(client):
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    for value in ("alfa", "beta", "gamma"):
+        client.post("/api/rules/", json={
+            "category_id": wonen, "value": value, "field": "counter_name", "priority": 40,
+        })
+    return wonen
+
+
+def test_merge_is_a_dry_run_by_default(client):
+    three_rules_one_category(client)
+    before = len(client.get("/api/rules/").json())
+    result = client.post("/api/rules/merge-duplicates").json()
+    assert result["dry_run"] is True
+    assert result["rules_removed"] >= 2
+    assert len(client.get("/api/rules/").json()) == before
+
+
+def test_merging_keeps_every_pattern(client):
+    wonen = three_rules_one_category(client)
+    client.post("/api/rules/merge-duplicates", params={"dry_run": False})
+
+    rules = [r for r in client.get("/api/rules/").json()
+             if r["category_id"] == wonen and r["field"] == "counter_name"]
+    assert len(rules) == 1
+    patterns = rules[0]["value"].split("\n")
+    assert {"alfa", "beta", "gamma"} <= set(patterns)
+
+
+def test_merging_changes_nothing_about_what_matches(client):
+    wonen = three_rules_one_category(client)
+    client.post("/api/rules/", json={
+        "category_id": wonen, "value": "Verhuurder", "field": "counter_name", "priority": 40,
+    })
+    client.post("/api/rules/reapply")
+    before = client.get("/api/transactions/", params={"category_id": wonen, "page_size": 1}).json()["total"]
+
+    client.post("/api/rules/merge-duplicates", params={"dry_run": False})
+    client.post("/api/rules/reapply")
+    after = client.get("/api/transactions/", params={"category_id": wonen, "page_size": 1}).json()["total"]
+    assert after == before
+
+
+def test_rules_with_an_amount_limit_are_left_alone(client):
+    """An amount range changes what a pattern means, so it cannot join a plain
+    rule without quietly widening it."""
+    wonen = three_rules_one_category(client)
+    client.post("/api/rules/", json={
+        "category_id": wonen, "value": "delta", "field": "counter_name",
+        "priority": 40, "amount_min": 10,
+    })
+    client.post("/api/rules/merge-duplicates", params={"dry_run": False})
+
+    remaining = [r for r in client.get("/api/rules/").json() if r["value"] == "delta"]
+    assert len(remaining) == 1
+    assert remaining[0]["amount_min"] == 10
+
+
+def test_merge_keeps_the_lowest_priority_of_the_group(client):
+    wonen = three_rules_one_category(client)
+    client.post("/api/rules/", json={
+        "category_id": wonen, "value": "epsilon", "field": "counter_name", "priority": 3,
+    })
+    client.post("/api/rules/merge-duplicates", params={"dry_run": False})
+    merged = next(r for r in client.get("/api/rules/").json()
+                  if r["category_id"] == wonen and r["field"] == "counter_name")
+    assert merged["priority"] == 3

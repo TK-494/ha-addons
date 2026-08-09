@@ -463,6 +463,80 @@ def categorize_rule_exists(db: Session, item: RuleImportItem) -> bool:
     ) is not None
 
 
+@router.post("/rules/merge-duplicates")
+def merge_duplicates(
+    dry_run: bool = Query(True),
+    origin: Optional[str] = Query(None, description="beperk tot regels van deze herkomst"),
+    db: Session = Depends(get_db),
+):
+    """Fold rules that share a category, field and operator into one.
+
+    Before multi-pattern rules existed, every correction produced another
+    single-pattern rule; a real set ends up with sixteen separate entries all
+    pointing at the same category. Merging keeps every pattern and the lowest
+    priority of the group, so nothing changes about what matches — only how
+    many rows it takes to say it.
+
+    Dry run by default: this deletes rows, and the export is the only undo.
+    """
+    stmt = select(Rule).where(Rule.active.is_(True)).order_by(Rule.priority, Rule.id)
+    if origin:
+        stmt = stmt.where(Rule.origin == origin)
+
+    groups: dict[tuple, list[Rule]] = {}
+    for rule in db.scalars(stmt).all():
+        if not categorize.patterns_of(rule):
+            continue
+        # Amount and account limits change what a pattern means, so rules
+        # carrying them are never folded into a plain one.
+        if rule.amount_min_cents or rule.amount_max_cents or rule.account_id:
+            continue
+        groups.setdefault((rule.category_id, rule.field, rule.operator), []).append(rule)
+
+    names = dict(db.execute(select(Category.id, Category.name)).all())
+    merges = []
+    removed = 0
+
+    for (category_id, field, operator), rules in groups.items():
+        if len(rules) < 2:
+            continue
+        patterns: list[str] = []
+        for rule in rules:
+            for pattern in categorize.patterns_of(rule):
+                if not any(p.lower() == pattern.lower() for p in patterns):
+                    patterns.append(pattern)
+
+        keeper = rules[0]
+        merges.append({
+            "category": names.get(category_id),
+            "field": field,
+            "rules_before": len(rules),
+            "patterns_after": len(patterns),
+            "keeps_rule_id": keeper.id,
+            "priority": keeper.priority,
+            "examples": patterns[:5],
+        })
+        removed += len(rules) - 1
+
+        if not dry_run:
+            keeper.value = "\n".join(patterns)
+            for rule in rules[1:]:
+                db.delete(rule)
+
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
+
+    merges.sort(key=lambda m: -m["rules_before"])
+    return {
+        "dry_run": dry_run,
+        "groups": len(merges),
+        "rules_removed": removed,
+        "details": merges[:25],
+    }
+
+
 @router.get("/rules/conflicts")
 def rule_conflicts(
     db: Session = Depends(get_db),

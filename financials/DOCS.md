@@ -147,6 +147,19 @@ standaard van alles.
 Na een wijziging klik je op **Regels opnieuw toepassen** om bestaande transacties bij te werken. Wat
 je handmatig hebt ingesteld blijft daarbij staan.
 
+### Regels opschonen
+
+Voordat een regel meerdere patronen kon bevatten leverde elke correctie een losse regel op. Met
+**Regels opschonen…** voeg je regels die naar dezelfde categorie en hetzelfde veld kijken samen tot
+één regel met alle patronen erin. Je ziet eerst wat er zou gebeuren; pas na bevestigen wordt er iets
+weggehaald.
+
+Wat er matcht verandert niet — alleen het aantal regels. De laagste prioriteit van de groep blijft
+gelden, en regels met een bedraggrens of een vaste rekening blijven apart staan, omdat die
+voorwaarden de betekenis van een patroon veranderen.
+
+Exporteer eerst als je een back-up wilt: samenvoegen verwijdert rijen.
+
 ### Regels exporteren en importeren
 
 **Regels exporteren** geeft een JSON-bestand met álle regels: naar welke categorie ze wijzen, hoe ze

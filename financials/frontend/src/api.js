@@ -151,6 +151,8 @@ export const api = {
   importRules: (payload, dryRun) =>
     request("/rules/import", { method: "POST", body: payload, params: { dry_run: dryRun } }),
   ruleConflicts: () => request("/rules/conflicts"),
+  mergeDuplicateRules: (dryRun) =>
+    request("/rules/merge-duplicates", { method: "POST", params: { dry_run: dryRun } }),
   previewRule: (params) => request("/rules/preview", { params }),
   reseed: () => request("/rules/reseed", { method: "POST" }),
   reapplyRules: (includeLocked, dryRun) =>

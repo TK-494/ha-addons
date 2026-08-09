@@ -1,5 +1,20 @@
 # Changelog — Financials
 
+## 0.18.0 — 2026-08-09
+
+### Nieuw
+- **Regels opschonen**: regels die naar dezelfde categorie en hetzelfde veld kijken worden
+  samengevoegd tot één regel met alle patronen. Eerst een voorbeeld van wat er zou gebeuren, pas na
+  bevestigen wordt er iets verwijderd. Wat er matcht verandert niet; de laagste prioriteit van de
+  groep blijft gelden. Regels met een bedraggrens of vaste rekening blijven apart — die voorwaarden
+  veranderen de betekenis van een patroon.
+
+### Techniek
+- Test die bewijst dat een add-on-update alles laat staan wat de gebruiker heeft gemaakt: eigen
+  regels, eigen categorieën, handmatige keuzes, en een verwijderde standaardregel die niet terugkomt.
+  Dat was tot nu toe een toezegging en is nu een test.
+- 230 tests.
+
 ## 0.17.0 — 2026-08-09
 
 ### Fixed

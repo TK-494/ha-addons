@@ -341,6 +341,7 @@ export default function Rules() {
   const [editCategory, setEditCategory] = useState(null);
   const [confirmOverride, setConfirmOverride] = useState(null);
   const [conflicts, setConflicts] = useState(null);
+  const [merge, setMerge] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [editRule, setEditRule] = useState(null);
   const [draft, setDraft] = useState({ value: "", field: "counter_name", category_id: "" });
@@ -460,6 +461,23 @@ export default function Rules() {
             }}
           />
         </label>
+        <button
+          className="btn-ghost"
+          disabled={busy}
+          title="Regels met dezelfde categorie en hetzelfde veld samenvoegen tot één regel met meerdere patronen"
+          onClick={async () => {
+            setBusy(true);
+            try {
+              setMerge(await api.mergeDuplicateRules(true));
+            } catch (e) {
+              setError(e.message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Regels opschonen…
+        </button>
         <button
           className="btn-ghost"
           onClick={askOverride}
@@ -720,6 +738,54 @@ export default function Rules() {
           Bestaande regels en de categorie van je transacties blijven ongemoeid. Klik daarna op
           <em> Regels opnieuw toepassen</em> om de nieuwe regels te laten werken.
         </p>
+      </Confirm>
+
+      <Confirm
+        open={Boolean(merge)}
+        title="Regels samenvoegen"
+        confirmLabel={`${merge?.rules_removed || 0} regels samenvoegen`}
+        onCancel={() => setMerge(null)}
+        onConfirm={async () => {
+          setMerge(null);
+          setBusy(true);
+          try {
+            const result = await api.mergeDuplicateRules(false);
+            setNotice(
+              `${result.groups} groepen samengevoegd; ${result.rules_removed} losse regels minder. ` +
+              "Er is niets veranderd aan wat er matcht."
+            );
+            load();
+          } catch (e) {
+            setError(e.message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {merge?.rules_removed === 0 ? (
+          <p>Er valt niets samen te voegen — je regels staan al netjes gegroepeerd.</p>
+        ) : (
+          <>
+            <p className="mb-2">
+              <strong>{merge?.groups}</strong> groepen regels wijzen naar dezelfde categorie met
+              hetzelfde veld. Samenvoegen levert <strong>{merge?.rules_removed}</strong> regels
+              minder op, met alle patronen behouden en de laagste prioriteit van de groep.
+            </p>
+            <ul className="mb-2 space-y-0.5 text-xs">
+              {merge?.details.slice(0, 8).map((item, index) => (
+                <li key={index}>
+                  {item.rules_before} → 1 · {item.category} ({item.field}):{" "}
+                  <span className="font-mono">{item.examples.join(", ")}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs">
+              Wat er matcht verandert niet — alleen het aantal regels. Regels met een bedraggrens of
+              een vaste rekening blijven apart staan. Exporteer eerst als je een back-up wilt:
+              samenvoegen verwijdert rijen.
+            </p>
+          </>
+        )}
       </Confirm>
 
       {editRule && (
