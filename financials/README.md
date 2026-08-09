@@ -67,7 +67,9 @@ change afterwards.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt pytest httpx
-.venv/bin/python -m pytest                 # 64 tests, synthetic fixtures
+.venv/bin/python -m pytest                 # 208 tests, synthetic fixtures
+./scripts/audit.sh                         # dependency advisories
+./scripts/check-no-personal-data.sh        # refuses IBANs, exports, databases
 ```
 
 Run the backend against a scratch database:
@@ -94,6 +96,36 @@ cd frontend && npm install && npm run dev
 - The cardholder name in `Creditcard Regel1` is read to detect the column and
   then discarded.
 
+## Security posture
+
+Verified by probing, not by inspection — the notes below say what was actually
+attempted.
+
+| Concern | Where | Verified |
+|---|---|---|
+| Path traversal | `security.contained_path`, used by the SPA fallback and every upload read | 5 payload shapes (`../`, `..%2F`, `....//`, nested, double-encoded) all served the SPA shell |
+| Upload abuse | `services/importer.store_upload` | 33 MB refused with 413 and nothing left on disk; non-CSV extension and empty file refused; `../../evil.csv` never escaped `/data` |
+| Response-header injection | `FileResponse(filename=...)` with the original name | crafted `"\r\nX-Injected:` name came back percent-encoded, no header appeared |
+| SQL injection | SQLAlchemy throughout | no string-built SQL; the only f-string SQL is `_add_column_if_missing`, whose inputs are literals in this file |
+| Resource exhaustion | every list and bulk endpoint | page size, bulk ids, tag ids, split parts and rule imports all bounded and 422 past the limit |
+| Formula injection | `security.csv_safe` on export | `=HYPERLINK(...)` in a merchant name comes out prefixed with `'`. Amount cells are not escaped: they are generated from an integer and can only ever match `-?\d+,\d\d`, and quoting them would break numeric parsing |
+| PII in logs | `RedactingFormatter` | IBANs masked to `NL96…1953` |
+| Schema exposure | `docs_url`/`openapi_url` disabled | `/openapi.json`, `/docs`, `/redoc` return the SPA shell, no schema |
+| Dependency CVEs | `scripts/audit.sh` | clean as of 2026-08-09; run before every release |
+
+Deliberate choices worth knowing:
+
+- **`frame-ancestors *`** is required — Home Assistant serves add-on panels in
+  an iframe, so a stricter value breaks Ingress. `X-Frame-Options` is absent
+  for the same reason.
+- **No CSRF tokens.** Authentication is HA's Ingress layer and the URL carries
+  a per-session token; JSON endpoints are preflighted and blocked cross-origin
+  by the absence of CORS. The multipart upload endpoint is a simple request
+  and would be forgeable by anyone who already knows the Ingress URL — which
+  is the same thing as already having access.
+- **`%` and `_` in a search box act as SQL wildcards.** The value is bound as a
+  parameter, so this is a quirk rather than an injection.
+
 ## Known limitations
 
 - `frontend/package-lock.json` is absent, so the Docker build uses
@@ -101,3 +133,6 @@ cd frontend && npm install && npm run dev
 - Non-root operation depends on `su-exec` and on `/data` being chown-able. When
   it is not, the app logs a warning and continues as root rather than
   crash-looping.
+- The Docker image and the React bundle have never been built on the
+  development machine (no Docker, no Node); they are exercised for the first
+  time by Home Assistant's own build.
