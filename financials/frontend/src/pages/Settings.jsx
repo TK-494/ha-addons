@@ -30,7 +30,16 @@ export default function Settings() {
       .catch((e) => setError(e.message));
 
   function savePeriod(patch) {
-    apply(api.savePeriodSettings({ mode: settings.mode, start_day: settings.start_day, ...patch }), "Opgeslagen.");
+    api.savePeriodSettings({ mode: settings.mode, start_day: settings.start_day, ...patch })
+      .then((result) => {
+        setSettings(result);
+        setNotice(
+          result.auto_selected_salary_source
+            ? `Opgeslagen. “${result.auto_selected_salary_source}” automatisch als salarisbetaler gekozen — pas het hieronder aan als dat niet klopt.`
+            : "Opgeslagen."
+        );
+      })
+      .catch((e) => setError(e.message));
   }
 
   function saveSalary(patch) {
@@ -81,6 +90,15 @@ export default function Settings() {
               onBlur={(e) => savePeriod({ start_day: Number(e.target.value) })}
             />
           </div>
+        )}
+
+        {settings.mode === "salary" && !settings.salary.configured && (
+          <Alert kind="warning">
+            <strong>Er is nog geen salarisbetaler ingesteld</strong>, dus er valt geen salarisdatum te
+            vinden en elke maand valt terug op dag {settings.effective_day}. Daarmee doet deze stand
+            precies hetzelfde als <em>Vaste dag</em>: een salaris dat op de 22e binnenkwam telt dan
+            nog steeds mee met de vorige maand. Kies hieronder wie je salaris betaalt.
+          </Alert>
         )}
 
         {settings.mode === "salary" && (

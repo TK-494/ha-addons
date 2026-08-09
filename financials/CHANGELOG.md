@@ -1,5 +1,16 @@
 # Changelog — Financials
 
+## 0.8.1 — 2026-08-09
+
+### Fixed
+- **Salarisdag deed niets zolang er geen betaler gekozen was.** Zonder salarisbron valt er geen
+  salarisdatum te vinden, dus viel elke maand terug op de vaste dag — de stand leek actief maar
+  gedroeg zich exact als *Vaste dag*. Een salaris dat op de 22e binnenkwam telde daardoor nog steeds
+  mee met de vorige maand.
+  - Kies je nu Salarisdag en is er een duidelijke kandidaat in je gegevens, dan wordt die automatisch
+    ingesteld en krijg je te zien wie. Een betaler die je zelf hebt ingevuld wordt nooit overschreven.
+  - Is er geen kandidaat, dan staat er een waarschuwing in plaats van stilte.
+
 ## 0.8.0 — 2026-08-09
 
 ### Nieuw

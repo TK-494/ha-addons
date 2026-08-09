@@ -159,3 +159,37 @@ def test_switching_modes_rewrites_nothing(client):
     use_salary_mode(client)
     client.put("/api/settings/period", json={"mode": "calendar", "start_day": 1})
     assert client.get("/api/transactions/", params={"page_size": 1}).json()["total"] == before
+
+
+def test_switching_to_salary_mode_adopts_the_obvious_payer(client):
+    """Choosing the mode without naming a payer used to silently behave like
+    the fixed-day mode. If the data names one candidate, take it."""
+    load(client, SHIFTING)
+    result = client.put("/api/settings/period", json={"mode": "salary", "start_day": 25}).json()
+
+    assert result["auto_selected_salary_source"] == "Werkgever BV"
+    assert result["salary"]["configured"] is True
+    assert result["shifted_months"] > 0
+
+
+def test_a_configured_payer_is_never_overwritten_by_the_switch(client):
+    load(client, SHIFTING)
+    client.put("/api/settings/salary-source", json={"counterparty": "Iets Anders", "min_amount": 500})
+    result = client.put("/api/settings/period", json={"mode": "salary", "start_day": 25}).json()
+
+    assert result["auto_selected_salary_source"] is None
+    assert result["salary"]["counterparty"] == "Iets Anders"
+
+
+def test_the_may_case(client):
+    """The reported symptom: salary booked on 22 May, with the usual day the
+    25th, must count towards May and not April."""
+    load(client, SHIFTING)
+    client.put("/api/settings/period", json={"mode": "salary", "start_day": 25})
+
+    april = client.get("/api/dashboard/summary", params={"year": 2026, "month": 4}).json()
+    may = client.get("/api/dashboard/summary", params={"year": 2026, "month": 5}).json()
+
+    assert may["start"] == "2026-05-22"
+    assert may["income"] == 3000.0
+    assert april["income"] == 3000.0, "April keeps its own salary, not two of them"

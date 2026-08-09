@@ -62,11 +62,28 @@ def get_period_settings(db: Session = Depends(get_db)):
 @router.put("/period")
 def set_period_settings(payload: PeriodSettings, db: Session = Depends(get_db)):
     """Purely a display setting: no transaction is rewritten, so switching
-    re-buckets the full history on the next request."""
+    re-buckets the full history on the next request.
+
+    Switching to salary mode without naming a payer used to do nothing at all:
+    with no salary to find, every boundary fell back to the fixed day, so the
+    setting looked active while behaving exactly like the mode you left. If a
+    payer is obvious from the data we now adopt it and say so.
+    """
     periods.set_setting(db, periods.SETTING_MODE, payload.mode)
     periods.set_setting(db, periods.SETTING_DAY, str(payload.start_day))
     db.commit()
-    return _payload(db)
+
+    adopted = None
+    if payload.mode == periods.MODE_SALARY and not periods.load_salary_source(db).configured:
+        suggestions = periods.propose_salary_source(db)
+        if suggestions:
+            adopted = suggestions[0]["counterparty"]
+            periods.set_setting(db, periods.SETTING_SALARY_MATCH, adopted)
+            db.commit()
+
+    result = _payload(db)
+    result["auto_selected_salary_source"] = adopted
+    return result
 
 
 @router.put("/salary-source")
