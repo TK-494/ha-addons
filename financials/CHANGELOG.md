@@ -1,5 +1,35 @@
 # Changelog — Financials
 
+## 0.7.0 — 2026-08-09
+
+### Nieuw
+- **Tweede set standaardregels** voor categorieën die in de praktijk ontstaan: Betaalverzoeken,
+  Gaming, Bios/Uitjes, Dating, ICT Hardware en Software, Motor en benodigdheden, plus uitbreidingen
+  op Bankkosten, Belasting, Brandstof, Leningen, Sport & Fitness, Zorg & Apotheek, Restaurant,
+  Abonnementen, Kleding en Beleggen. Opgesteld op basis van wat er in echte Nederlandse bankdata
+  blijft liggen, niet op gevoel.
+- **Seed in genummerde batches.** Een update kan nu nieuwe standaardregels meebrengen zonder
+  bestaande installaties te overschrijven en zonder regels terug te zetten die je bewust weghaalde.
+- **Regels exporteren en importeren** als JSON, inclusief herkomst per regel en het aantal
+  transacties dat hij vangt. Categorieën op naam, dus het bestand overleeft een herinstallatie.
+- **Conflictcontrole**: waarschuwt bij dubbele patronen en bij regels die door een bredere regel
+  worden overschaduwd en dus nooit vuren.
+- Elke regel houdt bij hoe hij ontstaan is: standaard, handmatig, vanaf een transactie, of
+  geïmporteerd.
+
+### Fixed
+- **Regelwaarden werden getrimd.** De spatie in `"ns "` is juist wat voorkomt dat hij "jetbrai**ns**"
+  vangt; bij import werd die weggehaald, wat 28 precieze regels stilzwijgend zou verbreden. Waarden
+  worden nu overal letterlijk bewaard.
+- `bioscoop` niet opgenomen in de nieuwe set: het bevat `coop`, dat al met hogere prioriteit naar
+  Boodschappen wijst, dus de regel had nooit kunnen vuren.
+
+### Techniek
+- Nieuwe regels krijgen bewust een lagere prioriteit dan bestaande. Ze kunnen daardoor alleen
+  transacties oppakken die nog nergens bij horen — je bestaande categorisering verandert niet.
+- Schemaversie 5: `rules.origin`, `seed_batch`, `source_transaction_id`, `note`.
+- 155 tests.
+
 ## 0.6.0 — 2026-08-09
 
 ### Nieuw

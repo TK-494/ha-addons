@@ -125,6 +125,19 @@ class Rule(Base):
     account_id: Mapped[Optional[int]] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="CASCADE"))
     is_seed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # How this rule came to exist. Kept because "why is this categorised like
+    # that" is the question you actually ask six months later, and because an
+    # export without provenance is hard to reason about.
+    #   seed        — shipped with the add-on, from a numbered batch
+    #   manual      — typed in on the rules page
+    #   transaction — created via "Regel maken" on a specific transaction
+    #   import      — restored from an exported file
+    origin: Mapped[str] = mapped_column(String(20), default="manual")
+    seed_batch: Mapped[Optional[int]] = mapped_column(Integer)
+    source_transaction_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("transactions.id", ondelete="SET NULL")
+    )
+    note: Mapped[Optional[str]] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     category: Mapped["Category"] = relationship()

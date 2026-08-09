@@ -16,10 +16,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import Category, Rule, Transaction
+from ..models import Category, Rule, Setting, Transaction
 
 # (name, color, icon, is_income, [keywords])
 # Keywords with a trailing space are deliberate: "gea " matches Rabobank's
@@ -119,38 +119,168 @@ SEED: list[tuple[str, str, str, bool, list[str]]] = [
 SETTLEMENT_CATEGORY = "Creditcard afrekening"
 
 
-def seed_defaults(db: Session) -> None:
-    """Insert seed categories and rules once. Idempotent: an existing category
-    of the same name is left exactly as the user edited it."""
-    existing = {c.name: c for c in db.scalars(select(Category)).all()}
-    has_rules = db.scalar(select(Rule.id).limit(1)) is not None
-    priority = 10
+# ─── batch 2 ────────────────────────────────────────────────────────────────
+#
+# Added after seeing which counterparties actually stay uncategorised in real
+# Dutch bank data. Every keyword here earns its place by matching something
+# real; nothing is added on a hunch.
+#
+# `aliases` exist because a category may already be present under a name the
+# user chose. Batch 1 shipped "Restaurant & Café"; renaming it must not cause
+# batch 2 to create a duplicate alongside it.
+#
+# (names, color, icon, is_income, [keywords])
+SEED_BATCH_2: list[tuple[tuple[str, ...], str, str, bool, list[str]]] = [
+    (("Betaalverzoeken",), "#0ea5e9", "hand-coin", False, [
+        "betaalverzoek", "tikkie", "via rabo betaalv"]),
+    (("Bankkosten",), "#475569", "bank", False, [
+        "debetrente", "koersopslag", "kosten gebruik betaalrekening",
+        "kosten rabo", "rabo basispakket", "rabo standaardpakket"]),
+    (("Belasting",), "#78350f", "gavel", False, [
+        "gblt", "tribuut", "belastingsamenwerking"]),
+    (("Leningen",), "#7f1d1d", "bank-transfer-out", False, [
+        "duo hoofdrekening", "dienst uitvoering onderwijs"]),
+    (("Brandstof",), "#ea580c", "gas-station", False, [
+        "fieten olie", "snel tank", "tankstation"]),
+    (("Auto",), "#57534e", "car-wrench", False, [
+        "carwash", "car wash", "wasstraat"]),
+    (("Sport & Fitness",), "#65a30d", "dumbbell", False, [
+        "profit gym", "smart fit", " gym ", "crossfit"]),
+    (("Zorg & Apotheek",), "#14b8a6", "medical-bag", False, [
+        "infomedics", "chiropract", "umc ", "tandartspraktijk", "mondzorg"]),
+    (("Restaurant, Café en Uitjes", "Restaurant & Café"), "#e11d48",
+     "silverware-fork-knife", False, [
+        "sodexo", "mcdonald", "mc donald", "sitedish", "vendingwork",
+        "cafetaria", "snackbar", "bakkerij"]),
+    (("Abonnementen",), "#8b5cf6", "repeat", False, [
+        "youtube premiu", "google *youtube", "trakt.tv", "patreon"]),
+    (("Kleding",), "#9333ea", "tshirt-crew", False, [
+        "on that ass", "sokken", "zeeman", "wibra"]),
+    (("Beleggen Extern", "Sparen & Beleggen"), "#047857", "chart-line", False, [
+        "holland gold", "eff.nota", "koop fondsen", "verkoop fondsen"]),
+    (("Gaming",), "#7c3aed", "gamepad-variant", False, [
+        "steampowered", "steam games", "playstation", "nintendo", "xbox",
+        "epic games", "blizzard", "riot games", "gog.com", "ubisoft"]),
+    (("ICT Hardware en Software",), "#0891b2", "laptop", False, [
+        "jetbrains", "github", "digitalocean", "hetzner", "transip",
+        "cloudflare", "namecheap", "backblaze", "1password", "synology",
+        "ubiquiti", "azerty", "megekko", "alternate.nl", "informatique"]),
+    (("Motor en benodigdheden",), "#b45309", "motorbike", False, [
+        "lowlands biker", "adventure bike", "motoport", "mkc moto",
+        "royal enfield", "motorkleding", "motorbanden"]),
+    (("Bios/Uitjes",), "#d946ef", "movie-open", False, [
+        # "bioscoop" is deliberately absent: it contains "coop", which batch 1
+        # claims for Boodschappen at a higher priority, so the rule could never
+        # fire. The named cinemas cover it.
+        "pathe", "pathé", "kinepolis", "vue cinema", "efteling",
+        "walibi", "burgers zoo", "artis", "ticketmaster", "eventim", "theater"]),
+    (("Dating",), "#f43f5e", "heart", False, [
+        "tinder", "bumble", "happn", "lexa", "parship", "relatieplanet"]),
+]
 
-    for name, color, icon, is_income, keywords in SEED:
-        category = existing.get(name)
-        if category is None:
-            category = Category(
-                name=name, color=color, icon=icon, is_income=is_income,
-                sort_order=priority,
-            )
-            db.add(category)
-            db.flush()
-            existing[name] = category
+# Batch 1 uses priorities 10–270 and hand-made rules use 1, so batch 2 sits
+# below both. That is the whole conflict story: a new keyword can only claim a
+# transaction that nothing already claims. Raise a rule's priority by hand if
+# you do want it to take precedence.
+BATCH_2_BASE_PRIORITY = 500
 
-        if not has_rules:
+SEED_BATCHES = {1: SEED, 2: SEED_BATCH_2}
+LATEST_SEED_BATCH = max(SEED_BATCHES)
+SETTING_SEED_BATCH = "seed_batch_applied"
+
+
+def _find_or_create_category(
+    db: Session, names: tuple[str, ...], color: str, icon: str,
+    is_income: bool, sort_order: int,
+) -> Category:
+    """Reuse a category the user already has, under whichever of its known
+    names, before creating a new one."""
+    for name in names:
+        existing = db.scalar(select(Category).where(func.lower(Category.name) == name.lower()))
+        if existing is not None:
+            return existing
+
+    category = Category(
+        name=names[0], color=color, icon=icon, is_income=is_income, sort_order=sort_order
+    )
+    db.add(category)
+    db.flush()
+    return category
+
+
+def _rule_exists(db: Session, field: str, operator: str, value: str) -> bool:
+    """Never add a keyword that is already present in any rule, whatever it
+    points at — that is how you end up with two rules fighting over the same
+    transactions."""
+    return db.scalar(
+        select(Rule.id).where(
+            Rule.field == field,
+            Rule.operator == operator,
+            func.lower(Rule.value) == value.lower(),
+        ).limit(1)
+    ) is not None
+
+
+def seed_defaults(db: Session) -> dict:
+    """Apply any seed batch this database has not seen yet.
+
+    Batches are numbered and applied once, so an add-on update can ship new
+    keywords without touching what is already there and without re-adding what
+    the user deleted on purpose.
+    """
+    applied_raw = db.get(Setting, SETTING_SEED_BATCH)
+    applied = int(applied_raw.value) if applied_raw and applied_raw.value.isdigit() else 0
+
+    # A database that predates batch numbering but already has rules has, by
+    # definition, had batch 1.
+    if applied == 0 and db.scalar(select(Rule.id).limit(1)) is not None:
+        applied = 1
+
+    added_categories = 0
+    added_rules = 0
+
+    if applied < 1:
+        priority = 10
+        for name, color, icon, is_income, keywords in SEED:
+            category = _find_or_create_category(db, (name,), color, icon, is_income, priority)
+            added_categories += 1
             for keyword in keywords:
+                if _rule_exists(db, "any", "contains", keyword):
+                    continue
                 db.add(Rule(
-                    priority=priority, field="any", operator="contains",
-                    value=keyword, category_id=category.id, is_seed=True,
+                    priority=priority, field="any", operator="contains", value=keyword,
+                    category_id=category.id, is_seed=True, origin="seed", seed_batch=1,
                 ))
-        priority += 10
+                added_rules += 1
+            priority += 10
 
-    if SETTLEMENT_CATEGORY not in existing:
-        db.add(Category(
-            name=SETTLEMENT_CATEGORY, color="#334155", icon="credit-card-sync",
-            excluded_from_budget=True, sort_order=999,
-        ))
+        if db.scalar(select(Category).where(Category.name == SETTLEMENT_CATEGORY)) is None:
+            db.add(Category(
+                name=SETTLEMENT_CATEGORY, color="#334155", icon="credit-card-sync",
+                excluded_from_budget=True, sort_order=999,
+            ))
+
+    if applied < 2:
+        priority = BATCH_2_BASE_PRIORITY
+        for names, color, icon, is_income, keywords in SEED_BATCH_2:
+            category = _find_or_create_category(db, names, color, icon, is_income, priority)
+            for keyword in keywords:
+                if _rule_exists(db, "any", "contains", keyword):
+                    continue
+                db.add(Rule(
+                    priority=priority, field="any", operator="contains", value=keyword,
+                    category_id=category.id, is_seed=True, origin="seed", seed_batch=2,
+                ))
+                added_rules += 1
+            priority += 10
+
+    if applied_raw is None:
+        db.add(Setting(key=SETTING_SEED_BATCH, value=str(LATEST_SEED_BATCH)))
+    else:
+        applied_raw.value = str(LATEST_SEED_BATCH)
+
     db.commit()
+    return {"from_batch": applied + 1, "to_batch": LATEST_SEED_BATCH, "rules_added": added_rules}
 
 
 @dataclass(frozen=True)

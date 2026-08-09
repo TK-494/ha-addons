@@ -99,6 +99,33 @@ laat de app hem met rust:
 Wil je toch alles gelijktrekken met de regels, dan is daar één knop voor: *Ook handmatige keuzes
 overschrijven…*. Die vraagt eerst hoeveel van jouw keuzes eraan gaan en doet niets tot je bevestigt.
 
+### Regels exporteren en importeren
+
+**Regels exporteren** geeft een JSON-bestand met álle regels: naar welke categorie ze wijzen, hoe ze
+matchen, met welke prioriteit, **waar ze vandaan komen** (standaard / handmatig / gemaakt vanaf een
+transactie / geïmporteerd) en hoeveel transacties elke regel nu daadwerkelijk vangt. Dat laatste
+maakt het bestand leesbaar in plaats van een dump — je ziet meteen welke regels werk doen en welke
+niets.
+
+Handig als je aanpassingen wilt laten doorvoeren: stuur het bestand op, laat het aanpassen, en lees
+het met **Importeren** weer in. Je krijgt eerst te zien hoeveel regels nieuw zijn en hoeveel al
+bestaan; er wordt niets geschreven tot je bevestigt. Bestaande regels en de categorie van je
+transacties blijven ongemoeid.
+
+Categorieën staan op naam in het bestand, niet op nummer, dus het overleeft een herinstallatie.
+
+### Botsende regels
+
+Boven aan de pagina verschijnt een waarschuwing zodra regels elkaar in de weg zitten:
+
+- **dubbel** — hetzelfde patroon wijst naar twee categorieën; alleen die met de laagste prioriteit
+  vuurt ooit.
+- **overschaduwd** — een bredere regel vangt hem altijd eerder af. `verzekering` vangt bijvoorbeeld
+  ook `eno zorgverzekering`, waardoor die tweede nooit aan bod komt.
+
+Op te lossen door de prioriteit van de specifieke regel te verlagen (lager getal wint), of de brede
+regel aan te scherpen.
+
 ### Selecteren en in bulk aanpassen
 
 Met het vinkje in de kopregel selecteer je alles op de pagina. Staan er meer resultaten dan op één

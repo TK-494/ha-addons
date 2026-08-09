@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,7 +11,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Category, Rule, Transaction
+from ..models import Category, Rule, Setting, Transaction
+from ..services import categorize
 from ..services import importer
 
 router = APIRouter(tags=["categories"])
@@ -113,6 +115,13 @@ class RuleIn(BaseModel):
     account_id: Optional[int] = None
 
 
+# Rule values are stored verbatim, never stripped. A trailing space is part of
+# the pattern: "ns " matches the Dutch Railways prefix without also matching
+# "jetbrains", "transip" or "dienst uitvoering onderwijs". Trimming it turns a
+# precise rule into a broad one, silently and after the fact — which is exactly
+# what an import round-trip did before this was fixed.
+
+
 def _cents(value: Optional[float]) -> Optional[int]:
     return None if value is None else int(round(value * 100))
 
@@ -144,6 +153,9 @@ def list_rules(
             "category_id": r.category_id,
             "category_name": names.get(r.category_id),
             "is_seed": r.is_seed,
+            "origin": r.origin,
+            "seed_batch": r.seed_batch,
+            "note": r.note,
         }
         for r in db.scalars(stmt).all()
     ]
@@ -154,7 +166,7 @@ def create_rule(payload: RuleIn, db: Session = Depends(get_db)):
     if db.get(Category, payload.category_id) is None:
         raise HTTPException(422, "Categorie bestaat niet.")
     rule = Rule(
-        category_id=payload.category_id, value=payload.value.strip(), field=payload.field,
+        category_id=payload.category_id, value=payload.value, field=payload.field,
         operator=payload.operator, priority=payload.priority, active=payload.active,
         amount_min_cents=_cents(payload.amount_min), amount_max_cents=_cents(payload.amount_max),
         account_id=payload.account_id,
@@ -170,7 +182,7 @@ def update_rule(rule_id: int, payload: RuleIn, db: Session = Depends(get_db)):
     if rule is None:
         raise HTTPException(404, "Regel niet gevonden.")
     rule.category_id = payload.category_id
-    rule.value = payload.value.strip()
+    rule.value = payload.value
     rule.field = payload.field
     rule.operator = payload.operator
     rule.priority = payload.priority
@@ -208,3 +220,237 @@ def reapply(
     return importer.reapply_rules_to_all(
         db, include_locked=include_locked, dry_run=dry_run
     )
+
+
+# ─── provenance, export, import, conflicts ──────────────────────────────────
+
+@router.get("/rules/export")
+def export_rules(db: Session = Depends(get_db), include_counts: bool = Query(True)):
+    """Every rule with where it came from, as JSON.
+
+    Categories are exported by *name* rather than id, so the file survives a
+    rebuild, a restore, or being handed to someone else. `matches` says how
+    many transactions each rule currently owns, which is what makes the file
+    reviewable rather than just a dump.
+    """
+    names = dict(db.execute(select(Category.id, Category.name)).all())
+
+    counts: dict[int, int] = {}
+    if include_counts:
+        rules = db.scalars(select(Rule).order_by(Rule.priority, Rule.id)).all()
+        compiled = categorize.compile_rules(db)
+        by_category: dict[int, int] = {}
+        for row in db.execute(
+            select(Transaction.category_id, func.count()).group_by(Transaction.category_id)
+        ).all():
+            if row[0] is not None:
+                by_category[row[0]] = row[1]
+        # Per-rule attribution needs the same first-match-wins evaluation the
+        # engine uses; anything cheaper would report numbers that do not add up.
+        for tx in db.scalars(select(Transaction).where(Transaction.is_internal.is_(False))).yield_per(1000):
+            for index, rule in enumerate(compiled):
+                if categorize.match_rule(tx, [rule]) is not None:
+                    counts[index] = counts.get(index, 0) + 1
+                    break
+        rule_ids = [r.id for r in rules if r.active and r.value.strip()]
+        counts = {rule_ids[i]: n for i, n in counts.items() if i < len(rule_ids)}
+
+    rules = db.scalars(select(Rule).order_by(Rule.priority, Rule.id)).all()
+    return {
+        "format": "financials-rules",
+        "version": 1,
+        "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "seed_batch_applied": (
+            db.get(Setting, categorize.SETTING_SEED_BATCH).value
+            if db.get(Setting, categorize.SETTING_SEED_BATCH) else None
+        ),
+        "categories": [
+            {
+                "name": c.name, "color": c.color, "icon": c.icon,
+                "is_income": c.is_income, "excluded_from_budget": c.excluded_from_budget,
+                "sort_order": c.sort_order,
+            }
+            for c in db.scalars(select(Category).order_by(Category.sort_order, Category.name)).all()
+        ],
+        "rules": [
+            {
+                "category": names.get(r.category_id),
+                "field": r.field,
+                "operator": r.operator,
+                "value": r.value,
+                "priority": r.priority,
+                "active": r.active,
+                "amount_min": None if r.amount_min_cents is None else r.amount_min_cents / 100,
+                "amount_max": None if r.amount_max_cents is None else r.amount_max_cents / 100,
+                "origin": r.origin,
+                "seed_batch": r.seed_batch,
+                "note": r.note,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "matches": counts.get(r.id) if include_counts else None,
+            }
+            for r in rules
+        ],
+    }
+
+
+class RuleImportItem(BaseModel):
+    category: str = Field(..., min_length=1, max_length=80)
+    value: str = Field(..., min_length=1, max_length=200)
+    field: RuleField = "any"
+    operator: RuleOperator = "contains"
+    priority: int = Field(50, ge=1, le=10_000)
+    active: bool = True
+    amount_min: Optional[float] = None
+    amount_max: Optional[float] = None
+    note: Optional[str] = Field(None, max_length=200)
+
+
+class RuleImport(BaseModel):
+    rules: list[RuleImportItem] = Field(..., max_length=5000)
+    create_missing_categories: bool = True
+    replace_existing: bool = False
+
+
+@router.post("/rules/import")
+def import_rules(
+    payload: RuleImport,
+    dry_run: bool = Query(False),
+    db: Session = Depends(get_db),
+):
+    """Load rules from an exported file.
+
+    Default is a merge that skips anything already present, so re-importing the
+    same file twice changes nothing. `replace_existing` wipes only the rules —
+    never a category, and never a transaction's category — so the worst case is
+    that you re-run the rules afterwards.
+    """
+    known = {c.name.lower(): c for c in db.scalars(select(Category)).all()}
+
+    created_categories: list[str] = []
+    added: list[dict] = []
+    skipped: list[dict] = []
+
+    for item in payload.rules:
+        category = known.get(item.category.lower())
+        if category is None:
+            if not payload.create_missing_categories:
+                skipped.append({"value": item.value, "reason": f"categorie '{item.category}' bestaat niet"})
+                continue
+            if not dry_run:
+                category = Category(name=item.category)
+                db.add(category)
+                db.flush()
+                known[item.category.lower()] = category
+            created_categories.append(item.category)
+
+        if not payload.replace_existing and categorize_rule_exists(db, item):
+            skipped.append({"value": item.value, "reason": "regel bestaat al"})
+            continue
+
+        added.append({"value": item.value, "category": item.category, "priority": item.priority})
+        if not dry_run and category is not None:
+            db.add(Rule(
+                category_id=category.id, value=item.value, field=item.field,
+                operator=item.operator, priority=item.priority, active=item.active,
+                amount_min_cents=_cents(item.amount_min), amount_max_cents=_cents(item.amount_max),
+                origin="import", note=item.note,
+            ))
+
+    if dry_run:
+        db.rollback()
+    else:
+        db.commit()
+
+    return {
+        "dry_run": dry_run,
+        "added": len(added),
+        "skipped": len(skipped),
+        "created_categories": sorted(set(created_categories)),
+        "details": {"added": added[:50], "skipped": skipped[:50]},
+    }
+
+
+def categorize_rule_exists(db: Session, item: RuleImportItem) -> bool:
+    return db.scalar(
+        select(Rule.id).where(
+            Rule.field == item.field,
+            Rule.operator == item.operator,
+            func.lower(Rule.value) == item.value.lower(),
+        ).limit(1)
+    ) is not None
+
+
+@router.get("/rules/conflicts")
+def rule_conflicts(db: Session = Depends(get_db)):
+    """Rules that fight each other, so a growing rule set stays trustworthy.
+
+    Two kinds are reported:
+
+    * **duplicate** — the same pattern pointing at two different categories.
+      Only the higher-priority one ever fires; the other is dead weight.
+    * **shadowed** — an earlier, broader pattern always matches first, so this
+      rule can never fire. `huur ` in Wonen shadowing a later Huur rule is the
+      textbook case.
+    """
+    rules = [
+        r for r in db.scalars(select(Rule).order_by(Rule.priority, Rule.id)).all()
+        if r.active and r.value.strip()
+    ]
+    names = dict(db.execute(select(Category.id, Category.name)).all())
+
+    duplicates = []
+    shadowed = []
+    seen: dict[tuple[str, str, str], Rule] = {}
+
+    for rule in rules:
+        key = (rule.field, rule.operator, rule.value.lower())
+        first = seen.get(key)
+        if first is not None:
+            if first.category_id != rule.category_id:
+                duplicates.append({
+                    "value": rule.value,
+                    "winner": names.get(first.category_id),
+                    "loser": names.get(rule.category_id),
+                    "winner_priority": first.priority,
+                    "loser_priority": rule.priority,
+                })
+            continue
+        seen[key] = rule
+
+    for index, rule in enumerate(rules):
+        # Deliberately not stripped: a trailing space is part of the pattern.
+        # "avia " does not occur in "transavia", and treating it as if it did
+        # reports conflicts that do not exist.
+        needle = rule.value.lower()
+        for earlier in rules[:index]:
+            if earlier.category_id == rule.category_id:
+                continue
+            if earlier.operator != "contains" or rule.operator != "contains":
+                continue
+            if earlier.field not in ("any", rule.field):
+                continue
+            other = earlier.value.lower()
+            if other and other in needle:
+                shadowed.append({
+                    "value": rule.value,
+                    "category": names.get(rule.category_id),
+                    "shadowed_by": earlier.value,
+                    "shadowed_by_category": names.get(earlier.category_id),
+                })
+                break
+
+    return {
+        "duplicates": duplicates,
+        "shadowed": shadowed,
+        "total_active_rules": len(rules),
+    }
+
+
+@router.post("/rules/reseed")
+def reseed(db: Session = Depends(get_db)):
+    """Apply any seed batch this database has not had yet.
+
+    Runs on every start too; exposed here so a new batch can be pulled in
+    without restarting the add-on.
+    """
+    return categorize.seed_defaults(db)

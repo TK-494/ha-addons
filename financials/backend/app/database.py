@@ -87,6 +87,18 @@ def apply_migrations() -> None:
                 "BOOLEAN NOT NULL DEFAULT 1",
             )
 
+        if current < 5:
+            # Existing rules predate the provenance fields. Anything flagged
+            # is_seed came from batch 1; the rest was made by hand.
+            _add_column_if_missing(conn, "rules", "origin", "VARCHAR(20) NOT NULL DEFAULT 'manual'")
+            _add_column_if_missing(conn, "rules", "seed_batch", "INTEGER")
+            _add_column_if_missing(conn, "rules", "source_transaction_id", "INTEGER")
+            _add_column_if_missing(conn, "rules", "note", "VARCHAR(200)")
+            conn.execute(text(
+                "UPDATE rules SET origin = 'seed', seed_batch = 1 "
+                "WHERE is_seed = 1 AND seed_batch IS NULL"
+            ))
+
         conn.execute(text("UPDATE schema_version SET version = :v"), {"v": SCHEMA_VERSION})
 
 

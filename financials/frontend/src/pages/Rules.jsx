@@ -120,10 +120,13 @@ export default function Rules() {
   const [confirmCategory, setConfirmCategory] = useState(null);
   const [editCategory, setEditCategory] = useState(null);
   const [confirmOverride, setConfirmOverride] = useState(null);
+  const [conflicts, setConflicts] = useState(null);
+  const [importResult, setImportResult] = useState(null);
   const [draft, setDraft] = useState({ value: "", field: "counter_name", category_id: "" });
 
   const load = () => {
     api.categories().then(setCategories).catch((e) => setError(e.message));
+    api.ruleConflicts().then(setConflicts).catch(() => {});
     api.rules({ category_id: filterCategory, search })
       .then(setRules)
       .catch((e) => setError(e.message));
@@ -194,6 +197,50 @@ export default function Rules() {
         <button className="btn-primary" onClick={reapply} disabled={busy}>Regels opnieuw toepassen</button>
         <button
           className="btn-ghost"
+          onClick={async () => {
+            try {
+              const data = await api.exportRules();
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `financials-regels-${new Date().toISOString().slice(0, 10)}.json`;
+              link.click();
+              URL.revokeObjectURL(url);
+            } catch (e) {
+              setError(e.message);
+            }
+          }}
+          title="Alle regels met herkomst en aantal treffers als JSON"
+        >
+          Regels exporteren
+        </button>
+        <label className="btn-ghost cursor-pointer" title="Een eerder geëxporteerd bestand inlezen">
+          Importeren
+          <input
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              try {
+                const parsed = JSON.parse(await file.text());
+                const payload = { rules: (parsed.rules || []).map((r) => ({
+                  category: r.category, value: r.value, field: r.field || "any",
+                  operator: r.operator || "contains", priority: r.priority ?? 50,
+                  active: r.active ?? true, note: r.note ?? null,
+                })) };
+                setImportResult({ payload, preview: await api.importRules(payload, true) });
+              } catch (err) {
+                setError(`Kon het bestand niet lezen: ${err.message}`);
+              }
+            }}
+          />
+        </label>
+        <button
+          className="btn-ghost"
           onClick={askOverride}
           disabled={busy}
           title="Past regels toe én overschrijft categorieën die je zelf hebt ingesteld"
@@ -204,6 +251,34 @@ export default function Rules() {
 
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
       {notice && <Alert kind="success" onDismiss={() => setNotice(null)}>{notice}</Alert>}
+
+      {conflicts && (conflicts.duplicates.length > 0 || conflicts.shadowed.length > 0) && (
+        <Alert kind="warning">
+          <details>
+            <summary className="cursor-pointer font-medium">
+              {conflicts.duplicates.length + conflicts.shadowed.length} regels botsen met elkaar
+            </summary>
+            <ul className="mt-2 space-y-1 text-xs">
+              {conflicts.duplicates.map((d, i) => (
+                <li key={`d${i}`}>
+                  <code>{d.value}</code> staat twee keer: <strong>{d.winner}</strong> wint,{" "}
+                  {d.loser} komt nooit aan bod.
+                </li>
+              ))}
+              {conflicts.shadowed.map((s, i) => (
+                <li key={`s${i}`}>
+                  <code>{s.value}</code> ({s.category}) vuurt nooit — <code>{s.shadowed_by}</code>{" "}
+                  ({s.shadowed_by_category}) vangt hem eerder af.
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs">
+              Op te lossen door de prioriteit van de specifieke regel te verlagen (lager getal wint),
+              of door de te brede regel aan te scherpen.
+            </p>
+          </details>
+        </Alert>
+      )}
 
       <section className="card mb-6">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -348,6 +423,44 @@ export default function Rules() {
             </p>
           </>
         )}
+      </Confirm>
+
+      <Confirm
+        open={Boolean(importResult)}
+        title="Regels importeren"
+        confirmLabel={`${importResult?.preview.added || 0} regels toevoegen`}
+        danger={false}
+        onCancel={() => setImportResult(null)}
+        onConfirm={async () => {
+          const { payload } = importResult;
+          setImportResult(null);
+          try {
+            const result = await api.importRules(payload, false);
+            setNotice(
+              `${result.added} regels toegevoegd, ${result.skipped} overgeslagen omdat ze al bestonden.` +
+              (result.created_categories.length
+                ? ` Nieuwe categorieën: ${result.created_categories.join(", ")}.`
+                : "")
+            );
+            load();
+          } catch (e) {
+            setError(e.message);
+          }
+        }}
+      >
+        <p className="mb-2">
+          <strong>{importResult?.preview.added}</strong> nieuwe regels,{" "}
+          <strong>{importResult?.preview.skipped}</strong> bestaan al en worden overgeslagen.
+        </p>
+        {importResult?.preview.created_categories?.length > 0 && (
+          <p className="mb-2">
+            Nieuwe categorieën die aangemaakt worden: {importResult.preview.created_categories.join(", ")}
+          </p>
+        )}
+        <p className="text-xs">
+          Bestaande regels en de categorie van je transacties blijven ongemoeid. Klik daarna op
+          <em> Regels opnieuw toepassen</em> om de nieuwe regels te laten werken.
+        </p>
       </Confirm>
 
       {editCategory && (

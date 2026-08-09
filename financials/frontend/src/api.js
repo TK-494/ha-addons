@@ -126,6 +126,12 @@ export const api = {
   createRule: (payload) => request("/rules/", { method: "POST", body: payload }),
   updateRule: (id, payload) => request(`/rules/${id}`, { method: "PUT", body: payload }),
   deleteRule: (id) => request(`/rules/${id}`, { method: "DELETE" }),
+  exportRulesUrl: () => `${API_BASE}/rules/export`,
+  exportRules: () => request("/rules/export"),
+  importRules: (payload, dryRun) =>
+    request("/rules/import", { method: "POST", body: payload, params: { dry_run: dryRun } }),
+  ruleConflicts: () => request("/rules/conflicts"),
+  reseed: () => request("/rules/reseed", { method: "POST" }),
   reapplyRules: (includeLocked, dryRun) =>
     request("/rules/reapply", {
       method: "POST",

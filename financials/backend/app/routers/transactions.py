@@ -314,7 +314,8 @@ def create_rule_from_transaction(
     # Priority 1: a rule the user wrote by hand outranks every seeded keyword.
     rule = Rule(
         priority=1, field=payload.field, operator="contains",
-        value=payload.value.strip(), category_id=payload.category_id, is_seed=False,
+        value=payload.value, category_id=payload.category_id, is_seed=False,
+        origin="transaction", source_transaction_id=tx.id,
     )
     db.add(rule)
     db.commit()
