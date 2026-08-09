@@ -1,5 +1,38 @@
 # Changelog — Financials
 
+## 0.3.0 — 2026-08-09
+
+### Nieuw
+- **Budget per categorie per maand**, met doorschuiven van wat je overhoudt, *vorige maand
+  overnemen* en een voorstel op basis van de mediaan van de afgelopen zes maanden.
+- **Sensoren in Home Assistant** via de Supervisor — saldo totaal en per rekening, uitgaven en
+  inkomsten deze maand, vaste lasten en het aantal ongecategoriseerde transacties. Geen token of
+  configuratie nodig; bijgewerkt na elke import en elk half uur.
+
+### Techniek
+- Sensorpublicatie is best effort: een onbereikbare Supervisor laat een import nooit mislukken, en
+  buiten Home Assistant doet de module niets.
+- Interne overboekingen tellen nooit mee in een budget.
+- 93 tests.
+
+## 0.2.0 — 2026-08-09
+
+### Nieuw
+- **Overzichtspagina**: KPI's met vergelijking t.o.v. vorige periode, cashflow per maand,
+  categorieverdeling, saldoverloop en vaste-versus-variabele lasten. Om te schakelen tussen
+  huishouden (interne overboekingen eruit) en één rekening (die tellen wél mee).
+- **Categorie-detail** met verloop en grootste tegenpartijen.
+- **Terugkerende betalingen** herkend op incassant-ID, met bedrag per maand en signalering als een
+  bedrag verandert.
+- **Werkvoorraad**: ongecategoriseerde transacties gegroepeerd, grootste bedragen eerst.
+- **Eigen rekening toevoegen zonder import**, zodat geld naar een rekening die je niet importeert
+  niet als uitgave telt.
+
+### Fixed
+- Creditcard-afschrijvingen van vóór de kaartexport telden als uitgave; nu herkend als intern met de
+  melding dat de andere kant ontbreekt.
+- `detect_salary_day` gebruikte een ongeldig SQL-type en liet de instellingenpagina crashen.
+
 ## 0.1.0 — 2026-08-09
 
 Eerste versie. Opvolger van de `finance-dashboard` add-on, opnieuw opgebouwd

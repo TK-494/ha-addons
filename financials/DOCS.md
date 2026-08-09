@@ -79,6 +79,46 @@ Sneller werkt het via **Transacties → Regel maken**: je ziet dan meteen hoevee
 transacties de nieuwe regel raakt, vóórdat je hem opslaat. Categorieën die je
 zelf met de hand hebt gezet worden nooit door een regel overschreven.
 
+## Budget
+
+Onder **Budget** stel je per categorie een maandbedrag in. Je ziet direct hoeveel er al op staat en
+hoeveel er over is. Twee knoppen schelen werk:
+
+- **Vorige maand overnemen** — kopieert alle bedragen van de vorige maand.
+- **Voorstel op basis van historie** — rekent de mediaan uit van de laatste zes maanden. Bewust de
+  mediaan en niet het gemiddelde: één dure maand mag je boodschappenbudget niet omhoog trekken. Er
+  wordt niets opgeslagen tot je op *Alles overnemen* klikt.
+
+Zet **doorschuiven** aan bij categorieën die per maand sterk wisselen (kleding, auto-onderhoud): wat
+je overhoudt telt dan op bij de volgende maand.
+
+## Terugkerende betalingen
+
+De pagina **Terugkerend** zoekt abonnementen en vaste lasten op. Bij Rabobank-incasso's gebeurt dat
+op het incassant-ID uit je machtiging, dus die groepen kloppen exact. De rest wordt op naam
+gegroepeerd en kan er af en toe naast zitten — dat staat erbij in de kolom *Herkomst*.
+
+Alles wordt omgerekend naar een bedrag per maand, zodat een jaarpolis en een maandabonnement
+vergelijkbaar zijn. Verandert een bedrag ten opzichte van wat gebruikelijk was, dan krijgt de regel
+het label *gewijzigd* — handig om stille prijsverhogingen te zien.
+
+## Sensoren in Home Assistant
+
+De add-on zet een paar waarden als sensor in Home Assistant, zonder dat je iets hoeft in te stellen:
+
+| Sensor | Wat |
+|---|---|
+| `sensor.financials_saldo_totaal` | Totaal saldo van alle rekeningen |
+| `sensor.financials_saldo_<rekening>` | Saldo per rekening |
+| `sensor.financials_uitgaven_deze_maand` | Uitgaven in de lopende periode |
+| `sensor.financials_inkomsten_deze_maand` | Inkomsten in de lopende periode |
+| `sensor.financials_vaste_lasten` | Herkende vaste lasten per maand |
+| `sensor.financials_ongecategoriseerd` | Aantal transacties zonder categorie |
+
+Je kunt daar dashboardkaarten en automatiseringen op bouwen — bijvoorbeeld een melding als de
+uitgaven deze maand boven een bedrag komen. De waarden worden bijgewerkt na elke import en verder
+elk half uur.
+
 ## Instellingen
 
 Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag,

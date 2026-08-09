@@ -1,5 +1,5 @@
 name: Financials
-version: "0.2.0"
+version: "0.3.0"
 slug: financials
 description: Huishoudboekje — importeer CSV-exports van Rabobank, Rabobank creditcard en ASN Bank en houd inkomsten, uitgaven en overboekingen tussen je eigen rekeningen uit elkaar.
 url: https://github.com/TK-494/ha-addons/tree/main/financials
@@ -15,5 +15,7 @@ panel_icon: mdi:finance
 panel_title: Financials
 # Only /data is written: the SQLite database and the uploaded CSV files both
 # live there, so Home Assistant backups cover everything in one go.
+# Needed to publish the sensors; no user token required.
+homeassistant_api: true
 options: {}
 schema: {}

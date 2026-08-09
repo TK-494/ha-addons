@@ -8,6 +8,7 @@ any CORS configuration would only widen the attack surface.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -18,9 +19,14 @@ from fastapi.staticfiles import StaticFiles
 from . import config
 from .database import Base, SessionLocal, apply_migrations, engine
 from .parsers import ParseError
-from .routers import accounts, categories, dashboard, imports, settings, transactions
+from .routers import accounts, budgets, categories, dashboard, imports, settings, transactions
 from .security import contained_path, mask_iban, security_headers_middleware
+from .services import ha
 from .services.categorize import seed_defaults
+
+# Half an hour: frequent enough that a restarted HA regains its sensors
+# quickly, rare enough to be invisible.
+SENSOR_REFRESH_SECONDS = 1800
 
 
 class RedactingFormatter(logging.Formatter):
@@ -46,6 +52,24 @@ Base.metadata.create_all(bind=engine)
 apply_migrations()
 config.ensure_dirs()
 
+async def _sensor_refresh_loop() -> None:
+    """Republish the HA sensors periodically.
+
+    States written through the REST API do not survive a Home Assistant
+    restart, so a slow heartbeat keeps them present without the user having to
+    do anything. Imports push immediately; this only covers the quiet hours.
+    """
+    while True:
+        await asyncio.sleep(SENSOR_REFRESH_SECONDS)
+        db = SessionLocal()
+        try:
+            await asyncio.to_thread(ha.publish, db)
+        except Exception as exc:  # noqa: BLE001 — never let this kill the app
+            log.warning("Sensoren verversen mislukt: %s", exc)
+        finally:
+            db.close()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db = SessionLocal()
@@ -54,7 +78,16 @@ async def lifespan(_app: FastAPI):
     finally:
         db.close()
     log.info("%s %s gestart", config.APP_NAME, config.APP_VERSION)
+
+    task = None
+    if ha.available():
+        log.info("Home Assistant Supervisor gevonden — sensoren worden gepubliceerd")
+        task = asyncio.create_task(_sensor_refresh_loop())
+
     yield
+
+    if task is not None:
+        task.cancel()
 
 
 app = FastAPI(
@@ -74,6 +107,7 @@ app.include_router(transactions.router, prefix="/api")
 app.include_router(categories.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(budgets.router, prefix="/api")
 
 
 @app.exception_handler(ParseError)

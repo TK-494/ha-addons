@@ -73,6 +73,15 @@ export const api = {
   categoryDetail: (id, months) => request(`/dashboard/category/${id}`, { params: { months } }),
   uncategorised: (limit) => request("/dashboard/uncategorised", { params: { limit } }),
 
+  budgets: (params) => request("/budgets/", { params }),
+  upsertBudget: (payload) => request("/budgets/", { method: "POST", body: payload }),
+  deleteBudget: (id) => request(`/budgets/${id}`, { method: "DELETE" }),
+  copyPreviousBudgets: (year, month) =>
+    request("/budgets/copy-previous", { method: "POST", params: { year, month } }),
+  suggestBudgets: (year, month, months) =>
+    request("/budgets/suggest", { method: "POST", params: { year, month, months } }),
+  counterparty: (name) => request("/dashboard/counterparty", { params: { name } }),
+
   accounts: () => request("/accounts/"),
   createAccount: (payload) => request("/accounts/", { method: "POST", body: payload }),
   updateAccount: (id, payload) => request(`/accounts/${id}`, { method: "PATCH", body: payload }),

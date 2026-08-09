@@ -29,7 +29,7 @@ from .. import config
 from ..models import Account, ImportBatch, Transaction
 from ..parsers import ParsedAccount, ParseError, ParseResult, decode_csv_bytes, parse_csv
 from ..security import mask_iban
-from . import categorize, transfers
+from . import categorize, ha, transfers
 
 log = logging.getLogger("financials.import")
 
@@ -247,6 +247,14 @@ def commit_import(db: Session, batch: ImportBatch, result: ParseResult) -> Impor
         "Import %s: %s nieuw, %s duplicaat, %s mislukt",
         batch.id, batch.rows_imported, batch.rows_duplicate, batch.rows_failed,
     )
+
+    # Best effort: a Supervisor that is briefly unreachable must not turn a
+    # successful import into a failed request.
+    try:
+        ha.publish(db)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Sensoren bijwerken na import mislukt: %s", exc)
+
     return batch
 
 
