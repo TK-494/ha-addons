@@ -82,6 +82,16 @@ export const api = {
     request("/budgets/suggest", { method: "POST", params: { year, month, months } }),
   counterparty: (name) => request("/dashboard/counterparty", { params: { name } }),
 
+  tags: () => request("/tags/"),
+  createTag: (payload) => request("/tags/", { method: "POST", body: payload }),
+  updateTag: (id, payload) => request(`/tags/${id}`, { method: "PUT", body: payload }),
+  deleteTag: (id) => request(`/tags/${id}`, { method: "DELETE" }),
+  setTransactionTags: (id, tagIds) =>
+    request(`/tags/transaction/${id}`, { method: "PUT", body: { tag_ids: tagIds } }),
+  bulkTag: (transactionIds, tagId, action) =>
+    request("/tags/bulk", { method: "POST", body: { transaction_ids: transactionIds, tag_id: tagId, action } }),
+  tagBreakdown: (id) => request(`/tags/${id}/breakdown`),
+
   accounts: () => request("/accounts/"),
   createAccount: (payload) => request("/accounts/", { method: "POST", body: payload }),
   updateAccount: (id, payload) => request(`/accounts/${id}`, { method: "PATCH", body: payload }),

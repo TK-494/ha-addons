@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from .. import config
 from ..database import get_db
-from ..models import Account, Category, Rule, Transaction
+from ..models import Account, Category, Rule, Transaction, transaction_tags
 from ..security import csv_safe
 from ..services import categorize, transfers
 
@@ -38,6 +38,7 @@ def _apply_filters(
     amount_max: Optional[float],
     search: Optional[str],
     bank_code: Optional[str],
+    tag_id: Optional[int] = None,
 ):
     if date_from:
         stmt = stmt.where(Transaction.booked_on >= date_from)
@@ -61,6 +62,13 @@ def _apply_filters(
         stmt = stmt.where(func.abs(Transaction.amount_cents) <= int(round(amount_max * 100)))
     if bank_code:
         stmt = stmt.where(Transaction.bank_code == bank_code.lower())
+    if tag_id:
+        stmt = stmt.where(
+            Transaction.id.in_(
+                select(transaction_tags.c.transaction_id)
+                .where(transaction_tags.c.tag_id == tag_id)
+            )
+        )
     if search:
         # SQLAlchemy binds the pattern as a parameter; the f-string only builds
         # the LIKE wildcards, never SQL.
@@ -97,6 +105,7 @@ def _serialise(tx: Transaction) -> dict:
         "fx_currency": tx.fx_currency,
         "fx_rate": tx.fx_rate,
         "note": tx.note,
+        "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tx.tags],
     }
 
 
@@ -114,6 +123,7 @@ def list_transactions(
     amount_max: Optional[float] = None,
     search: Optional[str] = Query(None, max_length=120),
     bank_code: Optional[str] = Query(None, max_length=10),
+    tag_id: Optional[int] = None,
     sort: SortField = "date",
     desc: bool = True,
     page: int = Query(1, ge=1),
@@ -124,7 +134,7 @@ def list_transactions(
         date_from=date_from, date_to=date_to, account_id=account_id,
         category_id=category_id, uncategorised=uncategorised, internal=internal,
         direction=direction, amount_min=amount_min, amount_max=amount_max,
-        search=search, bank_code=bank_code,
+        search=search, bank_code=bank_code, tag_id=tag_id,
     )
 
     total = db.scalar(_apply_filters(select(func.count()).select_from(Transaction), **filters))
@@ -325,6 +335,7 @@ def export_csv(
     account_id: Optional[int] = None,
     category_id: Optional[int] = None,
     search: Optional[str] = Query(None, max_length=120),
+    tag_id: Optional[int] = None,
 ):
     """Export the current selection. Every cell goes through `csv_safe`, so a
     merchant name starting with `=` cannot become a formula in Excel."""
@@ -332,7 +343,7 @@ def export_csv(
         select(Transaction), date_from=date_from, date_to=date_to,
         account_id=account_id, category_id=category_id, uncategorised=False,
         internal=None, direction=None, amount_min=None, amount_max=None,
-        search=search, bank_code=None,
+        search=search, bank_code=None, tag_id=tag_id,
     ).options(selectinload(Transaction.account), selectinload(Transaction.category)) \
      .order_by(Transaction.booked_on.desc()).limit(100_000)
 
@@ -341,7 +352,7 @@ def export_csv(
         writer = csv.writer(buffer, delimiter=";")
         writer.writerow([
             "Datum", "Rekening", "Bedrag", "Omschrijving", "Tegenpartij",
-            "Tegenrekening", "Categorie", "Intern", "Notitie",
+            "Tegenrekening", "Categorie", "Labels", "Intern", "Notitie",
         ])
         yield buffer.getvalue()
         buffer.seek(0), buffer.truncate(0)
@@ -355,6 +366,7 @@ def export_csv(
                 csv_safe(tx.counter_name),
                 csv_safe(tx.counter_iban),
                 csv_safe(tx.category.name if tx.category else ""),
+                csv_safe(", ".join(tag.name for tag in tx.tags)),
                 "ja" if tx.is_internal else "nee",
                 csv_safe(tx.note or ""),
             ])

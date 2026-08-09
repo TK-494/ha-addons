@@ -19,7 +19,9 @@ from fastapi.staticfiles import StaticFiles
 from . import config
 from .database import Base, SessionLocal, apply_migrations, engine
 from .parsers import ParseError
-from .routers import accounts, budgets, categories, dashboard, imports, settings, transactions
+from .routers import (
+    accounts, budgets, categories, dashboard, imports, settings, tags, transactions,
+)
 from .security import contained_path, mask_iban, security_headers_middleware
 from .services import ha
 from .services.categorize import seed_defaults
@@ -108,6 +110,7 @@ app.include_router(categories.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
+app.include_router(tags.router, prefix="/api")
 
 
 @app.exception_handler(ParseError)

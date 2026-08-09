@@ -53,7 +53,10 @@ def get_db():
         db.close()
 
 
-SCHEMA_VERSION = 1
+# 1 — initial schema
+# 2 — tags: adds `tags` and `transaction_tags`, no changes to existing tables,
+#     so `create_all` covers the upgrade on its own.
+SCHEMA_VERSION = 2
 
 
 def apply_migrations() -> None:

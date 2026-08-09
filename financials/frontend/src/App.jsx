@@ -7,6 +7,7 @@ import CategoryDetail from "./pages/CategoryDetail.jsx";
 import Recurring from "./pages/Recurring.jsx";
 import Budgets from "./pages/Budgets.jsx";
 import Counterparty from "./pages/Counterparty.jsx";
+import Tags from "./pages/Tags.jsx";
 import Rules from "./pages/Rules.jsx";
 import Settings from "./pages/Settings.jsx";
 
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/transacties", label: "Transacties", icon: "≡" },
   { to: "/budget", label: "Budget", icon: "◑" },
   { to: "/terugkerend", label: "Terugkerend", icon: "↻" },
+  { to: "/labels", label: "Labels", icon: "◆" },
   { to: "/rekeningen", label: "Rekeningen", icon: "▤" },
   { to: "/importeren", label: "Importeren", icon: "↑" },
   { to: "/regels", label: "Categorieën & regels", icon: "⚑" },
@@ -76,6 +78,7 @@ export default function App() {
           <Route path="/terugkerend" element={<Recurring />} />
           <Route path="/categorie/:id" element={<CategoryDetail />} />
           <Route path="/tegenpartij" element={<Counterparty />} />
+          <Route path="/labels" element={<Tags />} />
           <Route path="/rekeningen" element={<Accounts />} />
           <Route path="/importeren" element={<Import />} />
           <Route path="/regels" element={<Rules />} />

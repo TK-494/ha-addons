@@ -11,11 +11,27 @@ from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+    Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Table, Text,
+    UniqueConstraint, func
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+# Labels are a *second dimension*, deliberately not a second category.
+#
+# A €60 tank of fuel during a holiday is fully fuel and fully holiday — it is
+# not two halves. Letting a transaction carry two categories would make the
+# category totals sum to more than the money actually spent, and splitting the
+# amount 50/50 would understate the fuel. So: exactly one category for the
+# accounting, any number of labels for cross-cutting questions like "what did
+# Vakantie 2019 cost me in total".
+transaction_tags = Table(
+    "transaction_tags",
+    Base.metadata,
+    Column("transaction_id", ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
 
 # Account kinds. `savings` is excluded from spend analysis but counted towards
 # net worth, so moving money there reads as saved rather than spent.
@@ -64,6 +80,23 @@ class Category(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=100)
 
     parent: Mapped[Optional["Category"]] = relationship(remote_side=[id])
+
+
+class Tag(Base):
+    """A free-form label, orthogonal to categories: `vakantie-2019`,
+    `verbouwing`, `zakelijk`."""
+
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60), unique=True)
+    color: Mapped[str] = mapped_column(String(9), default="#0ea5e9")
+    note: Mapped[Optional[str]] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    transactions: Mapped[list["Transaction"]] = relationship(
+        secondary=transaction_tags, back_populates="tags"
+    )
 
 
 class Rule(Base):
@@ -179,6 +212,9 @@ class Transaction(Base):
 
     account: Mapped["Account"] = relationship(back_populates="transactions")
     category: Mapped[Optional["Category"]] = relationship()
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary=transaction_tags, back_populates="transactions", lazy="selectin"
+    )
 
 
 class Setting(Base):

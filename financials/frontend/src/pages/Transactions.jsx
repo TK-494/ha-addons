@@ -6,7 +6,7 @@ import { amountClass, bankCodeLabel, money, shortDate } from "../format.js";
 
 const EMPTY_FILTERS = {
   search: "", account_id: "", category_id: "", date_from: "", date_to: "",
-  direction: "", uncategorised: false, internal: "", page: 1, page_size: 50,
+  direction: "", uncategorised: false, internal: "", tag_id: "", page: 1, page_size: 50,
 };
 
 export default function Transactions() {
@@ -19,20 +19,23 @@ export default function Transactions() {
     category_id: searchParams.get("category_id") || "",
     account_id: searchParams.get("account_id") || "",
     uncategorised: searchParams.get("uncategorised") === "1",
+    tag_id: searchParams.get("tag_id") || "",
   }));
   const [data, setData] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [tags, setTags] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [ruleFor, setRuleFor] = useState(null);
   const [noteFor, setNoteFor] = useState(null);
+  const [tagFor, setTagFor] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.accounts(), api.categories()])
-      .then(([a, c]) => { setAccounts(a); setCategories(c); })
+    Promise.all([api.accounts(), api.categories(), api.tags()])
+      .then(([a, c, g]) => { setAccounts(a); setCategories(c); setTags(g); })
       .catch((e) => setError(e.message));
   }, []);
 
@@ -42,6 +45,8 @@ export default function Transactions() {
     if (params.internal === "") delete params.internal;
     return params;
   }, [filters]);
+
+  const refreshTags = () => api.tags().then(setTags).catch(() => {});
 
   const load = useCallback(() => {
     setLoading(true);
@@ -144,6 +149,13 @@ export default function Transactions() {
             <option value="true">Alleen deze</option>
           </select>
         </div>
+        <div>
+          <label className="label">Label</label>
+          <select className="input" value={filters.tag_id} onChange={(e) => update({ tag_id: e.target.value })}>
+            <option value="">Alle labels</option>
+            {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+          </select>
+        </div>
         <label className="flex items-end gap-2 pb-1 text-sm">
           <input
             type="checkbox"
@@ -169,6 +181,28 @@ export default function Transactions() {
                 <option value="" disabled>Categorie toewijzen…</option>
                 <option value="">Categorie wissen</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select
+                className="input w-auto"
+                defaultValue=""
+                onChange={async (e) => {
+                  const [action, id] = e.target.value.split(":");
+                  e.target.value = "";
+                  if (!id) return;
+                  try {
+                    const result = await api.bulkTag([...selected], Number(id), action);
+                    setNotice(`${result.changed} transacties ${action === "add" ? "gelabeld" : "ontlabeld"}.`);
+                    setSelected(new Set());
+                    load();
+                    refreshTags();
+                  } catch (err) {
+                    setError(err.message);
+                  }
+                }}
+              >
+                <option value="" disabled>Label toevoegen/verwijderen…</option>
+                {tags.map((tag) => <option key={`a${tag.id}`} value={`add:${tag.id}`}>+ {tag.name}</option>)}
+                {tags.map((tag) => <option key={`r${tag.id}`} value={`remove:${tag.id}`}>− {tag.name}</option>)}
               </select>
               <button className="btn-ghost" onClick={() => setSelected(new Set())}>Selectie wissen</button>
             </span>
@@ -218,6 +252,19 @@ export default function Transactions() {
                         <> · {tx.fx_amount} {tx.fx_currency} @ {tx.fx_rate}</>
                       )}
                     </div>
+                    {tx.tags.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {tx.tags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="pill text-[11px]"
+                            style={{ backgroundColor: `${tag.color}22`, color: tag.color }}
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="td whitespace-nowrap text-xs">{tx.account_label}</td>
                   <td className={`td whitespace-nowrap text-right font-medium ${amountClass(tx.amount)}`}>
@@ -248,6 +295,13 @@ export default function Transactions() {
                   </td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
+                      <button
+                        className="btn-ghost whitespace-nowrap"
+                        title="Labels beheren"
+                        onClick={() => setTagFor(tx)}
+                      >
+                        Labels
+                      </button>
                       <button
                         className="btn-ghost whitespace-nowrap"
                         title={tx.note || "Notitie toevoegen"}
@@ -281,6 +335,16 @@ export default function Transactions() {
         </div>
       )}
 
+      {tagFor && (
+        <TagPicker
+          transaction={tagFor}
+          tags={tags}
+          onClose={() => setTagFor(null)}
+          onSaved={() => { setTagFor(null); load(); refreshTags(); }}
+          onError={setError}
+        />
+      )}
+
       {noteFor && (
         <NoteDialog
           transaction={noteFor}
@@ -300,6 +364,97 @@ export default function Transactions() {
         />
       )}
     </>
+  );
+}
+
+/** Pick labels for one transaction, and create one inline when it is missing. */
+function TagPicker({ transaction, tags, onClose, onSaved, onError }) {
+  const [selected, setSelected] = useState(new Set(transaction.tags.map((t) => t.id)));
+  const [available, setAvailable] = useState(tags);
+  const [fresh, setFresh] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function toggle(id) {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  }
+
+  async function addNew() {
+    if (fresh.trim().length < 1) return;
+    try {
+      const created = await api.createTag({ name: fresh.trim(), color: "#0ea5e9" });
+      setAvailable([...available, { id: created.id, name: created.name, color: "#0ea5e9" }]);
+      setSelected(new Set([...selected, created.id]));
+      setFresh("");
+    } catch (e) {
+      onError(e.message);
+    }
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api.setTransactionTags(transaction.id, [...selected]);
+      onSaved();
+    } catch (e) {
+      onError(e.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="card w-full max-w-md">
+        <h3 className="mb-1 text-lg font-semibold">Labels</h3>
+        <p className="mb-3 truncate text-sm text-slate-500 dark:text-slate-400">
+          {shortDate(transaction.booked_on)} · {money(transaction.amount)} · {transaction.description}
+        </p>
+
+        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+          De categorie blijft zoals hij is — labels komen er náást. Een tankbeurt tijdens de vakantie
+          blijft dus Brandstof, met het label van die vakantie erbij.
+        </p>
+
+        {available.length === 0 ? (
+          <p className="mb-3 text-sm">Nog geen labels. Maak er hieronder één aan.</p>
+        ) : (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {available.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => toggle(tag.id)}
+                className={`pill border ${selected.has(tag.id)
+                  ? "border-transparent text-white"
+                  : "border-slate-300 dark:border-slate-600"}`}
+                style={selected.has(tag.id) ? { backgroundColor: tag.color } : undefined}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mb-4 flex gap-2">
+          <input
+            className="input"
+            placeholder="Nieuw label, bijv. Vakantie 2019"
+            value={fresh}
+            maxLength={60}
+            onChange={(e) => setFresh(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNew(); } }}
+          />
+          <button className="btn-ghost" onClick={addNew} disabled={fresh.trim().length < 1}>
+            Toevoegen
+          </button>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={onClose} disabled={busy}>Annuleren</button>
+          <button className="btn-primary" onClick={save} disabled={busy}>Opslaan</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

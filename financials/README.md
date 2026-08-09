@@ -48,6 +48,14 @@ the bank's own `Saldo na trn`. Deleting a leg would break that.
 becomes "yours" once its own CSV is imported, so earlier transfers to it pair up
 retroactively.
 
+**Labels are a second dimension, not a second category.** A transaction has
+exactly one category, so category totals remain a partition of the spend and
+cannot double-count; labels are an orthogonal many-to-many for cross-cutting
+questions ("what did that trip cost across fuel, hotels and restaurants").
+Splitting the amount across two categories would understate each part; counting
+it twice would overstate the total. Neither is acceptable, so neither is
+offered.
+
 **Categorisation rules are database rows.** Editing one is a form submission,
 not a rebuild. The seed set is inserted once on first boot and is yours to
 change afterwards.

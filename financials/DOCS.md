@@ -79,6 +79,35 @@ Sneller werkt het via **Transacties → Regel maken**: je ziet dan meteen hoevee
 transacties de nieuwe regel raakt, vóórdat je hem opslaat. Categorieën die je
 zelf met de hand hebt gezet worden nooit door een regel overschreven.
 
+## Labels — meerdere dimensies naast de categorie
+
+Soms hoort een uitgave bij twee dingen tegelijk: die tankbeurt is **brandstof**, én hij hoort bij de
+**vakantie**. Daar zijn labels voor.
+
+Een transactie heeft altijd precies één categorie — dat is de boekhouding, en daardoor blijft de
+optelsom kloppen. Daarnaast kan hij zoveel labels dragen als je wilt. De tankbeurt blijft dus gewoon
+Brandstof staan, met het label *Vakantie 2019* erbij.
+
+> Waarom niet gewoon twee categorieën? Omdat €60 brandstof tijdens de vakantie voor 100% brandstof
+> is én voor 100% vakantie. Tel je hem in twee categorieën volledig mee, dan tellen je categorieën
+> samen op tot meer dan je hebt uitgegeven. Halveer je hem, dan zie je te weinig brandstof. Met een
+> label klopt allebei.
+
+**Eén transactie labelen:** Transacties → knop **Labels** op de regel. Daar kun je meteen een nieuw
+label aanmaken als het nog niet bestaat.
+
+**Een hele reis in één keer:** filter op de periode (Van/Tot), zet eventueel *Richting* op *Af*,
+selecteer de regels met de vinkjes en kies het label in de balk bovenaan. Let op dat je vaste lasten
+die toevallig in die periode vallen — verzekering, abonnementen — er weer uit vinkt; die horen niet
+bij de reis.
+
+**Wat het oplevert:** op de pagina **Labels** klap je een label open en zie je wat het in totaal
+gekost heeft, uitgesplitst per categorie. Zo zie je in één oogopslag wat een vakantie of verbouwing
+werkelijk gekost heeft, over alle categorieën heen.
+
+Labels veranderen niets aan je inkomsten-, uitgaven- of budgetcijfers. Ze zijn puur een extra manier
+om te filteren en op te tellen.
+
 ## Budget
 
 Onder **Budget** stel je per categorie een maandbedrag in. Je ziet direct hoeveel er al op staat en

@@ -1,5 +1,23 @@
 # Changelog — Financials
 
+## 0.4.0 — 2026-08-09
+
+### Nieuw
+- **Labels**: een tweede laag naast de categorie, voor uitgaven die bij meerdere dingen horen —
+  bijvoorbeeld brandstof die bij een vakantie hoort. Eén categorie per transactie (de boekhouding
+  blijft kloppen), daarnaast onbeperkt labels.
+  - Labels per transactie, met de mogelijkheid er direct een nieuwe aan te maken.
+  - Een hele selectie in één keer labelen of ontlabelen.
+  - Filteren op label in het transactieoverzicht, en labels in de CSV-export.
+  - Pagina **Labels** met per label het totaal, uitgesplitst per categorie.
+
+### Techniek
+- Schema-versie 2: nieuwe tabellen `tags` en `transaction_tags`, geen wijziging aan bestaande
+  tabellen, dus bestaande installaties migreren vanzelf.
+- Labels raken geen enkel bedrag: inkomsten, uitgaven, budgetten en categorieën blijven identiek.
+  Daar zijn expliciet tests voor.
+- 109 tests.
+
 ## 0.3.2 — 2026-08-09
 
 ### Fixed
