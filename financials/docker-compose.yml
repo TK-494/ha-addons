@@ -1,0 +1,25 @@
+# Standalone deployment for any Docker host that is not HAOS.
+# Builds the same single-container image the add-on uses.
+#
+#   docker compose up -d --build
+#   open http://<host>:8765
+services:
+  financials:
+    build:
+      context: .
+      args:
+        BUILD_FROM: python:3.12-alpine
+    container_name: financials
+    restart: unless-stopped
+    ports:
+      - "8765:8000"
+    volumes:
+      - financials-data:/data
+    environment:
+      - DATABASE_URL=sqlite:////data/financials.db
+      - DATA_DIR=/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  financials-data:

@@ -31,3 +31,9 @@ data/
 
 # Third-party reference docs used locally to seed data but not redistributable.
 Salaristabellen*.pdf
+
+# Bank exports and anything derived from them. Synthetic test fixtures are
+# whitelisted below; nothing else CSV-shaped belongs in this repo.
+*.csv
+!**/tests/fixtures/*.csv
+uploads/

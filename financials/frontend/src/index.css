@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Home Assistant users run light and dark themes; follow the system setting
+   rather than forcing one. */
+:root { color-scheme: light dark; }
+body { @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100; }
+
+@layer components {
+  .card { @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800; }
+  .btn { @apply rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40; }
+  .btn-primary { @apply btn bg-sky-600 text-white hover:bg-sky-700; }
+  .btn-ghost { @apply btn border border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700; }
+  .btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
+  .input { @apply w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900; }
+  .label { @apply mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400; }
+  .th { @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400; }
+  .td { @apply px-3 py-2 text-sm; }
+  .pill { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium; }
+}

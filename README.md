@@ -7,6 +7,7 @@ This repo is a [Home Assistant custom add-on repository](https://developers.home
 | Add-on | Description |
 |---|---|
 | [`finance-dashboard/`](finance-dashboard/) | Personal finance dashboard — Rabobank CSV analysis, budgets, VGN CAO salary projection |
+| [`financials/`](financials/) | Huishoudboekje — Rabobank betaal/spaar, Rabobank creditcard en ASN Bank CSV-import, gescheiden rekeningen met interne-overboekingsherkenning |
 | [`homelab-inventory/`](homelab-inventory/) | Living homelab inventory — hardware, network, apps, integrations. YAML-backed with topology graph. |
 
 ## Installing in Home Assistant

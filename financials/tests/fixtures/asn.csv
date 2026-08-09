@@ -1,0 +1,4 @@
+Datum,Je rekening,Van / naar,Naam,Adres,Postcode,Woonplaats,Valuta saldo,Saldo voor boeking,Valuta,Bedrag bij / af,Verwerkingsdatum,Valutadatum,Code,Type,Volgnummer,Betalingskenmerk,Omschrijving,Afschriftnummer,Categorie
+03-04-2024,NL00TEST0000000003,NL00TEST0000000001,Eigen rekening,,,,EUR,0.00,EUR,200.00,03-04-2024,03-04-2024,1000,BVZ,1000001,,'Start',1,'Eigen rekening'
+04-04-2024,NL00TEST0000000003,NL00TEST0000000007,Voorbeeld Webshop,Teststraat 1,1234AB,Teststad,EUR,200.00,EUR,-24.95,04-04-2024,04-04-2024,1001,IDE,1000002,,'Bestelling 12345',1,'Online'
+05-04-2024,NL00TEST0000000003,,Voorbeeld Supermarkt,,,,EUR,175.05,EUR,-15.05,05-04-2024,05-04-2024,1002,BEA,1000003,,'Betaalpas 12:00',1,'Boodschappen'

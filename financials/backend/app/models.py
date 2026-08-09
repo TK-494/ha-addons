@@ -1,0 +1,206 @@
+"""ORM models.
+
+Money is stored as integer cents throughout. Categorisation rules are rows,
+not Python constants, so changing one is an edit in the UI rather than a
+rebuild and redeploy of the add-on.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .database import Base
+
+# Account kinds. `savings` is excluded from spend analysis but counted towards
+# net worth, so moving money there reads as saved rather than spent.
+ACCOUNT_KINDS = ("checking", "savings", "credit_card")
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20), default="checking")
+    iban: Mapped[Optional[str]] = mapped_column(String(40), index=True)
+    card_last4: Mapped[Optional[str]] = mapped_column(String(8))
+    product_name: Mapped[Optional[str]] = mapped_column(String(120))
+    # For a card: the current account its monthly collection is taken from.
+    settlement_iban: Mapped[Optional[str]] = mapped_column(String(40))
+    display_name: Mapped[Optional[str]] = mapped_column(String(120))
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    include_in_networth: Mapped[bool] = mapped_column(Boolean, default=True)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    transactions: Mapped[list["Transaction"]] = relationship(back_populates="account")
+
+    @property
+    def label(self) -> str:
+        if self.display_name:
+            return self.display_name
+        if self.card_last4:
+            return f"{self.product_name or 'Creditcard'} ••{self.card_last4}"
+        return self.iban or self.key
+
+
+class Category(Base):
+    __tablename__ = "categories"
+    __table_args__ = (UniqueConstraint("name", "parent_id", name="uq_category_name_parent"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"))
+    color: Mapped[str] = mapped_column(String(9), default="#64748b")
+    icon: Mapped[Optional[str]] = mapped_column(String(40))
+    is_income: Mapped[bool] = mapped_column(Boolean, default=False)
+    excluded_from_budget: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=100)
+
+    parent: Mapped[Optional["Category"]] = relationship(remote_side=[id])
+
+
+class Rule(Base):
+    """One categorisation rule. Evaluated in `priority` order, first match wins.
+
+    `field` names the haystack, so a rule can target the merchant name without
+    matching the same word inside a free-text description.
+    """
+
+    __tablename__ = "rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    priority: Mapped[int] = mapped_column(Integer, default=100, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # any | description | counter_name | counter_iban | creditor_id | bank_code
+    field: Mapped[str] = mapped_column(String(20), default="any")
+    # contains | equals | startswith
+    operator: Mapped[str] = mapped_column(String(12), default="contains")
+    value: Mapped[str] = mapped_column(String(200))
+    amount_min_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    amount_max_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    account_id: Mapped[Optional[int]] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="CASCADE"))
+    is_seed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    category: Mapped["Category"] = relationship()
+
+
+class ImportBatch(Base):
+    """One uploaded file. The file itself stays on disk so the import can be
+    replayed after a rule change, and can be deleted with or without the
+    transactions it produced."""
+
+    __tablename__ = "import_batches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    original_filename: Mapped[str] = mapped_column(String(255))
+    # UUID filename on disk — the uploaded name never touches the filesystem.
+    stored_name: Mapped[Optional[str]] = mapped_column(String(80))
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    format_key: Mapped[str] = mapped_column(String(40))
+    format_label: Mapped[str] = mapped_column(String(80))
+    rows_parsed: Mapped[int] = mapped_column(Integer, default=0)
+    rows_imported: Mapped[int] = mapped_column(Integer, default=0)
+    rows_duplicate: Mapped[int] = mapped_column(Integer, default=0)
+    rows_failed: Mapped[int] = mapped_column(Integer, default=0)
+    date_from: Mapped[Optional[date]] = mapped_column(Date)
+    date_to: Mapped[Optional[date]] = mapped_column(Date)
+    errors_json: Mapped[Optional[str]] = mapped_column(Text)
+    # An upload is stored and previewed first, and only written to the ledger
+    # once the user confirms. An abandoned preview stays uncommitted.
+    committed: Mapped[bool] = mapped_column(Boolean, default=False)
+    file_removed: Mapped[bool] = mapped_column(Boolean, default=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+    __table_args__ = (
+        Index("ix_tx_account_date", "account_id", "booked_on"),
+        Index("ix_tx_date_amount", "booked_on", "amount_cents"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    import_batch_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("import_batches.id", ondelete="SET NULL"), index=True
+    )
+    import_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+
+    booked_on: Mapped[date] = mapped_column(Date, index=True)
+    value_date: Mapped[Optional[date]] = mapped_column(Date)
+    processed_on: Mapped[Optional[date]] = mapped_column(Date)
+
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    balance_after_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+
+    description: Mapped[str] = mapped_column(String(500), default="")
+    counter_iban: Mapped[str] = mapped_column(String(40), default="", index=True)
+    counter_name: Mapped[str] = mapped_column(String(200), default="")
+    ultimate_party: Mapped[str] = mapped_column(String(200), default="")
+    bank_code: Mapped[str] = mapped_column(String(10), default="")
+    mandate_ref: Mapped[str] = mapped_column(String(80), default="")
+    creditor_id: Mapped[str] = mapped_column(String(60), default="", index=True)
+    payment_ref: Mapped[str] = mapped_column(String(120), default="")
+    bank_ref: Mapped[str] = mapped_column(String(80), default="")
+
+    fx_amount_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    fx_currency: Mapped[str] = mapped_column(String(3), default="")
+    fx_rate: Mapped[Optional[str]] = mapped_column(String(20))
+
+    category_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"), index=True
+    )
+    # Set when a human picked the category: rule re-runs must never overwrite
+    # a decision the user made by hand.
+    category_locked: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── internal transfers (see PLAN §11) ──────────────────────────────────
+    # Both legs of a transfer keep existing and keep moving their own account's
+    # balance; only household-level income/expense figures skip them.
+    is_internal: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    transfer_group: Mapped[Optional[str]] = mapped_column(String(36), index=True)
+    # Counterparty is one of your own accounts, but the matching leg has not
+    # been imported yet — flagged rather than silently counted as spend.
+    transfer_pending: Mapped[bool] = mapped_column(Boolean, default=False)
+    transfer_manual: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    note: Mapped[Optional[str]] = mapped_column(Text)
+
+    account: Mapped["Account"] = relationship(back_populates="transactions")
+    category: Mapped[Optional["Category"]] = relationship()
+
+
+class Setting(Base):
+    """Key/value app settings. Month-boundary mode lives here: it is a display
+    choice, so switching it re-buckets the whole history instantly instead of
+    needing a re-import."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[str] = mapped_column(String(200))
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+    __table_args__ = (UniqueConstraint("category_id", "year", "month", name="uq_budget_period"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="CASCADE"))
+    year: Mapped[int] = mapped_column(Integer)
+    month: Mapped[int] = mapped_column(Integer)
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    rollover: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    category: Mapped["Category"] = relationship()

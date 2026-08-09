@@ -1,0 +1,5 @@
+"Tegenrekening IBAN","Munt","Creditcard Nummer","Productnaam","Creditcard Regel1","Creditcard Regel2","Transactiereferentie","Datum","Bedrag","Omschrijving","Oorspr bedrag","Oorspr munt","Koers"
+"NL00TEST0000000001","EUR","0000","Test Creditcard Mastercard","T. ESTPERSOON"," ","P000000000001","2024-01-10","-2,99","WEBSHOP.EXAMPLE/BILL           EXAMPLE.COM   IRL   Apple Pay","","",""
+"NL00TEST0000000001","EUR","0000","Test Creditcard Mastercard","T. ESTPERSOON"," ","P000000000002","2024-01-15","-45,00","VOORBEELD RESTAURANT     LISSABON    PRT","-49,50","USD","1,1000"
+"NL00TEST0000000001","EUR","0000","Test Creditcard Mastercard","T. ESTPERSOON"," ","P000000000003","2024-01-31","100,00","Verrekening vorig overzicht","","",""
+"NL00TEST0000000001","EUR","0000","Test Creditcard Mastercard","T. ESTPERSOON"," ","P000000000004","2024-02-02","12,50","VOORBEELD WINKEL RETOUR  ZWOLLE      NLD","","",""

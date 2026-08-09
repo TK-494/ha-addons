@@ -1,0 +1,7 @@
+# Pinned to exact versions: a household finance app should build the same way
+# in six months as it does today, and `pip-audit` needs a fixed target.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+pydantic==2.10.4
+python-multipart==0.0.20
