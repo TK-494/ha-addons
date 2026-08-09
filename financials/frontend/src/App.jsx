@@ -6,6 +6,7 @@ import Accounts from "./pages/Accounts.jsx";
 import CategoryDetail from "./pages/CategoryDetail.jsx";
 import Recurring from "./pages/Recurring.jsx";
 import Budgets from "./pages/Budgets.jsx";
+import Counterparty from "./pages/Counterparty.jsx";
 import Rules from "./pages/Rules.jsx";
 import Settings from "./pages/Settings.jsx";
 
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="/budget" element={<Budgets />} />
           <Route path="/terugkerend" element={<Recurring />} />
           <Route path="/categorie/:id" element={<CategoryDetail />} />
+          <Route path="/tegenpartij" element={<Counterparty />} />
           <Route path="/rekeningen" element={<Accounts />} />
           <Route path="/importeren" element={<Import />} />
           <Route path="/regels" element={<Rules />} />

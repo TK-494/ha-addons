@@ -36,9 +36,10 @@ export default function Overview() {
       api.fixedVariable(6),
       api.topCounterparties({ ...params, limit: 8 }),
       api.uncategorised(5),
+      api.yearOverYear(4),
     ])
-      .then(([summary, cashflow, categories, balances, fixed, counterparties, todo]) => {
-        setData({ summary, cashflow, categories, balances, fixed, counterparties, todo });
+      .then(([summary, cashflow, categories, balances, fixed, counterparties, todo, yoy]) => {
+        setData({ summary, cashflow, categories, balances, fixed, counterparties, todo, yoy });
         if (!period) setPeriod({ year: summary.year, month: summary.month });
       })
       .catch((e) => setError(e.message))
@@ -52,7 +53,7 @@ export default function Overview() {
   };
 
   if (loading && !data.summary) return <Spinner label="Overzicht laden…" />;
-  const { summary, cashflow, categories, balances, fixed, counterparties, todo } = data;
+  const { summary, cashflow, categories, balances, fixed, counterparties, todo, yoy } = data;
   if (!summary) return <Empty>Nog geen gegevens. Importeer eerst een CSV-bestand.</Empty>;
 
   const expenseTotal = (categories || []).reduce((sum, c) => sum + c.amount, 0);
@@ -201,6 +202,38 @@ export default function Overview() {
         </div>
       </section>
 
+      <section className="card mb-6">
+        <h3 className="mb-1 font-semibold">Jaar op jaar</h3>
+        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+          Interne overboekingen zijn ook hier weggelaten, dus dit is wat het huishouden werkelijk
+          binnenkreeg en uitgaf.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr>
+                <th className="th">Jaar</th>
+                <th className="th text-right">Bij</th>
+                <th className="th text-right">Af</th>
+                <th className="th text-right">Netto</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {(yoy || []).map((row) => (
+                <tr key={row.year}>
+                  <td className="td font-medium">{row.year}</td>
+                  <td className="td text-right tabular-nums">{money(row.income)}</td>
+                  <td className="td text-right tabular-nums">{money(row.expenses)}</td>
+                  <td className={`td text-right tabular-nums font-medium ${row.income - row.expenses < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {money(row.income - row.expenses)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="card">
           <h3 className="mb-3 font-semibold">Grootste tegenpartijen deze periode</h3>
@@ -212,7 +245,7 @@ export default function Overview() {
                 <li key={row.name} className="flex justify-between gap-3">
                   <Link
                     className="truncate hover:underline"
-                    to={`/transacties?search=${encodeURIComponent(row.name.slice(0, 24))}`}
+                    to={`/tegenpartij?name=${encodeURIComponent(row.name.slice(0, 40))}`}
                   >
                     {row.name}
                   </Link>

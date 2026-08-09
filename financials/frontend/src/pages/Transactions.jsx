@@ -27,6 +27,7 @@ export default function Transactions() {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [ruleFor, setRuleFor] = useState(null);
+  const [noteFor, setNoteFor] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -246,11 +247,20 @@ export default function Transactions() {
                     )}
                   </td>
                   <td className="td">
-                    {!tx.is_internal && (
-                      <button className="btn-ghost whitespace-nowrap" onClick={() => setRuleFor(tx)}>
-                        Regel maken
+                    <div className="flex justify-end gap-1">
+                      <button
+                        className="btn-ghost whitespace-nowrap"
+                        title={tx.note || "Notitie toevoegen"}
+                        onClick={() => setNoteFor(tx)}
+                      >
+                        {tx.note ? "Notitie ●" : "Notitie"}
                       </button>
-                    )}
+                      {!tx.is_internal && (
+                        <button className="btn-ghost whitespace-nowrap" onClick={() => setRuleFor(tx)}>
+                          Regel maken
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -271,6 +281,15 @@ export default function Transactions() {
         </div>
       )}
 
+      {noteFor && (
+        <NoteDialog
+          transaction={noteFor}
+          onClose={() => setNoteFor(null)}
+          onSaved={() => { setNoteFor(null); load(); }}
+          onError={setError}
+        />
+      )}
+
       {ruleFor && (
         <RuleDialog
           transaction={ruleFor}
@@ -281,6 +300,44 @@ export default function Transactions() {
         />
       )}
     </>
+  );
+}
+
+function NoteDialog({ transaction, onClose, onSaved, onError }) {
+  const [note, setNote] = useState(transaction.note || "");
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api.setNote(transaction.id, note);
+      onSaved();
+    } catch (e) {
+      onError(e.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="card w-full max-w-md">
+        <h3 className="mb-1 text-lg font-semibold">Notitie</h3>
+        <p className="mb-3 truncate text-sm text-slate-500 dark:text-slate-400">
+          {shortDate(transaction.booked_on)} · {money(transaction.amount)} · {transaction.description}
+        </p>
+        <textarea
+          className="input mb-3 h-28"
+          value={note}
+          maxLength={2000}
+          placeholder="Waar ging dit over?"
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={onClose} disabled={busy}>Annuleren</button>
+          <button className="btn-primary" onClick={save} disabled={busy}>Opslaan</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
