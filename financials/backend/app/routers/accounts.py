@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import ACCOUNT_KINDS, Account, Transaction
+from ..services import accounts as account_service
 from ..services import transfers
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -62,6 +63,7 @@ def _serialise(db: Session, account: Account) -> dict:
         "label": account.label,
         "display_name": account.display_name,
         "kind": account.kind,
+        "kind_auto": account.kind_auto,
         "iban": account.iban,
         "card_last4": account.card_last4,
         "product_name": account.product_name,
@@ -132,6 +134,9 @@ def update_account(account_id: int, payload: AccountUpdate, db: Session = Depend
     kind = payload.validated_kind()
     if kind is not None:
         account.kind = kind
+        # A hand-picked kind is final: automatic classification must never
+        # overrule it on the next import.
+        account.kind_auto = False
     if payload.display_name is not None:
         account.display_name = payload.display_name.strip() or None
     if payload.include_in_networth is not None:
@@ -143,10 +148,23 @@ def update_account(account_id: int, payload: AccountUpdate, db: Session = Depend
     return _serialise(db, account)
 
 
+@router.post("/classify")
+def classify(db: Session = Depends(get_db)):
+    """Re-run savings detection over accounts you have not set by hand."""
+    changed = account_service.classify_savings(db)
+    return {
+        "changed": [
+            {"account_id": c.account_id, "label": c.label, "kind": c.kind, "reason": c.reason}
+            for c in changed
+        ]
+    }
+
+
 @router.post("/rematch-transfers")
 def rematch(db: Session = Depends(get_db)):
     """Re-run internal transfer matching over the whole ledger."""
     stats = transfers.rematch_all(db)
+    account_service.classify_savings(db)
     return {
         "pairs_matched": stats.pairs_matched,
         "legs_pending": stats.legs_pending,

@@ -29,6 +29,7 @@ from .. import config
 from ..models import Account, ImportBatch, Transaction
 from ..parsers import ParsedAccount, ParseError, ParseResult, decode_csv_bytes, parse_csv
 from ..security import mask_iban
+from . import accounts as account_service
 from . import categorize, ha, transfers
 
 log = logging.getLogger("financials.import")
@@ -241,6 +242,9 @@ def commit_import(db: Session, batch: ImportBatch, result: ParseResult) -> Impor
     # IBAN only becomes "one of yours" once its own export has been imported,
     # so earlier transfers to it pair up retroactively right here.
     transfers.rematch_all(db)
+    # Runs after matching: the savings signal is "almost all traffic is
+    # internal", which only exists once transfers have been paired.
+    account_service.classify_savings(db)
     recategorise_uncategorised(db)
 
     log.info(
@@ -271,19 +275,52 @@ def recategorise_uncategorised(db: Session) -> int:
     return changed
 
 
-def reapply_rules_to_all(db: Session, include_locked: bool = False) -> int:
-    """Re-run every rule over the whole ledger — what you press after editing
-    a rule. Manually categorised rows are preserved unless explicitly told
-    otherwise."""
+def reapply_rules_to_all(
+    db: Session, include_locked: bool = False, dry_run: bool = False
+) -> dict:
+    """Re-run every rule over the whole ledger — what you press after editing a
+    rule.
+
+    Manually categorised rows are preserved unless `include_locked` is set, and
+    `dry_run` answers "what would this change?" without changing anything, so
+    the UI can state the consequence before the user agrees to it.
+    """
     rules = categorize.compile_rules(db)
-    total = 0
+    changed_auto = 0
+    changed_manual = 0
+
     for offset in range(0, _count_transactions(db), 2000):
         chunk = db.scalars(
             select(Transaction).order_by(Transaction.id).offset(offset).limit(2000)
         ).all()
-        total += categorize.apply_rules(db, chunk, rules, overwrite_locked=include_locked)
-        db.commit()
-    return total
+
+        for tx in chunk:
+            if tx.is_internal:
+                continue
+            proposed = categorize.match_rule(tx, rules)
+            if proposed is None or proposed == tx.category_id:
+                continue
+            if tx.category_locked:
+                changed_manual += 1
+                if not include_locked:
+                    continue
+            else:
+                changed_auto += 1
+            if not dry_run:
+                tx.category_id = proposed
+
+        if not dry_run:
+            db.commit()
+
+    if dry_run:
+        db.rollback()
+
+    return {
+        "updated": changed_auto + (changed_manual if include_locked else 0),
+        "auto": changed_auto,
+        "manual": changed_manual,
+        "dry_run": dry_run,
+    }
 
 
 def _count_transactions(db: Session) -> int:

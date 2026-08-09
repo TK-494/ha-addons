@@ -51,6 +51,10 @@ class Account(Base):
     settlement_iban: Mapped[Optional[str]] = mapped_column(String(40))
     display_name: Mapped[Optional[str]] = mapped_column(String(120))
     currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    # True while `kind` is still the app's own guess. The moment the user picks
+    # a kind by hand this flips, and automatic classification leaves the
+    # account alone forever after.
+    kind_auto: Mapped[bool] = mapped_column(Boolean, default=True)
     include_in_networth: Mapped[bool] = mapped_column(Boolean, default=True)
     archived: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

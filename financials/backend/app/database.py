@@ -56,7 +56,9 @@ def get_db():
 # 1 — initial schema
 # 2 — tags: adds `tags` and `transaction_tags`, no changes to existing tables,
 #     so `create_all` covers the upgrade on its own.
-SCHEMA_VERSION = 2
+# 3 — accounts.kind_auto: a new *column*, which `create_all` will not add to an
+#     existing table — needs the ALTER below.
+SCHEMA_VERSION = 3
 
 
 def apply_migrations() -> None:
@@ -78,5 +80,20 @@ def apply_migrations() -> None:
                 f"Database schema v{current} is newer than this add-on (v{SCHEMA_VERSION}). "
                 "Downgrade is not supported — restore a backup or update the add-on."
             )
-        # if current < SCHEMA_VERSION: apply ordered upgrade steps here.
+
+        if current < 3:
+            _add_column_if_missing(
+                conn, "accounts", "kind_auto",
+                "BOOLEAN NOT NULL DEFAULT 1",
+            )
+
         conn.execute(text("UPDATE schema_version SET version = :v"), {"v": SCHEMA_VERSION})
+
+
+def _add_column_if_missing(conn, table: str, column: str, definition: str) -> None:
+    """`create_all` only creates missing *tables*, never missing columns — but
+    on a fresh database it will already have made the column, so the ALTER
+    would fail with 'duplicate column'. Check first."""
+    existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+    if column not in existing:
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))

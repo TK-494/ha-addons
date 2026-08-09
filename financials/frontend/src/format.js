@@ -42,7 +42,9 @@ export const amountClass = (value) =>
 // carry one, and it classifies a transaction far more reliably than keywords.
 export const BANK_CODES = {
   bc: "Betaalautomaat", ba: "Betaalautomaat", ga: "Geldautomaat", gb: "Geldautomaat",
-  db: "Doorlopende incasso", ei: "Euro-incasso", id: "iDEAL", tb: "Telebankieren",
+  // `db` is "diverse boeking" (bank charges, internal bookings) — not a direct
+  // debit, despite how it reads. Real direct debits are `ei`.
+  db: "Diverse boeking", ei: "Euro-incasso", id: "iDEAL", tb: "Telebankieren",
   cb: "Crediteurenbetaling", bv: "Bijschrijving", bg: "Bankgirobetaling",
   cc: "Creditcard", sb: "Salarisbetaling", ec: "Euro-incasso", kh: "Kashandeling",
   te: "Terugboeking", st: "Storting",

@@ -66,8 +66,14 @@ betaalrekening is dezelfde uitgave als de losse aankopen op de kaart. Die twee
 worden aan elkaar gekoppeld, zodat je uitgaven niet dubbel geteld worden. De
 losse aankopen blijven staan — díe hebben de winkelnaam en de categorie.
 
-Op **Rekeningen** zet je per rekening het soort. Zet een spaarrekening op
-*Spaarrekening*: geld dat daarheen gaat telt dan als gespaard.
+Op **Rekeningen** zet je per rekening het soort. Een spaarrekening wordt meestal vanzelf herkend —
+er wordt nooit mee gepind of geïncasseerd, en het verkeer gaat vrijwel alleen van en naar je eigen
+rekeningen. Klopt het niet, dan zet je het zelf om; jouw keuze wordt daarna nooit meer automatisch
+overschreven.
+
+Geld dat naar een spaarrekening gaat telt als **gespaard** in plaats van als uitgave. Staat er nog
+geen enkele rekening op *Spaarrekening*, dan laat het overzicht bij Gespaard een streepje zien in
+plaats van € 0,00 — want niets ingesteld is iets anders dan niets gespaard.
 
 ## Categorieën
 
@@ -76,8 +82,28 @@ met een set Nederlandse winkels en incassanten, en die mag je zelf aanpassen op
 **Categorieën & regels**.
 
 Sneller werkt het via **Transacties → Regel maken**: je ziet dan meteen hoeveel
-transacties de nieuwe regel raakt, vóórdat je hem opslaat. Categorieën die je
-zelf met de hand hebt gezet worden nooit door een regel overschreven.
+transacties de nieuwe regel raakt, vóórdat je hem opslaat.
+
+### Je eigen keuzes blijven staan
+
+Zet je zelf een categorie op een transactie, dan krijgt die het label **vast**. Vanaf dat moment
+laat de app hem met rust:
+
+- *Regels opnieuw toepassen* slaat hem over, en meldt achteraf hoeveel handmatige keuzes met rust
+  gelaten zijn.
+- Blijkt een transactie later een interne overboeking te zijn — bijvoorbeeld omdat je de tegenrekening
+  alsnog importeert — dan blijft jouw categorie gewoon staan. Alleen categorieën die de app zélf had
+  geraden worden dan opgeschoond.
+- Een nieuwe import verandert nooit iets aan wat je al hebt ingesteld.
+
+Wil je toch alles gelijktrekken met de regels, dan is daar één knop voor: *Ook handmatige keuzes
+overschrijven…*. Die vraagt eerst hoeveel van jouw keuzes eraan gaan en doet niets tot je bevestigt.
+
+### Selecteren en in bulk aanpassen
+
+Met het vinkje in de kopregel selecteer je alles op de pagina. Staan er meer resultaten dan op één
+pagina passen, dan verschijnt **Alle … selecteren** om de hele filterselectie te pakken. Daarna kun
+je in één keer een categorie of een label toekennen.
 
 ## Labels — meerdere dimensies naast de categorie
 

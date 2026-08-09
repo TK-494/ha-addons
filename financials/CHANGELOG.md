@@ -1,5 +1,33 @@
 # Changelog — Financials
 
+## 0.5.0 — 2026-08-09
+
+### Nieuw
+- **Spaarrekeningen worden automatisch herkend** — geen pinbetalingen, geen incasso's, verkeer bijna
+  volledig tussen eigen rekeningen. Daarmee klopt *Gespaard* meteen, in plaats van € 0,00 te tonen
+  tot je een verborgen instelling vindt. Een handmatig gekozen soort wordt nooit overschreven.
+- **Inkomsten per categorie** als tweede taartdiagram op het overzicht, even groot als de uitgaven
+  ernaast, zodat "waar komt het vandaan" net zo leesbaar is als "waar gaat het heen".
+- **Alles selecteren** in het transactieoverzicht: een vinkje in de kopregel voor de hele pagina, en
+  *Alle … selecteren* voor de volledige filterselectie over alle pagina's heen.
+- Handmatig ingestelde categorieën zijn nu zichtbaar gemarkeerd als **vast**.
+
+### Fixed
+- **Handmatig ingestelde categorieën konden verdwijnen.** Werd een transactie later herkend als
+  interne overboeking of als creditcard-afrekening, dan werd de categorie gewist — ook als jij hem
+  zelf had gezet. Nu wordt alleen een door de app geraden categorie opgeschoond.
+- *Ook handmatige keuzes overschrijven* zat wel in de API maar zonder waarschuwing. Die zit nu achter
+  een bevestiging die eerst uitrekent hoeveel van jouw keuzes eraan zouden gaan.
+- Bankcode `db` werd als incasso gelezen, maar Rabobank gebruikt hem voor diverse boekingen: geen van
+  de 1.989 `db`-regels heeft een incassant-ID, terwijl alle 1.679 echte incasso's op `ei` staan. Dat
+  blokkeerde de herkenning van een spaarrekening waarvan élke regel `db` is, en gaf een fout label in
+  het transactieoverzicht.
+
+### Techniek
+- Schemaversie 3: kolom `accounts.kind_auto`, met een echte ALTER voor bestaande installaties.
+- 126 tests, waaronder een set die specifiek bewaakt dat geen enkel automatisch proces een handmatige
+  keuze ongevraagd overschrijft.
+
 ## 0.4.0 — 2026-08-09
 
 ### Nieuw

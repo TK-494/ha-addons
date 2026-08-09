@@ -195,9 +195,16 @@ def delete_rule(rule_id: int, db: Session = Depends(get_db)):
 @router.post("/rules/reapply")
 def reapply(
     include_locked: bool = Query(False),
+    dry_run: bool = Query(False),
     db: Session = Depends(get_db),
 ):
-    """Re-run all rules over the ledger. Hand-picked categories survive unless
-    `include_locked` is explicitly set."""
-    changed = importer.reapply_rules_to_all(db, include_locked=include_locked)
-    return {"updated": changed}
+    """Re-run all rules over the ledger.
+
+    Hand-picked categories survive by default. `include_locked` overrides them
+    and is only ever reached through an explicit confirmation in the UI, which
+    first calls this with `dry_run` to show exactly how many manual choices
+    would be replaced.
+    """
+    return importer.reapply_rules_to_all(
+        db, include_locked=include_locked, dry_run=dry_run
+    )

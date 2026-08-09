@@ -94,10 +94,12 @@ export const api = {
 
   accounts: () => request("/accounts/"),
   createAccount: (payload) => request("/accounts/", { method: "POST", body: payload }),
+  classifyAccounts: () => request("/accounts/classify", { method: "POST" }),
   updateAccount: (id, payload) => request(`/accounts/${id}`, { method: "PATCH", body: payload }),
   rematchTransfers: () => request("/accounts/rematch-transfers", { method: "POST" }),
 
   transactions: (params) => request("/transactions/", { params }),
+  transactionIds: (params) => request("/transactions/ids", { params }),
   setCategory: (id, categoryId) =>
     request(`/transactions/${id}/category`, { method: "PATCH", body: { category_id: categoryId } }),
   bulkCategory: (ids, categoryId) =>
@@ -124,8 +126,11 @@ export const api = {
   createRule: (payload) => request("/rules/", { method: "POST", body: payload }),
   updateRule: (id, payload) => request(`/rules/${id}`, { method: "PUT", body: payload }),
   deleteRule: (id) => request(`/rules/${id}`, { method: "DELETE" }),
-  reapplyRules: (includeLocked) =>
-    request("/rules/reapply", { method: "POST", params: { include_locked: includeLocked } }),
+  reapplyRules: (includeLocked, dryRun) =>
+    request("/rules/reapply", {
+      method: "POST",
+      params: { include_locked: includeLocked, dry_run: dryRun },
+    }),
 
   periodSettings: () => request("/settings/period"),
   savePeriodSettings: (payload) => request("/settings/period", { method: "PUT", body: payload }),

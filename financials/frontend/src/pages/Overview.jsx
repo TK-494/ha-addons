@@ -32,14 +32,15 @@ export default function Overview() {
       api.summary(params),
       api.cashflow({ months: 12, account_id: accountId || undefined }),
       api.byCategory(params),
+      api.byCategory({ ...params, direction: "in" }),
       api.balanceHistory(12),
       api.fixedVariable(6),
       api.topCounterparties({ ...params, limit: 8 }),
       api.uncategorised(5),
       api.yearOverYear(4),
     ])
-      .then(([summary, cashflow, categories, balances, fixed, counterparties, todo, yoy]) => {
-        setData({ summary, cashflow, categories, balances, fixed, counterparties, todo, yoy });
+      .then(([summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy]) => {
+        setData({ summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy });
         if (!period) setPeriod({ year: summary.year, month: summary.month });
       })
       .catch((e) => setError(e.message))
@@ -53,10 +54,9 @@ export default function Overview() {
   };
 
   if (loading && !data.summary) return <Spinner label="Overzicht laden…" />;
-  const { summary, cashflow, categories, balances, fixed, counterparties, todo, yoy } = data;
+  const { summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy } = data;
   if (!summary) return <Empty>Nog geen gegevens. Importeer eerst een CSV-bestand.</Empty>;
 
-  const expenseTotal = (categories || []).reduce((sum, c) => sum + c.amount, 0);
 
   return (
     <>
@@ -87,68 +87,57 @@ export default function Overview() {
         <Kpi label="Inkomsten" value={summary.income} delta={summary.delta_income} good="up" />
         <Kpi label="Uitgaven" value={Math.abs(summary.expenses)} delta={summary.delta_expenses} good="down" />
         <Kpi label="Netto" value={summary.net} />
-        <div className="card">
+<div className="card">
           <p className="label">Gespaard</p>
-          <p className="text-xl font-semibold">{money(summary.saved)}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {summary.savings_rate === null ? "geen inkomsten deze periode" : `spaarquote ${summary.savings_rate}%`}
-          </p>
-        </div>
-      </section>
-
-      <section className="mb-6 grid gap-4 lg:grid-cols-3">
-        <div className="card lg:col-span-2">
-          <h3 className="mb-3 font-semibold">Inkomsten en uitgaven per maand</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={cashflow}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
-              <Tooltip formatter={(v) => money(v)} />
-              <Legend />
-              <Bar dataKey="income" name="Bij" fill="#10b981" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="expenses" name="Af" fill="#f43f5e" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card">
-          <h3 className="mb-3 font-semibold">Uitgaven per categorie</h3>
-          {categories.length === 0 ? (
-            <Empty>Geen uitgaven in deze periode.</Empty>
+          {summary.savings_accounts === 0 ? (
+            <>
+              <p className="text-xl font-semibold text-slate-400">—</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Geen spaarrekening ingesteld —{" "}
+                <Link className="underline" to="/rekeningen">zet er één op Rekeningen</Link>
+              </p>
+            </>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie data={categories.slice(0, 8)} dataKey="amount" nameKey="name" innerRadius={45} outerRadius={75}>
-                    {categories.slice(0, 8).map((c) => <Cell key={c.name} fill={c.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(v) => money(v)} />
-                </PieChart>
-              </ResponsiveContainer>
-              <ul className="mt-2 space-y-1 text-sm">
-                {categories.slice(0, 6).map((c) => (
-                  <li key={c.name} className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      {c.category_id ? (
-                        <Link className="truncate hover:underline" to={`/categorie/${c.category_id}`}>{c.name}</Link>
-                      ) : (
-                        <Link className="truncate hover:underline" to="/transacties">{c.name}</Link>
-                      )}
-                    </span>
-                    <span className="whitespace-nowrap tabular-nums">
-                      {money(c.amount)}
-                      <span className="ml-1 text-xs text-slate-500">
-                        {expenseTotal ? Math.round((100 * c.amount) / expenseTotal) : 0}%
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-xl font-semibold tabular-nums">{money(summary.saved)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {summary.savings_rate === null
+                  ? "geen inkomsten deze periode"
+                  : `spaarquote ${summary.savings_rate}%`}
+              </p>
             </>
           )}
         </div>
+      </section>
+
+      <section className="card mb-6">
+        <h3 className="mb-3 font-semibold">Inkomsten en uitgaven per maand</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={cashflow}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+            <XAxis dataKey="label" fontSize={11} />
+            <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
+            <Tooltip formatter={(v) => money(v)} />
+            <Legend />
+            <Bar dataKey="income" name="Bij" fill="#10b981" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="expenses" name="Af" fill="#f43f5e" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </section>
+
+      {/* Both directions side by side and at the same size, so "where does it
+          go" and "where does it come from" are equally readable. */}
+      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+        <CategoryDonut
+          title="Uitgaven per categorie"
+          rows={categories}
+          empty="Geen uitgaven in deze periode."
+        />
+        <CategoryDonut
+          title="Inkomsten per categorie"
+          rows={incomeCategories}
+          empty="Geen inkomsten in deze periode."
+        />
       </section>
 
       <section className="mb-6 grid gap-4 lg:grid-cols-2">
@@ -287,6 +276,54 @@ export default function Overview() {
         </div>
       </section>
     </>
+  );
+}
+
+/** One donut plus its legend. Used for both directions so they stay comparable. */
+function CategoryDonut({ title, rows, empty }) {
+  const total = (rows || []).reduce((sum, r) => sum + r.amount, 0);
+
+  return (
+    <div className="card">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h3 className="font-semibold">{title}</h3>
+        <span className="text-sm tabular-nums text-slate-500 dark:text-slate-400">{money(total)}</span>
+      </div>
+      {!rows || rows.length === 0 ? (
+        <Empty>{empty}</Empty>
+      ) : (
+        <>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={rows.slice(0, 8)} dataKey="amount" nameKey="name" innerRadius={50} outerRadius={82}>
+                {rows.slice(0, 8).map((row) => <Cell key={row.name} fill={row.color} />)}
+              </Pie>
+              <Tooltip formatter={(v) => money(v)} />
+            </PieChart>
+          </ResponsiveContainer>
+          <ul className="mt-2 space-y-1 text-sm">
+            {rows.slice(0, 7).map((row) => (
+              <li key={row.name} className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                  {row.category_id ? (
+                    <Link className="truncate hover:underline" to={`/categorie/${row.category_id}`}>{row.name}</Link>
+                  ) : (
+                    <Link className="truncate hover:underline" to="/transacties?uncategorised=1">{row.name}</Link>
+                  )}
+                </span>
+                <span className="whitespace-nowrap tabular-nums">
+                  {money(row.amount)}
+                  <span className="ml-1 text-xs text-slate-500">
+                    {total ? Math.round((100 * row.amount) / total) : 0}%
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 

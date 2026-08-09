@@ -106,8 +106,13 @@ def summary(
         )
     ) or 0
 
+    savings_accounts = db.scalar(
+        select(func.count()).select_from(Account).where(Account.kind == "savings")
+    ) or 0
+
     income = current["income"]
     return {
+        "savings_accounts": savings_accounts,
         "year": year,
         "month": month,
         "scope": "account" if account_id else "household",

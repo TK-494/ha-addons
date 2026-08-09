@@ -175,6 +175,45 @@ def list_transactions(
     }
 
 
+@router.get("/ids")
+def matching_ids(
+    db: Session = Depends(get_db),
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    account_id: Optional[int] = None,
+    category_id: Optional[int] = None,
+    uncategorised: bool = False,
+    internal: Optional[bool] = None,
+    direction: Optional[Literal["in", "out"]] = None,
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    search: Optional[str] = Query(None, max_length=120),
+    bank_code: Optional[str] = Query(None, max_length=10),
+    tag_id: Optional[int] = None,
+):
+    """Every id matching the current filter, so "select all" can mean all
+    matching rows rather than just the visible page.
+
+    Capped at MAX_BULK_IDS, which is also the ceiling on the bulk endpoints —
+    a selection that cannot be acted on is not worth returning.
+    """
+    stmt = _apply_filters(
+        select(Transaction.id),
+        date_from=date_from, date_to=date_to, account_id=account_id,
+        category_id=category_id, uncategorised=uncategorised, internal=internal,
+        direction=direction, amount_min=amount_min, amount_max=amount_max,
+        search=search, bank_code=bank_code, tag_id=tag_id,
+    ).limit(config.MAX_BULK_IDS + 1)
+
+    ids = list(db.scalars(stmt).all())
+    truncated = len(ids) > config.MAX_BULK_IDS
+    return {
+        "ids": ids[:config.MAX_BULK_IDS],
+        "truncated": truncated,
+        "limit": config.MAX_BULK_IDS,
+    }
+
+
 class CategoryAssign(BaseModel):
     category_id: Optional[int] = None
 

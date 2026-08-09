@@ -58,6 +58,17 @@ class MatchStats:
     settlements_matched: int = 0
 
 
+def _clear_auto_category(tx: Transaction) -> None:
+    """Drop an automatically assigned category when a transaction turns out to
+    be an internal transfer — but never a category the user set by hand.
+
+    A machine guess may be replaced by a better machine guess. A human decision
+    may not be undone by one, silently or otherwise.
+    """
+    if not tx.category_locked:
+        tx.category_id = None
+
+
 def _normalise(iban: str) -> str:
     return iban.replace(" ", "").upper()
 
@@ -128,6 +139,10 @@ def rematch_all(db: Session) -> MatchStats:
                 leg.is_internal = True
                 leg.transfer_group = group
                 leg.transfer_pending = False
+                # An internal transfer is not spending, so a spend category the
+                # rules guessed for it is simply wrong. A category *you* chose
+                # is left exactly where it is.
+                _clear_auto_category(leg)
             used.add(best.id)
             used.add(tx.id)
             stats.pairs_matched += 1
@@ -140,6 +155,7 @@ def rematch_all(db: Session) -> MatchStats:
             continue
         tx.is_internal = True
         tx.transfer_pending = True
+        _clear_auto_category(tx)
         stats.legs_pending += 1
 
     _match_card_settlements(db, accounts, transactions, used, stats)
@@ -220,7 +236,7 @@ def _match_card_settlements(
                     leg.is_internal = True
                     leg.transfer_group = group
                     leg.transfer_pending = False
-                    leg.category_id = None
+                    _clear_auto_category(leg)
                 used.add(credit.id)
                 used.add(best.id)
                 stats.settlements_matched += 1
@@ -240,7 +256,7 @@ def _match_card_settlements(
             ):
                 debit.is_internal = True
                 debit.transfer_pending = True
-                debit.category_id = None
+                _clear_auto_category(debit)
                 used.add(debit.id)
                 stats.legs_pending += 1
 
@@ -264,7 +280,7 @@ def link_manually(db: Session, tx_id_a: int, tx_id_b: int) -> str:
         leg.transfer_manual = True
         leg.transfer_group = group
         leg.transfer_pending = False
-        leg.category_id = None
+        _clear_auto_category(leg)
     db.commit()
     return group
 

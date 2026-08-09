@@ -177,6 +177,26 @@ export default function Transactions() {
           {selected.size > 0 && (
             <span className="ml-auto flex items-center gap-2">
               {selected.size} geselecteerd
+              {selected.size < data.total && (
+                <button
+                  className="btn-ghost"
+                  onClick={async () => {
+                    try {
+                      const result = await api.transactionIds(query);
+                      setSelected(new Set(result.ids));
+                      if (result.truncated) {
+                        setNotice(
+                          `Selectie beperkt tot de eerste ${result.limit} transacties — verfijn het filter voor de rest.`
+                        );
+                      }
+                    } catch (e) {
+                      setError(e.message);
+                    }
+                  }}
+                >
+                  Alle {data.total.toLocaleString("nl-NL")} selecteren
+                </button>
+              )}
               <select className="input w-auto" defaultValue="" onChange={(e) => assignSelected(e.target.value)}>
                 <option value="" disabled>Categorie toewijzen…</option>
                 <option value="">Categorie wissen</option>
@@ -219,7 +239,25 @@ export default function Transactions() {
           <table className="min-w-full">
             <thead className="border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="th w-8"> </th>
+                <th className="th w-8">
+                  <input
+                    type="checkbox"
+                    title="Alles op deze pagina selecteren"
+                    checked={data.items.length > 0 && data.items.every((i) => selected.has(i.id))}
+                    ref={(el) => {
+                      if (el) {
+                        const some = data.items.some((i) => selected.has(i.id));
+                        const all = data.items.every((i) => selected.has(i.id));
+                        el.indeterminate = some && !all;
+                      }
+                    }}
+                    onChange={(e) => {
+                      const next = new Set(selected);
+                      data.items.forEach((i) => (e.target.checked ? next.add(i.id) : next.delete(i.id)));
+                      setSelected(next);
+                    }}
+                  />
+                </th>
                 <th className="th">Datum</th>
                 <th className="th">Omschrijving</th>
                 <th className="th">Rekening</th>
@@ -272,25 +310,51 @@ export default function Transactions() {
                   </td>
                   <td className="td">
                     {tx.is_internal ? (
-                      <span
-                        className="pill bg-slate-200 dark:bg-slate-700"
-                        title={
-                          tx.transfer_pending
-                            ? "Overboeking naar een eigen rekening waarvan de andere kant nog niet geïmporteerd is"
-                            : "Overboeking tussen je eigen rekeningen — telt niet mee als inkomsten of uitgaven"
-                        }
-                      >
-                        {tx.transfer_pending ? "intern (andere kant ontbreekt)" : "interne overboeking"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span
+                          className="pill bg-slate-200 dark:bg-slate-700"
+                          title={
+                            tx.transfer_pending
+                              ? "Overboeking naar een eigen rekening waarvan de andere kant nog niet geïmporteerd is"
+                              : "Overboeking tussen je eigen rekeningen — telt niet mee als inkomsten of uitgaven"
+                          }
+                        >
+                          {tx.transfer_pending ? "intern (andere kant ontbreekt)" : "interne overboeking"}
+                        </span>
+                        {/* A category you set by hand survives reclassification,
+                            so show that it is still there. */}
+                        {tx.category_locked && tx.category_name && (
+                          <span
+                            className="pill text-[11px]"
+                            style={{ backgroundColor: `${tx.category_color}22`, color: tx.category_color }}
+                            title="Handmatig ingesteld — bewaard, ook nu dit een interne overboeking is"
+                          >
+                            {tx.category_name} · vast
+                          </span>
+                        )}
+                      </div>
                     ) : (
-                      <select
-                        className="input py-1"
-                        value={tx.category_id || ""}
-                        onChange={(e) => assign(tx.id, e.target.value)}
-                      >
-                        <option value="">— geen —</option>
-                        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
+                      <div className="flex items-center gap-1">
+                        {tx.category_locked && (
+                          <span
+                            className="text-xs text-sky-600 dark:text-sky-400"
+                            title="Handmatig ingesteld — wordt niet door regels overschreven"
+                          >
+                            vast
+                          </span>
+                        )}
+                        <select
+                          className="input py-1"
+                          title={tx.category_locked
+                            ? "Handmatig ingesteld — regels laten deze staan"
+                            : "Automatisch toegekend door een regel"}
+                          value={tx.category_id || ""}
+                          onChange={(e) => assign(tx.id, e.target.value)}
+                        >
+                          <option value="">— geen —</option>
+                          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
                     )}
                   </td>
                   <td className="td">

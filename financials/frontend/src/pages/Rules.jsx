@@ -119,6 +119,7 @@ export default function Rules() {
   const [busy, setBusy] = useState(false);
   const [confirmCategory, setConfirmCategory] = useState(null);
   const [editCategory, setEditCategory] = useState(null);
+  const [confirmOverride, setConfirmOverride] = useState(null);
   const [draft, setDraft] = useState({ value: "", field: "counter_name", category_id: "" });
 
   const load = () => {
@@ -156,8 +157,25 @@ export default function Rules() {
   async function reapply() {
     setBusy(true);
     try {
-      const result = await api.reapplyRules(false);
-      setNotice(`${result.updated} transacties opnieuw gecategoriseerd. Handmatige keuzes zijn ongemoeid gelaten.`);
+      const result = await api.reapplyRules(false, false);
+      setNotice(
+        `${result.updated} transacties opnieuw gecategoriseerd.` +
+        (result.manual > 0
+          ? ` ${result.manual} handmatig ingestelde transacties zijn met rust gelaten.`
+          : " Handmatige keuzes zijn ongemoeid gelaten.")
+      );
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Ask the server what an override *would* do, then ask the user. */
+  async function askOverride() {
+    setBusy(true);
+    try {
+      setConfirmOverride(await api.reapplyRules(true, true));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -174,6 +192,14 @@ export default function Rules() {
         subtitle="Eerste passende regel wint, op volgorde van prioriteit."
       >
         <button className="btn-primary" onClick={reapply} disabled={busy}>Regels opnieuw toepassen</button>
+        <button
+          className="btn-ghost"
+          onClick={askOverride}
+          disabled={busy}
+          title="Past regels toe én overschrijft categorieën die je zelf hebt ingesteld"
+        >
+          Ook handmatige keuzes overschrijven…
+        </button>
       </PageHeader>
 
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
@@ -286,6 +312,43 @@ export default function Rules() {
           </table>
         </div>
       )}
+
+      <Confirm
+        open={Boolean(confirmOverride)}
+        title="Handmatige keuzes overschrijven"
+        confirmLabel={`Ja, ${confirmOverride?.manual || 0} handmatige keuzes overschrijven`}
+        onCancel={() => setConfirmOverride(null)}
+        onConfirm={async () => {
+          setConfirmOverride(null);
+          setBusy(true);
+          try {
+            const result = await api.reapplyRules(true, false);
+            setNotice(`${result.updated} transacties bijgewerkt, waarvan ${result.manual} handmatig ingesteld waren.`);
+          } catch (e) {
+            setError(e.message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {confirmOverride?.manual === 0 ? (
+          <p>
+            Geen enkele handmatig ingestelde categorie zou veranderen — de regels komen overeen met wat
+            je zelf gekozen hebt. Je kunt dit gerust annuleren.
+          </p>
+        ) : (
+          <>
+            <p className="mb-2">
+              Dit overschrijft <strong>{confirmOverride?.manual}</strong> categorieën die je zelf hebt
+              ingesteld, plus {confirmOverride?.auto} die automatisch waren toegekend.
+            </p>
+            <p>
+              Handmatige keuzes gaan hiermee verloren en zijn niet terug te halen. Normaal gesproken wil
+              je hier <em>Regels opnieuw toepassen</em> voor gebruiken; die laat jouw keuzes staan.
+            </p>
+          </>
+        )}
+      </Confirm>
 
       {editCategory && (
         <CategoryDialog
