@@ -7,6 +7,104 @@ const FIELDS = {
   counter_iban: "Tegenrekening", creditor_id: "Incassant-ID", bank_code: "Bankcode",
 };
 
+/** Create or edit a category. */
+function CategoryDialog({ category, onClose, onSaved, onError }) {
+  const isNew = Boolean(category.isNew);
+  const [form, setForm] = useState({
+    name: category.name || "",
+    color: category.color || "#64748b",
+    is_income: Boolean(category.is_income),
+    excluded_from_budget: Boolean(category.excluded_from_budget),
+  });
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const payload = { ...form, parent_id: null, sort_order: category.sort_order ?? 100 };
+      if (isNew) {
+        await api.createCategory(payload);
+        onSaved(`Categorie “${form.name}” aangemaakt.`);
+      } else {
+        await api.updateCategory(category.id, payload);
+        onSaved(`Categorie “${form.name}” bijgewerkt.`);
+      }
+    } catch (e) {
+      onError(e.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="card w-full max-w-md">
+        <h3 className="mb-3 text-lg font-semibold">
+          {isNew ? "Nieuwe categorie" : "Categorie bewerken"}
+        </h3>
+
+        <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div>
+            <label className="label">Naam</label>
+            <input
+              className="input"
+              value={form.name}
+              maxLength={80}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">Kleur</label>
+            <input
+              type="color"
+              className="input h-9 w-16 p-1"
+              value={form.color}
+              onChange={(e) => setForm({ ...form, color: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <label className="mb-2 flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={form.is_income}
+            onChange={(e) => setForm({ ...form, is_income: e.target.checked })}
+          />
+          <span>
+            Dit is een inkomstencategorie
+            <span className="block text-xs text-slate-500 dark:text-slate-400">
+              Inkomstencategorieën verschijnen niet in het budgetoverzicht.
+            </span>
+          </span>
+        </label>
+
+        <label className="mb-4 flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={form.excluded_from_budget}
+            onChange={(e) => setForm({ ...form, excluded_from_budget: e.target.checked })}
+          />
+          <span>
+            Buiten het budget houden
+            <span className="block text-xs text-slate-500 dark:text-slate-400">
+              Voor uitgaven die je wel wilt zien maar niet wilt begroten — bijvoorbeeld iets uit een
+              afgesloten periode.
+            </span>
+          </span>
+        </label>
+
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={onClose} disabled={busy}>Annuleren</button>
+          <button className="btn-primary" onClick={save} disabled={busy || form.name.trim().length < 1}>
+            Opslaan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Categories and rules live in the database, so changing how something is
  * categorised is a form submission here — not a code change and a redeploy.
@@ -20,6 +118,7 @@ export default function Rules() {
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirmCategory, setConfirmCategory] = useState(null);
+  const [editCategory, setEditCategory] = useState(null);
   const [draft, setDraft] = useState({ value: "", field: "counter_name", category_id: "" });
 
   const load = () => {
@@ -81,7 +180,12 @@ export default function Rules() {
       {notice && <Alert kind="success" onDismiss={() => setNotice(null)}>{notice}</Alert>}
 
       <section className="card mb-6">
-        <h3 className="mb-3 font-semibold">Categorieën</h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-semibold">Categorieën</h3>
+          <button className="btn-ghost" onClick={() => setEditCategory({ isNew: true, name: "", color: "#64748b", is_income: false, excluded_from_budget: false })}>
+            Nieuwe categorie
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((category) => (
             <span
@@ -90,7 +194,9 @@ export default function Rules() {
               style={{ backgroundColor: `${category.color}22` }}
             >
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: category.color }} />
-              {category.name}
+              <button className="hover:underline" title="Bewerken" onClick={() => setEditCategory(category)}>
+                {category.name}
+              </button>
               <span className="text-slate-500 dark:text-slate-400">{category.transaction_count}</span>
               <button
                 className="ml-1 opacity-50 hover:opacity-100"
@@ -179,6 +285,15 @@ export default function Rules() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {editCategory && (
+        <CategoryDialog
+          category={editCategory}
+          onClose={() => setEditCategory(null)}
+          onSaved={(message) => { setEditCategory(null); setNotice(message); load(); }}
+          onError={setError}
+        />
       )}
 
       <Confirm

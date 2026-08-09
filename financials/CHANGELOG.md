@@ -1,5 +1,12 @@
 # Changelog — Financials
 
+## 0.3.1 — 2026-08-09
+
+### Fixed
+- Categorieën konden alleen verwijderd worden, niet aangemaakt of hernoemd. De API kon het al; het
+  formulier ontbrak. Nu een **Nieuwe categorie**-knop en klik-om-te-bewerken, inclusief kleur,
+  inkomsten-vlag en *buiten het budget houden*.
+
 ## 0.3.0 — 2026-08-09
 
 ### Nieuw

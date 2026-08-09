@@ -248,3 +248,58 @@ def test_no_openapi_schema_exposed(client):
     200 either way — what matters is that no schema comes back."""
     body = client.get("/openapi.json").text
     assert '"paths"' not in body and "swagger" not in body.lower()
+
+
+# ─── category management ────────────────────────────────────────────────────
+
+def test_create_rename_and_reject_duplicate_category(client):
+    created = client.post("/api/categories/", json={
+        "name": "Gezamenlijke rekening", "color": "#8b5cf6", "excluded_from_budget": True,
+    })
+    assert created.status_code == 200
+    category_id = created.json()["id"]
+
+    duplicate = client.post("/api/categories/", json={"name": "Gezamenlijke rekening"})
+    assert duplicate.status_code == 409
+
+    renamed = client.put(f"/api/categories/{category_id}", json={
+        "name": "Gezamenlijke rekening (oud)", "color": "#8b5cf6", "excluded_from_budget": True,
+    })
+    assert renamed.status_code == 200
+
+    names = {c["name"]: c for c in client.get("/api/categories/").json()}
+    assert "Gezamenlijke rekening (oud)" in names
+    assert names["Gezamenlijke rekening (oud)"]["excluded_from_budget"] is True
+
+
+def test_category_excluded_from_budget_is_absent_from_the_budget_page(client):
+    import_fixture(client, "rabobank_current.csv")
+    category_id = client.post("/api/categories/", json={
+        "name": "Buiten budget", "excluded_from_budget": True,
+    }).json()["id"]
+
+    items = client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+    target = next(i for i in items if not i["is_internal"] and i["amount"] < 0)
+    client.patch(f"/api/transactions/{target['id']}/category", json={"category_id": category_id})
+
+    rows = client.get("/api/budgets/", params={"year": 2024, "month": 1}).json()["rows"]
+    assert all(r["category_id"] != category_id for r in rows)
+
+
+def test_rule_on_counter_iban_recategorises_history(client):
+    """The workflow for a closed account: one category, one rule on the IBAN,
+    applied backwards over everything."""
+    import_fixture(client, "rabobank_current.csv")
+    category_id = client.post("/api/categories/", json={
+        "name": "Oude rekening", "excluded_from_budget": True,
+    }).json()["id"]
+
+    client.post("/api/rules/", json={
+        "category_id": category_id, "field": "counter_iban",
+        "value": "NL00TEST0000000009", "operator": "contains", "priority": 1,
+    })
+    result = client.post("/api/rules/reapply").json()
+    assert result["updated"] >= 1
+
+    tagged = client.get("/api/transactions/", params={"category_id": category_id}).json()
+    assert tagged["total"] >= 1
