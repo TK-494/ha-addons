@@ -1,7 +1,13 @@
 # Pinned to exact versions: a household finance app should build the same way
 # in six months as it does today, and `pip-audit` needs a fixed target.
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-sqlalchemy==2.0.36
-pydantic==2.10.4
-python-multipart==0.0.20
+#
+# Upgraded 2026-08-09 after pip-audit flagged 14 advisories against the
+# previous pins — all of them in starlette and python-multipart, which are
+# exactly the two libraries handling file uploads here. Re-run
+# `scripts/audit.sh` before each release; that is what it is for.
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+starlette==1.6.0
+sqlalchemy==2.0.51
+pydantic==2.13.4
+python-multipart==0.0.32

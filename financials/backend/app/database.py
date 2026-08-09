@@ -58,7 +58,10 @@ def get_db():
 #     so `create_all` covers the upgrade on its own.
 # 3 — accounts.kind_auto: a new *column*, which `create_all` will not add to an
 #     existing table — needs the ALTER below.
-SCHEMA_VERSION = 3
+# 4 — period_overrides: a new table only.
+# 5 — rules gain provenance: origin, seed_batch, source_transaction_id, note.
+# 6 — transaction_splits table + categories.variable_income column.
+SCHEMA_VERSION = 6
 
 
 def apply_migrations() -> None:

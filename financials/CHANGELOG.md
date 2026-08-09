@@ -1,5 +1,22 @@
 # Changelog — Financials
 
+## 0.13.1 — 2026-08-09
+
+### Security
+- **Afhankelijkheden bijgewerkt na een audit.** `pip-audit` meldde veertien
+  beveiligingsadviezen tegen de vastgezette versies, allemaal in `starlette` en
+  `python-multipart` — precies de twee bibliotheken die het uploaden van bestanden afhandelen, en
+  dus het grootste aanvalsoppervlak van deze add-on. Bijgewerkt naar fastapi 0.141.1,
+  starlette 1.6.0, python-multipart 0.0.32, sqlalchemy 2.0.51, pydantic 2.13.4, uvicorn 0.52.1.
+  Daarna: geen bekende kwetsbaarheden, alle 208 tests groen, en met een echte server geverifieerd
+  door 9.193 regels te importeren.
+
+### Fixed
+- **Schemaversie stond op 3** terwijl er migraties voor 4, 5 en 6 bestonden. Een bestaande database
+  werd daardoor bij elke start opnieuw door de migratiestappen gehaald (onschadelijk — de
+  kolomcontrole is idempotent) en de beveiliging tegen een terugval naar een oudere add-on-versie
+  deed niets. Nu op 6.
+
 ## 0.13.0 — 2026-08-09
 
 ### Nieuw
