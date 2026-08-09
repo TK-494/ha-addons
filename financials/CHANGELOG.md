@@ -1,5 +1,22 @@
 # Changelog — Financials
 
+## 0.14.0 — 2026-08-09
+
+### Nieuw
+- **Sorteren op elke kolom** in het transactieoverzicht: datum, omschrijving, rekening, bedrag en
+  categorie, op- en aflopend. Rekening sorteert op de weergavenaam, niet op nummer. Transacties
+  zonder categorie komen in beide richtingen onderaan — een ontbrekende waarde is geen rangorde.
+- **Kolombreedtes zijn versleepbaar** en worden onthouden, met een knop om ze terug te zetten. De
+  omschrijving wordt niet meer afgekapt maar loopt door, zodat breder maken ook echt meer laat zien.
+- **Sidebar inklapbaar** tot pictogrammen (≈170 px winst voor de tabel), met de naam als tooltip.
+  Ook onthouden.
+
+### Techniek
+- De sorteer-join zit alleen op de paginaquery, niet op de telling en de somrijen: anders zou een
+  transactie met een ontbrekende rekeningregel stil uit de totalen vallen terwijl hij wel in de
+  lijst staat. Daar staat een test op.
+- 206 tests.
+
 ## 0.13.1 — 2026-08-09
 
 ### Security

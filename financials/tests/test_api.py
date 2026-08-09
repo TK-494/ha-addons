@@ -303,3 +303,54 @@ def test_rule_on_counter_iban_recategorises_history(client):
 
     tagged = client.get("/api/transactions/", params={"category_id": category_id}).json()
     assert tagged["total"] >= 1
+
+
+# ─── sorting the transaction list ───────────────────────────────────────────
+
+def sorted_values(client, sort, desc, key):
+    rows = client.get("/api/transactions/", params={
+        "sort": sort, "desc": desc, "page_size": 100,
+    }).json()["items"]
+    return [r[key] for r in rows]
+
+
+def test_sort_by_each_field_and_reverse(client):
+    import_fixture(client, "rabobank_current.csv")
+    for sort, key in [("date", "booked_on"), ("amount", "amount"),
+                      ("description", "description"), ("counter_name", "counter_name")]:
+        down = sorted_values(client, sort, True, key)
+        up = sorted_values(client, sort, False, key)
+        assert down == sorted(down, reverse=True), sort
+        assert up == sorted(up), sort
+
+
+def test_sort_by_account_uses_its_label(client):
+    import_fixture(client, "rabobank_current.csv")
+    labels = sorted_values(client, "account", False, "account_label")
+    assert labels == sorted(labels)
+
+
+def test_sort_by_category_puts_uncategorised_last(client):
+    """Ascending or descending, a missing category is not a value to rank."""
+    import_fixture(client, "rabobank_current.csv")
+    for desc in (True, False):
+        names = sorted_values(client, "category", desc, "category_name")
+        without = [i for i, n in enumerate(names) if n is None]
+        with_name = [i for i, n in enumerate(names) if n is not None]
+        if without and with_name:
+            assert min(without) > max(with_name)
+
+
+def test_sorting_does_not_change_the_totals(client):
+    """The count and sums must not pick up the sort join."""
+    import_fixture(client, "rabobank_current.csv")
+    base = client.get("/api/transactions/", params={"page_size": 1}).json()
+    for sort in ("account", "category", "balance", "counter_name"):
+        other = client.get("/api/transactions/", params={"sort": sort, "page_size": 1}).json()
+        assert other["total"] == base["total"], sort
+        assert other["sum_in"] == base["sum_in"], sort
+        assert other["sum_out"] == base["sum_out"], sort
+
+
+def test_an_unknown_sort_field_is_rejected(client):
+    assert client.get("/api/transactions/", params={"sort": "geheim"}).status_code == 422

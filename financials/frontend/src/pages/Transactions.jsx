@@ -2,11 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
+import { Th, useColumnWidths } from "../components/DataTable.jsx";
 import { amountClass, bankCodeLabel, money, shortDate } from "../format.js";
 
 const EMPTY_FILTERS = {
   search: "", account_id: "", category_id: "", date_from: "", date_to: "",
-  direction: "", uncategorised: false, internal: "", tag_id: "", page: 1, page_size: 50,
+  direction: "", uncategorised: false, internal: "", tag_id: "",
+  sort: "date", desc: true, page: 1, page_size: 50,
+};
+
+const COLUMN_DEFAULTS = {
+  select: 34, date: 96, description: 360, account: 150,
+  amount: 120, category: 200, actions: 250,
 };
 
 export default function Transactions() {
@@ -34,6 +41,7 @@ export default function Transactions() {
   const [splitFor, setSplitFor] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { widths, startResize, reset: resetWidths } = useColumnWidths("financials.tx.columns", COLUMN_DEFAULTS);
 
   useEffect(() => {
     Promise.all([api.accounts(), api.categories(), api.tags()])
@@ -65,6 +73,16 @@ export default function Transactions() {
   }, [load]);
 
   const update = (patch) => setFilters((f) => ({ ...f, ...patch, page: patch.page ?? 1 }));
+
+  // Clicking the active column flips direction; a new column starts descending
+  // for dates and amounts and ascending for text, which is what people expect.
+  const toggleSort = (key) =>
+    setFilters((f) => ({
+      ...f,
+      sort: key,
+      desc: f.sort === key ? !f.desc : !["description", "counter_name", "account", "category"].includes(key),
+      page: 1,
+    }));
 
   async function assign(id, categoryId) {
     try {
@@ -103,6 +121,9 @@ export default function Transactions() {
   return (
     <>
       <PageHeader title="Transacties" subtitle={data ? `${data.total.toLocaleString("nl-NL")} regels` : ""}>
+        <button className="btn-ghost" onClick={resetWidths} title="Kolombreedtes terugzetten">
+          Kolommen herstellen
+        </button>
         <a className="btn-ghost" href={api.exportUrl({
           date_from: filters.date_from, date_to: filters.date_to,
           account_id: filters.account_id, category_id: filters.category_id, search: filters.search,
@@ -305,10 +326,13 @@ export default function Transactions() {
         <Empty>Geen transacties gevonden met deze filters.</Empty>
       ) : (
         <div className="card overflow-x-auto p-0">
-          <table className="min-w-full">
-            <thead className="border-b border-slate-200 dark:border-slate-700">
+          <table className="w-full table-fixed" style={{ minWidth: Object.values(widths).reduce((a, b) => a + b, 0) }}>
+            <colgroup>
+              {Object.entries(widths).map(([key, value]) => <col key={key} style={{ width: value }} />)}
+            </colgroup>
+            <thead className="group border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="th w-8">
+                <th className="th relative">
                   <input
                     type="checkbox"
                     title="Alles op deze pagina selecteren"
@@ -327,12 +351,18 @@ export default function Transactions() {
                     }}
                   />
                 </th>
-                <th className="th">Datum</th>
-                <th className="th">Omschrijving</th>
-                <th className="th">Rekening</th>
-                <th className="th text-right">Bedrag</th>
-                <th className="th">Categorie</th>
-                <th className="th"> </th>
+                <Th label="Datum" sortKey="date" sort={filters.sort} desc={filters.desc}
+                    onSort={toggleSort} onResize={startResize("date")} />
+                <Th label="Omschrijving" sortKey="description" sort={filters.sort} desc={filters.desc}
+                    onSort={toggleSort} onResize={startResize("description")}
+                    title="Sorteren op omschrijving; sorteren op tegenpartij kan via de kolomkop hieronder" />
+                <Th label="Rekening" sortKey="account" sort={filters.sort} desc={filters.desc}
+                    onSort={toggleSort} onResize={startResize("account")} />
+                <Th label="Bedrag" sortKey="amount" sort={filters.sort} desc={filters.desc}
+                    onSort={toggleSort} align="right" onResize={startResize("amount")} />
+                <Th label="Categorie" sortKey="category" sort={filters.sort} desc={filters.desc}
+                    onSort={toggleSort} onResize={startResize("category")} />
+                <Th label="" onResize={startResize("actions")} />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -351,8 +381,8 @@ export default function Transactions() {
                   </td>
                   <td className="td whitespace-nowrap">{shortDate(tx.booked_on)}</td>
                   <td className="td">
-                    <div className="max-w-md truncate">{tx.description || "—"}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="break-words">{tx.description || "—"}</div>
+                    <div className="break-words text-xs text-slate-500 dark:text-slate-400">
                       {tx.counter_name}
                       {tx.bank_code && ` · ${bankCodeLabel(tx.bank_code)}`}
                       {tx.fx_amount !== null && tx.fx_currency && (
@@ -373,7 +403,7 @@ export default function Transactions() {
                       </div>
                     )}
                   </td>
-                  <td className="td whitespace-nowrap text-xs">{tx.account_label}</td>
+                  <td className="td break-words text-xs">{tx.account_label}</td>
                   <td className={`td whitespace-nowrap text-right font-medium ${amountClass(tx.amount)}`}>
                     {money(tx.amount)}
                   </td>

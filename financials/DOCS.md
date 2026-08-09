@@ -174,6 +174,19 @@ Boven aan de pagina verschijnt een waarschuwing zodra regels elkaar in de weg zi
 Op te lossen door de prioriteit van de specifieke regel te verlagen (lager getal wint), of de brede
 regel aan te scherpen.
 
+### De tabel naar je hand zetten
+
+**Sorteren** doe je door op een kolomkop te klikken: datum, omschrijving, rekening, bedrag of
+categorie. Nog een keer klikken draait de volgorde om. Datums en bedragen beginnen hoog-naar-laag,
+tekstkolommen alfabetisch — en transacties zonder categorie belanden altijd onderaan, niet bovenaan.
+
+**Kolombreedte** pas je aan door de rand tussen twee koppen te verslepen. Handig bij lange
+omschrijvingen: maak de kolom breder en de tekst loopt door in plaats van afgekapt te worden. Je
+instelling wordt onthouden. Met **Kolommen herstellen** ga je terug naar de standaardbreedtes.
+
+Met de knop **«** linksboven klap je het menu in tot alleen pictogrammen, wat de tabel zo'n 170
+pixels extra geeft. Ook dat wordt onthouden.
+
 ### Selecteren en in bulk aanpassen
 
 Met het vinkje in de kopregel selecteer je alles op de pagina. Staan er meer resultaten dan op één

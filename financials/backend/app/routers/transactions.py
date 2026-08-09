@@ -21,7 +21,9 @@ from ..services import categorize, transfers
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
-SortField = Literal["date", "amount", "description"]
+SortField = Literal[
+    "date", "amount", "description", "counter_name", "account", "category", "balance",
+]
 
 
 def _apply_filters(
@@ -155,17 +157,42 @@ def list_transactions(
         **filters,
     )).one()
 
-    order = {
-        "date": Transaction.booked_on,
-        "amount": Transaction.amount_cents,
-        "description": Transaction.description,
-    }[sort]
-    order = order.desc() if desc else order.asc()
-
     stmt = _apply_filters(select(Transaction), **filters)
+
+    # Sorting on a related table needs the join, so it is added only to the
+    # page query — the count and the sums above must not grow a join, or a
+    # transaction whose account row is missing would silently drop out of the
+    # totals while still appearing in the list.
+    if sort == "account":
+        account_label = func.coalesce(
+            func.nullif(Account.display_name, ""),
+            func.nullif(Account.product_name, ""),
+            Account.iban,
+            Account.key,
+        )
+        stmt = stmt.join(Account, Account.id == Transaction.account_id, isouter=True)
+        order = account_label
+    elif sort == "category":
+        stmt = stmt.join(Category, Category.id == Transaction.category_id, isouter=True)
+        # Uncategorised rows sort last either way rather than clumping at the
+        # top on the descending pass.
+        order = Category.name
+    else:
+        order = {
+            "date": Transaction.booked_on,
+            "amount": Transaction.amount_cents,
+            "description": Transaction.description,
+            "counter_name": Transaction.counter_name,
+            "balance": Transaction.balance_after_cents,
+        }[sort]
+
+    order = order.desc() if desc else order.asc()
+    if sort in ("category", "account", "balance"):
+        order = order.nulls_last()
+
     stmt = (
         stmt.options(selectinload(Transaction.account), selectinload(Transaction.category))
-        .order_by(order, Transaction.id.desc())
+        .order_by(order, Transaction.booked_on.desc(), Transaction.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
