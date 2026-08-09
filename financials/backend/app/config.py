@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 APP_NAME = "Financials"
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "/data"))
 UPLOAD_DIR = DATA_DIR / "uploads"

@@ -26,22 +26,48 @@ from ..services import periods, recurring
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-def _period_expr(start_day: int):
+def _period_expr(config: periods.PeriodConfig):
     """SQL expression mapping a booking date to its period label `YYYY-MM`.
 
-    With a start day of 24, 2026-08-23 belongs to period 2026-07 and
-    2026-08-24 to 2026-08. Doing this in SQL keeps the aggregates to one query
-    instead of one per month.
+    The common case is arithmetic: with a start day of 24, 2026-08-23 belongs
+    to 2026-07 and 2026-08-24 to 2026-08. Months whose real boundary differs —
+    a salary paid on the Friday because the 25th was a Sunday — get an explicit
+    branch covering just the days between the two dates. That keeps the CASE to
+    one branch per shifted month instead of one per month in history.
     """
+    start_day = config.effective_day
     if start_day <= 1:
-        return func.strftime("%Y-%m", Transaction.booked_on)
-    return case(
-        (
-            cast(func.strftime("%d", Transaction.booked_on), Integer) >= start_day,
-            func.strftime("%Y-%m", Transaction.booked_on),
-        ),
-        else_=func.strftime("%Y-%m", func.date(Transaction.booked_on, "start of month", "-1 month")),
-    )
+        base = func.strftime("%Y-%m", Transaction.booked_on)
+    else:
+        base = case(
+            (
+                cast(func.strftime("%d", Transaction.booked_on), Integer) >= start_day,
+                func.strftime("%Y-%m", Transaction.booked_on),
+            ),
+            else_=func.strftime("%Y-%m", func.date(Transaction.booked_on, "start of month", "-1 month")),
+        )
+
+    branches = []
+    for (year, month), actual in sorted(config.overrides.items()):
+        fixed = config.fixed_start(year, month)
+        if actual == fixed:
+            continue
+        label = f"{year:04d}-{month:02d}"
+        if actual < fixed:
+            # Paid early: the days from the real date up to the fixed one
+            # belong to this period, though the arithmetic says the previous.
+            branches.append((
+                and_(Transaction.booked_on >= actual, Transaction.booked_on < fixed), label
+            ))
+        else:
+            # Paid late: those days still belong to the previous period.
+            previous = periods.shift_period(year, month, -1)
+            branches.append((
+                and_(Transaction.booked_on >= fixed, Transaction.booked_on < actual),
+                f"{previous[0]:04d}-{previous[1]:02d}",
+            ))
+
+    return case(*branches, else_=base) if branches else base
 
 
 def _scope(stmt, account_id: Optional[int]):
@@ -137,7 +163,7 @@ def cashflow(
     first_start, _ = periods.period_bounds(*labels[0], config)
     _, last_end = periods.period_bounds(*labels[-1], config)
 
-    period = _period_expr(config.effective_day).label("period")
+    period = _period_expr(config).label("period")
     stmt = _scope(
         select(
             period,
@@ -213,7 +239,7 @@ def balance_history(
     labels = periods.recent_periods(months, config)
     first_start, _ = periods.period_bounds(*labels[0], config)
 
-    period = _period_expr(config.effective_day).label("period")
+    period = _period_expr(config).label("period")
     ranked = (
         select(
             Transaction.account_id,
@@ -296,7 +322,7 @@ def fixed_variable(
     first_start, _ = periods.period_bounds(*labels[0], config)
     _, last_end = periods.period_bounds(*labels[-1], config)
 
-    period = _period_expr(config.effective_day).label("period")
+    period = _period_expr(config).label("period")
     rows = db.execute(
         select(period, Transaction.id, Transaction.amount_cents)
         .where(
@@ -422,7 +448,7 @@ def category_detail(
     first_start, _ = periods.period_bounds(*labels[0], config)
     _, last_end = periods.period_bounds(*labels[-1], config)
 
-    period = _period_expr(config.effective_day).label("period")
+    period = _period_expr(config).label("period")
     rows = dict(db.execute(
         select(period, func.coalesce(func.sum(Transaction.amount_cents), 0))
         .where(
@@ -483,7 +509,7 @@ def counterparty_detail(
     ).one()
 
     config = periods.load_config(db)
-    period = _period_expr(config.effective_day).label("period")
+    period = _period_expr(config).label("period")
     history = db.execute(
         select(period, func.coalesce(func.sum(Transaction.amount_cents), 0))
         .where(condition, Transaction.is_internal.is_(False))

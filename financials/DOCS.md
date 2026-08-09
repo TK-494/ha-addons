@@ -176,9 +176,26 @@ elk half uur.
 
 ## Instellingen
 
-Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag,
-of op een vaste dag die je zelf kiest. Dit is alleen een weergave-instelling —
-je kunt vrij wisselen, er wordt niets opnieuw ingelezen.
+Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag, of op een vaste dag
+die je zelf kiest. Dit is alleen een weergave-instelling — je kunt vrij wisselen, er wordt niets
+opnieuw ingelezen.
+
+### Salarisdag: de échte datum, niet een vaste dag
+
+Een werkgever betaalt op een vaste datum, maar schuift die als hij in het weekend valt of rond de
+feestdagen. Bij een vaste grens op de 25e belandt het salaris in al die maanden in de *vorige*
+periode — en dat is vaker dan je denkt. In deze gegevens gebeurde dat in 12 van de 26 maanden.
+
+Kies je **Salarisdag**, dan begint elke maand op de dag dat je salaris werkelijk geboekt is.
+
+Daarvoor moet de app weten welke betaling je salaris is. Dat gaat op **naam van de betaler**, niet op
+bedrag: een drempel als "boven €1.000" pikt ook leningen en teruggaves op, en die komen op
+willekeurige dagen binnen. De app doet zelf een voorstel op basis van terugkerende grote inkomsten —
+meestal is één klik genoeg.
+
+Onder **Grenzen per maand** zie je precies wat elke maand geworden is en waarom: *salarisdatum*,
+*vaste dag* (geen salaris gevonden die maand) of *handmatig*. Klopt een maand niet, dan pas je de
+datum daar aan; die correctie wint altijd. Met *Herstel* laat je hem weer los.
 
 ## Privacy
 

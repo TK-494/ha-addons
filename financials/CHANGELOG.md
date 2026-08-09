@@ -1,5 +1,26 @@
 # Changelog — Financials
 
+## 0.6.0 — 2026-08-09
+
+### Nieuw
+- **Maandgrens volgt de werkelijke salarisdatum.** Tot nu toe was *Salarisdag* één vaste dag van de
+  maand. Werkgevers schuiven die betaling als hij in het weekend valt of rond de feestdagen, waardoor
+  het salaris in die maanden in de vorige periode belandde — in deze gegevens 12 van de 26 maanden.
+  Elke periode begint nu op de dag dat het salaris echt geboekt is.
+- **Salaris herkennen op naam van de betaler** in plaats van op bedrag. Een drempel van "boven
+  €1.000" ving ook leningen op, die op willekeurige dagen binnenkomen en de grens meesleepten. De app
+  stelt de werkgever zelf voor op basis van terugkerende grote inkomsten.
+- **Correctie per maand** onder Instellingen, met per maand de bron: salarisdatum, vaste dag of
+  handmatig. Een handmatige correctie wint altijd en is met één klik terug te draaien.
+
+### Techniek
+- De maandindeling in SQL volgt de echte grenzen: één extra CASE-tak per afwijkende maand in plaats
+  van één per maand in de historie.
+- De "gebruikelijke betaaldag" wordt pas afgeleid vanaf drie waarnemingen; daaronder blijft de
+  ingestelde terugvaldag staan in plaats van een dag uit ruis te verzinnen.
+- Schemaversie 4: tabel `period_overrides`.
+- 141 tests.
+
 ## 0.5.0 — 2026-08-09
 
 ### Nieuw

@@ -134,4 +134,9 @@ export const api = {
 
   periodSettings: () => request("/settings/period"),
   savePeriodSettings: (payload) => request("/settings/period", { method: "PUT", body: payload }),
+  saveSalarySource: (payload) => request("/settings/salary-source", { method: "PUT", body: payload }),
+  salaryDates: () => request("/settings/salary-dates"),
+  setPeriodOverride: (payload) => request("/settings/period-override", { method: "PUT", body: payload }),
+  deletePeriodOverride: (year, month) =>
+    request(`/settings/period-override/${year}/${month}`, { method: "DELETE" }),
 };

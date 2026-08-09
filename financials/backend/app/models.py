@@ -232,6 +232,24 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(String(200))
 
 
+class PeriodOverride(Base):
+    """A hand-corrected month boundary.
+
+    Salary dates can be inferred for most months, but not all: a one-off
+    advance, a corrected payroll run, a month where the employer changed. This
+    is the escape hatch, and it wins over everything automatic.
+    """
+
+    __tablename__ = "period_overrides"
+    __table_args__ = (UniqueConstraint("year", "month", name="uq_period_override"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    year: Mapped[int] = mapped_column(Integer)
+    month: Mapped[int] = mapped_column(Integer)
+    start_date: Mapped[date] = mapped_column(Date)
+    note: Mapped[Optional[str]] = mapped_column(String(200))
+
+
 class Budget(Base):
     __tablename__ = "budgets"
     __table_args__ = (UniqueConstraint("category_id", "year", "month", name="uq_budget_period"),)

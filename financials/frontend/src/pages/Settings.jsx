@@ -1,30 +1,45 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Alert, PageHeader, Spinner } from "../components/Bits.jsx";
+import { money, shortDate } from "../format.js";
 
 const MODES = [
   { value: "calendar", label: "Kalendermaand (1e van de maand)" },
-  { value: "salary", label: "Salarisdag (automatisch bepaald)" },
+  { value: "salary", label: "Salarisdag — de dag waarop het écht binnenkwam" },
   { value: "day", label: "Vaste dag van de maand" },
+];
+
+const MONTHS = [
+  "jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec",
 ];
 
 export default function Settings() {
   const [settings, setSettings] = useState(null);
+  const [accounts, setAccounts] = useState([]);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     api.periodSettings().then(setSettings).catch((e) => setError(e.message));
+    api.accounts().then(setAccounts).catch(() => {});
   }, []);
 
-  async function save(patch) {
-    const next = { mode: settings.mode, start_day: settings.start_day, ...patch };
-    try {
-      setSettings(await api.savePeriodSettings(next));
-      setNotice("Opgeslagen.");
-    } catch (e) {
-      setError(e.message);
-    }
+  const apply = (promise, message) =>
+    promise
+      .then((result) => { setSettings(result); if (message) setNotice(message); })
+      .catch((e) => setError(e.message));
+
+  function savePeriod(patch) {
+    apply(api.savePeriodSettings({ mode: settings.mode, start_day: settings.start_day, ...patch }), "Opgeslagen.");
+  }
+
+  function saveSalary(patch) {
+    apply(api.saveSalarySource({
+      counterparty: settings.salary.counterparty,
+      account_id: settings.salary.account_id,
+      min_amount: settings.salary.min_amount,
+      ...patch,
+    }), "Salarisbron opgeslagen.");
   }
 
   if (!settings) return <Spinner />;
@@ -36,16 +51,20 @@ export default function Settings() {
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
       {notice && <Alert kind="success" onDismiss={() => setNotice(null)}>{notice}</Alert>}
 
-      <section className="card max-w-xl">
+      <section className="card mb-4 max-w-2xl">
         <h3 className="mb-1 font-semibold">Maandgrens</h3>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Bepaalt waar een maand begint in de overzichten. Dit is puur een weergave-instelling: er wordt niets
+          Bepaalt waar een maand begint in de overzichten. Puur een weergave-instelling: er wordt niets
           herschreven, dus je kunt vrij wisselen zonder opnieuw te importeren.
         </p>
 
         <div className="mb-3">
           <label className="label">Maand begint op</label>
-          <select className="input" value={settings.mode} onChange={(e) => save({ mode: e.target.value })}>
+          <select
+            className="input"
+            value={settings.mode}
+            onChange={(e) => savePeriod({ mode: e.target.value })}
+          >
             {MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
@@ -59,20 +78,187 @@ export default function Settings() {
               max="28"
               className="input"
               defaultValue={settings.start_day}
-              onBlur={(e) => save({ start_day: Number(e.target.value) })}
+              onBlur={(e) => savePeriod({ start_day: Number(e.target.value) })}
             />
           </div>
         )}
 
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Actieve grens: dag <strong>{settings.effective_day}</strong>.
-          {settings.mode === "salary" && (
-            settings.detected_salary_day
-              ? ` Salarisdag herkend als de ${settings.detected_salary_day}e.`
-              : " Nog geen salarisdag herkend — categoriseer eerst wat inkomsten als Inkomen."
-          )}
-        </p>
+        {settings.mode === "salary" && (
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Elke maand begint op de dag dat je salaris werkelijk geboekt is. Valt de vaste betaaldag in
+            het weekend of rond de feestdagen, dan schuift de grens mee.{" "}
+            {settings.shifted_months > 0 && (
+              <>
+                Bij jou wijken <strong>{settings.shifted_months}</strong> maanden af van de vaste dag —
+                zonder deze instelling zou het salaris in die maanden in de vórige periode vallen.
+              </>
+            )}{" "}
+            Voor maanden zonder gevonden salaris geldt dag{" "}
+            <strong>{settings.effective_day}</strong> als terugval.
+          </p>
+        )}
       </section>
+
+      {settings.mode === "salary" && (
+        <>
+          <section className="card mb-4 max-w-2xl">
+            <h3 className="mb-1 font-semibold">Welke betaling is je salaris?</h3>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              Op naam van de betaler, niet op bedrag. Een drempel als “inkomsten boven €1.000” pikt ook
+              leningen en teruggaves op, en die komen op willekeurige dagen binnen — dan schuift je
+              maandgrens met ze mee.
+            </p>
+
+            {settings.suggestions.length > 0 && !settings.salary.configured && (
+              <div className="mb-3">
+                <p className="label">Gevonden in je gegevens</p>
+                <div className="flex flex-wrap gap-2">
+                  {settings.suggestions.map((s) => (
+                    <button
+                      key={s.counterparty}
+                      className="btn-ghost text-left"
+                      onClick={() => saveSalary({ counterparty: s.counterparty })}
+                    >
+                      {s.counterparty}
+                      <span className="ml-2 text-xs text-slate-500">
+                        {s.payments}× · gem. {money(s.average_amount)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <label className="label">Naam van de betaler bevat</label>
+                <input
+                  className="input"
+                  defaultValue={settings.salary.counterparty}
+                  placeholder="bijv. de naam van je werkgever"
+                  onBlur={(e) => {
+                    if (e.target.value !== settings.salary.counterparty) {
+                      saveSalary({ counterparty: e.target.value });
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="label">Minimaal bedrag</label>
+                <input
+                  type="number"
+                  step="50"
+                  min="0"
+                  className="input"
+                  defaultValue={settings.salary.min_amount}
+                  onBlur={(e) => {
+                    if (Number(e.target.value) !== settings.salary.min_amount) {
+                      saveSalary({ min_amount: Number(e.target.value) });
+                    }
+                  }}
+                />
+              </div>
+              <div className="sm:col-span-3">
+                <label className="label">Op rekening (optioneel)</label>
+                <select
+                  className="input"
+                  value={settings.salary.account_id || ""}
+                  onChange={(e) => saveSalary({ account_id: e.target.value ? Number(e.target.value) : null })}
+                >
+                  <option value="">Alle rekeningen</option>
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {settings.salary.configured && (
+              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                Gebruikelijke betaaldag: de <strong>{settings.detected_salary_day || settings.effective_day}e</strong>.
+              </p>
+            )}
+          </section>
+
+          <section className="card">
+            <h3 className="mb-1 font-semibold">Grenzen per maand</h3>
+            <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+              Klopt een maand niet, pas de datum hier aan. Een handmatige correctie wint altijd van de
+              gevonden salarisdatum; met <em>herstel</em> laat je hem weer los.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th className="th">Periode</th>
+                    <th className="th">Begint op</th>
+                    <th className="th">Bron</th>
+                    <th className="th">Vaste dag</th>
+                    <th className="th"> </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {[...settings.boundaries].reverse().map((row) => (
+                    <tr key={`${row.year}-${row.month}`}>
+                      <td className="td whitespace-nowrap font-medium">
+                        {MONTHS[row.month - 1]} {row.year}
+                      </td>
+                      <td className="td">
+                        <input
+                          type="date"
+                          className="input w-40"
+                          defaultValue={row.start}
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            apply(
+                              api.setPeriodOverride({
+                                year: row.year, month: row.month, start_date: e.target.value,
+                              }),
+                              `Grens voor ${MONTHS[row.month - 1]} ${row.year} aangepast.`
+                            );
+                          }}
+                        />
+                      </td>
+                      <td className="td">
+                        <span
+                          className={`pill ${
+                            row.origin === "handmatig"
+                              ? "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-100"
+                              : "bg-slate-100 dark:bg-slate-700"
+                          }`}
+                        >
+                          {row.origin}
+                        </span>
+                        {row.salary_date && row.salary_date !== row.fixed_date && (
+                          <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
+                            salaris {shortDate(row.salary_date)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="td text-sm text-slate-500 dark:text-slate-400">
+                        {shortDate(row.fixed_date)}
+                      </td>
+                      <td className="td text-right">
+                        {row.origin === "handmatig" && (
+                          <button
+                            className="btn-ghost"
+                            onClick={() =>
+                              apply(
+                                api.deletePeriodOverride(row.year, row.month),
+                                "Correctie verwijderd."
+                              )
+                            }
+                          >
+                            Herstel
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
     </>
   );
 }
