@@ -7,6 +7,7 @@ import Accounts from "./pages/Accounts.jsx";
 import CategoryDetail from "./pages/CategoryDetail.jsx";
 import Recurring from "./pages/Recurring.jsx";
 import Budgets from "./pages/Budgets.jsx";
+import Expenses from "./pages/Expenses.jsx";
 import Salary from "./pages/Salary.jsx";
 import Counterparty from "./pages/Counterparty.jsx";
 import Tags from "./pages/Tags.jsx";
@@ -18,6 +19,8 @@ const NAV = [
   { to: "/transacties", label: "Transacties", icon: "≡" },
   { to: "/salaris", label: "Salaris", icon: "€" },
   { to: "/budget", label: "Budget", icon: "◑" },
+  { to: "/vaste-lasten", label: "Vaste lasten", icon: "⛓" },
+  { to: "/variabele-uitgaven", label: "Variabele uitgaven", icon: "◇" },
   { to: "/terugkerend", label: "Terugkerend", icon: "↻" },
   { to: "/labels", label: "Labels", icon: "◆" },
   { to: "/rekeningen", label: "Rekeningen", icon: "▤" },
@@ -118,6 +121,8 @@ export default function App() {
           <Route path="/transacties" element={<Transactions />} />
           <Route path="/salaris" element={<Salary />} />
           <Route path="/budget" element={<Budgets />} />
+          <Route path="/vaste-lasten" element={<Expenses kind="fixed" />} />
+          <Route path="/variabele-uitgaven" element={<Expenses kind="variable" />} />
           <Route path="/terugkerend" element={<Recurring />} />
           <Route path="/categorie/:id" element={<CategoryDetail />} />
           <Route path="/tegenpartij" element={<Counterparty />} />

@@ -242,6 +242,19 @@ Bovenaan het overzicht staat een balk met vier dingen:
 
 Klik op *Hoe is dit berekend?* voor de som en de lijst met verwachte incasso's.
 
+## Tabbladen Vaste lasten en Variabele uitgaven
+
+Twee pagina's die dezelfde vraag van twee kanten stellen: wat ligt vast, en waar stuur je zelf.
+Beide met een taartdiagram per categorie, de grootste tegenpartijen, het verloop per maand en een
+tabel met bedrag, gemiddelde per maand, aandeel en aantal transacties.
+
+Bovenaan kies je de periode: **deze periode**, **3**, **6** of **12 maanden**, of **alles**. Dat
+laatste rekent vanaf je oudste transactie. Voor variabele uitgaven is een langere periode meestal
+zinvoller — één maand boodschappen zegt weinig, zes maanden wel.
+
+Het aandeelblok laat steeds de andere kant zien, zodat je de verhouding niet hoeft te onthouden: op
+Vaste lasten staat hoeveel er variabel was, en andersom.
+
 ## Vaste en variabele lasten
 
 Op het overzicht staat een blok dat je uitgaven in tweeën deelt, met bovenaan drie getallen: wat er
@@ -370,7 +383,20 @@ Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag, 
 die je zelf kiest. Dit is alleen een weergave-instelling — je kunt vrij wisselen, er wordt niets
 opnieuw ingelezen.
 
-### Vaste en variabele lasten
+### Tabbladen Vaste lasten en Variabele uitgaven
+
+Twee pagina's die dezelfde vraag van twee kanten stellen: wat ligt vast, en waar stuur je zelf.
+Beide met een taartdiagram per categorie, de grootste tegenpartijen, het verloop per maand en een
+tabel met bedrag, gemiddelde per maand, aandeel en aantal transacties.
+
+Bovenaan kies je de periode: **deze periode**, **3**, **6** of **12 maanden**, of **alles**. Dat
+laatste rekent vanaf je oudste transactie. Voor variabele uitgaven is een langere periode meestal
+zinvoller — één maand boodschappen zegt weinig, zes maanden wel.
+
+Het aandeelblok laat steeds de andere kant zien, zodat je de verhouding niet hoeft te onthouden: op
+Vaste lasten staat hoeveel er variabel was, en andersom.
+
+## Vaste en variabele lasten
 
 Op het overzicht staat een blok dat je uitgaven in tweeën deelt, met bovenaan drie getallen: wat er
 deze periode vastlag, wat variabel was, en wat je van je inkomen overhoudt als de vaste lasten eraf

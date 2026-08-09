@@ -386,3 +386,60 @@ def test_sorting_can_be_reversed(client):
     down = client.get("/api/dashboard/recurring", params={"sort": "monthly", "desc": True}).json()["items"]
     up = client.get("/api/dashboard/recurring", params={"sort": "monthly", "desc": False}).json()["items"]
     assert [i["label"] for i in down] == [i["label"] for i in up][::-1]
+
+
+# ─── the fixed / variable expense tabs ──────────────────────────────────────
+
+def test_breakdown_splits_the_same_ledger_two_ways(client):
+    """Fixed plus variable is every expense, once. Neither tab may drop or
+    double-count a transaction."""
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    import_fixture(client, "rabobank_current.csv")
+
+    fixed = client.get("/api/dashboard/expense-breakdown", params={"kind": "fixed", "months": 0}).json()
+    variable = client.get("/api/dashboard/expense-breakdown", params={"kind": "variable", "months": 0}).json()
+    everything = client.get("/api/dashboard/expense-breakdown", params={"kind": "all", "months": 0}).json()
+
+    assert round(fixed["total"] + variable["total"], 2) == round(everything["total"], 2)
+    assert fixed["transactions"] + variable["transactions"] == everything["transactions"]
+
+
+def test_each_range_widens_the_window(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    totals = []
+    for months in (1, 3, 6, 12):
+        result = client.get("/api/dashboard/expense-breakdown", params={
+            "kind": "fixed", "months": months,
+        }).json()
+        assert result["range"]["months"] == months
+        totals.append(result["total"])
+    assert totals == sorted(totals), "a longer range cannot contain less"
+
+
+def test_all_time_starts_at_the_first_transaction(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    result = client.get("/api/dashboard/expense-breakdown", params={"months": 0, "kind": "all"}).json()
+    assert result["range"]["start"] == "2026-05-05"
+    assert result["range"]["label"] == "alles"
+
+
+def test_monthly_average_divides_by_the_range(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    result = client.get("/api/dashboard/expense-breakdown", params={"kind": "fixed", "months": 4}).json()
+    assert result["monthly_average"] == round(result["total"] / 4, 2)
+
+
+def test_category_shares_add_up(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    import_fixture(client, "rabobank_current.csv")
+    result = client.get("/api/dashboard/expense-breakdown", params={"kind": "all", "months": 0}).json()
+    assert abs(sum(row["share"] for row in result["by_category"]) - 100) < 1.0
+    assert round(sum(row["amount"] for row in result["by_category"]), 2) == round(result["total"], 2)
+
+
+def test_an_empty_range_reports_zero_rather_than_failing(client):
+    import_fixture(client, "rabobank_current.csv")
+    result = client.get("/api/dashboard/expense-breakdown", params={"kind": "fixed", "months": 1}).json()
+    assert result["total"] == 0
+    assert result["by_category"] == []
+    assert result["monthly_average"] == 0

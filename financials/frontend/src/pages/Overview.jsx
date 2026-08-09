@@ -8,6 +8,7 @@ import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import AvailablePanel from "../components/AvailablePanel.jsx";
 import CostStructure from "../components/CostStructure.jsx";
+import CategoryDonut from "../components/CategoryDonut.jsx";
 import { money } from "../format.js";
 
 const MONTHS = [
@@ -266,54 +267,6 @@ export default function Overview() {
         </div>
       </section>
     </>
-  );
-}
-
-/** One donut plus its legend. Used for both directions so they stay comparable. */
-function CategoryDonut({ title, rows, empty }) {
-  const total = (rows || []).reduce((sum, r) => sum + r.amount, 0);
-
-  return (
-    <div className="card">
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h3 className="font-semibold">{title}</h3>
-        <span className="text-sm tabular-nums text-slate-500 dark:text-slate-400">{money(total)}</span>
-      </div>
-      {!rows || rows.length === 0 ? (
-        <Empty>{empty}</Empty>
-      ) : (
-        <>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={rows.slice(0, 8)} dataKey="amount" nameKey="name" innerRadius={50} outerRadius={82}>
-                {rows.slice(0, 8).map((row) => <Cell key={row.name} fill={row.color} />)}
-              </Pie>
-              <Tooltip formatter={(v) => money(v)} />
-            </PieChart>
-          </ResponsiveContainer>
-          <ul className="mt-2 space-y-1 text-sm">
-            {rows.slice(0, 7).map((row) => (
-              <li key={row.name} className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
-                  {row.category_id ? (
-                    <Link className="truncate hover:underline" to={`/categorie/${row.category_id}`}>{row.name}</Link>
-                  ) : (
-                    <Link className="truncate hover:underline" to="/transacties?uncategorised=1">{row.name}</Link>
-                  )}
-                </span>
-                <span className="whitespace-nowrap tabular-nums">
-                  {money(row.amount)}
-                  <span className="ml-1 text-xs text-slate-500">
-                    {total ? Math.round((100 * row.amount) / total) : 0}%
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
   );
 }
 

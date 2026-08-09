@@ -334,6 +334,142 @@ def balance_history(
     }
 
 
+RANGE_LABELS = {1: "deze periode", 3: "3 maanden", 6: "6 maanden", 12: "12 maanden", 0: "alles"}
+
+
+@router.get("/expense-breakdown")
+def expense_breakdown(
+    db: Session = Depends(get_db),
+    kind: Literal["fixed", "variable", "all"] = "variable",
+    months: int = Query(6, ge=0, le=240),
+):
+    """Expenses over a range, split fixed or variable.
+
+    `months=0` means everything on record. The range matters more here than on
+    the overview: a single month of variable spending is mostly noise, and the
+    question "what does this actually cost me" only has an answer over several.
+    """
+    config = periods.load_config(db)
+
+    if months == 0:
+        first = db.scalar(select(func.min(Transaction.booked_on)))
+        start = date.fromisoformat(first) if isinstance(first, str) else first
+        if start is None:
+            start = date.today()
+        _, end = periods.period_bounds(*periods.period_of(date.today(), config), config)
+        labels = []
+    else:
+        labels = periods.recent_periods(months, config)
+        start, _ = periods.period_bounds(*labels[0], config)
+        _, end = periods.period_bounds(*labels[-1], config)
+
+    committed = [g for g in recurring.detect(db, config) if g.is_committed]
+    committed_ids = recurring.recurring_transaction_ids(committed)
+
+    rows = db.execute(
+        select(
+            Transaction.id, Transaction.amount_cents, Transaction.booked_on,
+            Transaction.counter_name, Transaction.description,
+            Category.name, Category.color,
+        )
+        .join(Category, Category.id == Transaction.category_id, isouter=True)
+        .where(
+            Transaction.is_internal.is_(False),
+            Transaction.amount_cents < 0,
+            Transaction.booked_on >= start, Transaction.booked_on < end,
+        )
+    ).all()
+
+    by_category: dict[str, dict] = {}
+    by_party: dict[str, dict] = {}
+    per_period: dict[str, int] = {}
+    total = 0
+    fixed_total = 0
+    variable_total = 0
+
+    for tx_id, amount, booked_on, counter, description, name, color in rows:
+        value = abs(amount)
+        is_fixed = tx_id in committed_ids
+        if is_fixed:
+            fixed_total += value
+        else:
+            variable_total += value
+        if kind == "fixed" and not is_fixed:
+            continue
+        if kind == "variable" and is_fixed:
+            continue
+
+        total += value
+        key = name or "Zonder categorie"
+        entry = by_category.setdefault(
+            key, {"name": key, "color": color or "#94a3b8", "cents": 0, "transactions": 0}
+        )
+        entry["cents"] += value
+        entry["transactions"] += 1
+
+        party = (counter or description or "onbekend")[:60]
+        pentry = by_party.setdefault(party, {"name": party, "cents": 0, "transactions": 0})
+        pentry["cents"] += value
+        pentry["transactions"] += 1
+
+        year, month = periods.period_of(
+            booked_on if not isinstance(booked_on, str) else date.fromisoformat(booked_on), config
+        )
+        label = f"{year:04d}-{month:02d}"
+        per_period[label] = per_period.get(label, 0) + value
+
+    categories = sorted(
+        (
+            {
+                "name": e["name"], "color": e["color"],
+                "amount": e["cents"] / 100,
+                "transactions": e["transactions"],
+                "share": round(100 * e["cents"] / total, 1) if total else 0,
+            }
+            for e in by_category.values()
+        ),
+        key=lambda e: -e["amount"],
+    )
+
+    if labels:
+        trend = [
+            {"label": f"{m:02d}-{y}", "amount": per_period.get(f"{y:04d}-{m:02d}", 0) / 100}
+            for y, m in labels
+        ]
+        span = len(labels)
+    else:
+        trend = [
+            {"label": key, "amount": value / 100}
+            for key, value in sorted(per_period.items())
+        ]
+        span = max(1, len(per_period))
+
+    return {
+        "kind": kind,
+        "range": {
+            "months": months,
+            "label": RANGE_LABELS.get(months, f"{months} maanden"),
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "periods": span,
+        },
+        "total": total / 100,
+        "monthly_average": round(total / 100 / span, 2) if span else 0,
+        "transactions": sum(e["transactions"] for e in by_category.values()),
+        "by_category": categories,
+        "top_counterparties": sorted(
+            ({"name": e["name"], "amount": e["cents"] / 100, "transactions": e["transactions"]}
+             for e in by_party.values()),
+            key=lambda e: -e["amount"],
+        )[:15],
+        "trend": trend,
+        "fixed_total": fixed_total / 100,
+        "variable_total": variable_total / 100,
+        "share_of_expenses": round(100 * total / (fixed_total + variable_total), 1)
+        if (fixed_total + variable_total) else None,
+    }
+
+
 @router.get("/cost-structure")
 def cost_structure(
     db: Session = Depends(get_db),

@@ -1,5 +1,23 @@
 # Changelog — Financials
 
+## 0.15.0 — 2026-08-09
+
+### Nieuw
+- **Twee nieuwe tabbladen: Vaste lasten en Variabele uitgaven.** Elk met een taartdiagram per
+  categorie, grootste tegenpartijen, verloop per maand en een tabel met bedrag, maandgemiddelde,
+  aandeel en aantal transacties.
+- **Periodekeuze** per tabblad: deze periode, 3, 6 of 12 maanden, of alles vanaf je oudste
+  transactie. Voor variabele uitgaven is een langer bereik meestal zinvoller — één maand
+  boodschappen is vooral ruis.
+- Het taartdiagram is nu een gedeelde component, zodat het overzicht en beide tabbladen dezelfde
+  kleuren en indeling gebruiken. Boven acht categorieën gaat de rest in één *overig*-punt, zodat de
+  ring blijft kloppen met het bedrag erboven.
+
+### Techniek
+- `GET /dashboard/expense-breakdown?kind=&months=`; `months=0` betekent alles. Vast plus variabel is
+  precies alle uitgaven, één keer geteld — daar staat een test op.
+- 212 tests.
+
 ## 0.14.0 — 2026-08-09
 
 ### Nieuw

@@ -68,6 +68,8 @@ export const api = {
   balanceHistory: (months) => request("/dashboard/balance-history", { params: { months } }),
   fixedVariable: (months) => request("/dashboard/fixed-variable", { params: { months } }),
   costStructure: (params) => request("/dashboard/cost-structure", { params }),
+  expenseBreakdown: (kind, months) =>
+    request("/dashboard/expense-breakdown", { params: { kind, months } }),
   recurring: (params) => request("/dashboard/recurring", { params }),
   topCounterparties: (params) => request("/dashboard/top-counterparties", { params }),
   yearOverYear: (years) => request("/dashboard/year-over-year", { params: { years } }),
