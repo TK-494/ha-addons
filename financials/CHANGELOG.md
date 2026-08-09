@@ -1,5 +1,17 @@
 # Changelog — Financials
 
+## 0.3.2 — 2026-08-09
+
+### Fixed
+- **Build brak op Home Assistant.** `pip install --require-hashes=false` is ongeldig: het is een
+  schakelaar zonder waarde, dus pip stopte met een usage-fout en de image werd nooit gebouwd. Vlag
+  verwijderd; de versies staan al vast in `requirements.txt` en `scripts/audit.sh` controleert ze
+  buiten de build om.
+- Het opruimen van `__pycache__` gebeurde met een glob die op een andere basis-image niets vindt en
+  dan de build laat mislukken. Weggehaald — `PYTHONDONTWRITEBYTECODE` doet het werk al.
+- De gebruiker werd op UID 1000 vastgezet, wat botst als de basis-image dat nummer al gebruikt.
+  Alpine kiest nu zelf een nummer; niets buiten de container hangt ervan af.
+
 ## 0.3.1 — 2026-08-09
 
 ### Fixed

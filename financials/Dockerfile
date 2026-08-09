@@ -22,16 +22,20 @@ RUN apk add --no-cache su-exec curl
 WORKDIR /app
 
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir --require-hashes=false -r requirements.txt \
-    && find /usr/lib/python3*/site-packages -name '__pycache__' -type d -prune -exec rm -rf {} +
+# Versions are pinned in requirements.txt; `scripts/audit.sh` checks them for
+# advisories out of band, deliberately not during this build.
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/app/ ./app/
 COPY --from=frontend /build/dist ./static
 
 # Unprivileged account for the application process. The entrypoint starts as
 # root only long enough to make /data writable, then steps down to this user.
-RUN addgroup -g 1000 -S financials \
-    && adduser -u 1000 -S -G financials -h /app financials \
+# No fixed UID: 1000 is often already taken on a base image, and a clashing
+# adduser would fail the whole build for no benefit — nothing here depends on
+# the number matching anything outside the container.
+RUN addgroup -S financials \
+    && adduser -S -G financials -h /app financials \
     && chown -R financials:financials /app
 
 ENV DATABASE_URL=sqlite:////data/financials.db \
