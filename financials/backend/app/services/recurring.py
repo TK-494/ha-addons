@@ -93,6 +93,26 @@ class RecurringGroup:
         )
 
     @property
+    def amount_spread(self) -> float:
+        """How much the amount moves, relative to its typical size."""
+        amounts = [abs(a) for a in self.amounts]
+        typical = abs(self.typical_amount_cents) or 1
+        return (max(amounts) - min(amounts)) / typical
+
+    @property
+    def is_committed(self) -> bool:
+        """A fixed cost, as opposed to something that merely repeats.
+
+        A direct-debit mandate settles it: somebody will collect that money
+        whatever you do, even when the amount moves (insurance premiums and
+        loan instalments both drift). Without a mandate, only a genuinely
+        stable amount qualifies — that catches card subscriptions like YouTube
+        Premium while leaving out the fuel station and the takeaway, which
+        repeat just as faithfully but are a choice.
+        """
+        return bool(self.creditor_id) or self.amount_spread <= 0.15
+
+    @property
     def amount_changed(self) -> bool:
         """Flag a price change: the most recent amount differs from the
         historical median by more than 5% and at least 50 cents."""
@@ -196,4 +216,6 @@ def serialise(group: RecurringGroup) -> dict:
         "active": group.is_active,
         "amount_changed": group.amount_changed,
         "from_creditor_id": bool(group.creditor_id),
+        "committed": group.is_committed,
+        "spread": round(group.amount_spread, 2),
     }

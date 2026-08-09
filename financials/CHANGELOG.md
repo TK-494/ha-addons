@@ -1,5 +1,23 @@
 # Changelog — Financials
 
+## 0.12.0 — 2026-08-09
+
+### Nieuw
+- **Lastenoverzicht op het dashboard.** De gestapelde grafiek liet zien *hoeveel* vastlag maar niet
+  *wat*. Nu drie kerngetallen (vast, variabel, over na vaste lasten), een verhoudingsbalk, de vaste
+  posten stuk voor stuk met bedrag per maand en interval, en daarnaast het variabele geld per
+  categorie. De maandgrafiek zit nog steeds in het blok, ingeklapt.
+
+### Changed
+- **Scherpere definitie van "vast".** Terugkerend is niet hetzelfde als vast: de supermarkt komt ook
+  elke week terug. Een kost geldt nu als vast bij een incassomachtiging, of bij een bedrag dat binnen
+  15% gelijk blijft (dat vangt creditcard-abonnementen). Op echte gegevens levert dat € 1.402 per
+  maand aan verplichtingen op, terwijl tankbeurten, thuisbezorgd en motorkleding terecht aan de
+  variabele kant blijven — 26 terugkerende posten die géén vaste last zijn.
+
+### Techniek
+- 201 tests.
+
 ## 0.11.0 — 2026-08-09
 
 ### Nieuw

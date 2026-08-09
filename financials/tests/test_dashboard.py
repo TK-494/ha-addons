@@ -234,3 +234,74 @@ def test_manually_added_account_is_excluded_from_networth_by_default(client):
     it would make the household total wrong."""
     response = client.post("/api/accounts/", json={"iban": "NL00TEST0000000009"}).json()
     assert response["include_in_networth"] is False
+
+
+# ─── fixed versus variable ──────────────────────────────────────────────────
+
+def mandated_rows(client, months, amount="-100,00", creditor="NL00ZZZ111111111111"):
+    header = (
+        '"IBAN/BBAN","Munt","Volgnr","Datum","Bedrag","Saldo na trn",'
+        '"Tegenrekening IBAN/BBAN","Naam tegenpartij","Code","Incassant ID","Omschrijving-1"'
+    )
+    rows = [header]
+    for index, day in enumerate(months, start=500):
+        rows.append(
+            f'"NL00TEST0000000001","EUR","{index}","{day}","{amount}","1.000,00",'
+            f'"NL00TEST0000000055","Verhuurder Vast","ei","{creditor}","Huur"'
+        )
+    csv = ("\n".join(rows) + "\n").encode("utf-8")
+    preview = client.post(
+        "/api/imports/upload",
+        files={"file": ("vast.csv", csv, "text/csv")},
+        data={"format_key": "rabobank_current"},
+    ).json()
+    client.post(f"/api/imports/{preview['batch_id']}/commit", params={"format_key": "rabobank_current"})
+
+
+def test_a_mandated_payment_counts_as_fixed(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    result = client.get("/api/dashboard/cost-structure", params={"year": 2026, "month": 8}).json()
+    assert any(item["label"].startswith("Verhuurder") and item["mandated"] for item in result["items"])
+    assert result["period_fixed"] == 100.0
+
+
+def test_a_repeating_but_varying_payment_is_not_fixed(client):
+    """The supermarket repeats every week and is still a choice."""
+    header = (
+        '"IBAN/BBAN","Munt","Volgnr","Datum","Bedrag","Saldo na trn",'
+        '"Tegenrekening IBAN/BBAN","Naam tegenpartij","Code","Omschrijving-1"'
+    )
+    rows = [header]
+    for index, (day, amount) in enumerate([
+        ("2026-05-06", "-12,00"), ("2026-06-06", "-84,00"),
+        ("2026-07-06", "-31,00"), ("2026-08-06", "-97,00"),
+    ], start=600):
+        rows.append(
+            f'"NL00TEST0000000001","EUR","{index}","{day}","{amount}","900,00",'
+            f'"","Wisselende Winkel","bc","Pinbetaling"'
+        )
+    csv = ("\n".join(rows) + "\n").encode("utf-8")
+    preview = client.post(
+        "/api/imports/upload",
+        files={"file": ("wisselend.csv", csv, "text/csv")},
+        data={"format_key": "rabobank_current"},
+    ).json()
+    client.post(f"/api/imports/{preview['batch_id']}/commit", params={"format_key": "rabobank_current"})
+
+    result = client.get("/api/dashboard/cost-structure", params={"year": 2026, "month": 8}).json()
+    assert not any("Wisselende" in item["label"] for item in result["items"])
+    assert any("Wisselende" in row["name"] or row["amount"] > 0 for row in result["variable_by_category"]) \
+        or result["period_variable"] == 97.0
+
+
+def test_fixed_and_variable_add_up_to_the_total_spend(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    result = client.get("/api/dashboard/cost-structure", params={"year": 2026, "month": 8}).json()
+    assert round(result["period_fixed"] + result["period_variable"], 2) == result["period_total"]
+
+
+def test_share_and_leftover_are_reported(client):
+    mandated_rows(client, ["2026-05-05", "2026-06-05", "2026-07-05", "2026-08-05"])
+    result = client.get("/api/dashboard/cost-structure", params={"year": 2026, "month": 8}).json()
+    assert result["share_fixed"] == 100.0
+    assert result["left_after_fixed"] == -100.0

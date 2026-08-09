@@ -67,6 +67,7 @@ export const api = {
   byCategory: (params) => request("/dashboard/by-category", { params }),
   balanceHistory: (months) => request("/dashboard/balance-history", { params: { months } }),
   fixedVariable: (months) => request("/dashboard/fixed-variable", { params: { months } }),
+  costStructure: (params) => request("/dashboard/cost-structure", { params }),
   recurring: (onlyActive) => request("/dashboard/recurring", { params: { only_active: onlyActive } }),
   topCounterparties: (params) => request("/dashboard/top-counterparties", { params }),
   yearOverYear: (years) => request("/dashboard/year-over-year", { params: { years } }),

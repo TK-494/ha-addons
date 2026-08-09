@@ -334,6 +334,114 @@ def balance_history(
     }
 
 
+@router.get("/cost-structure")
+def cost_structure(
+    db: Session = Depends(get_db),
+    year: Optional[int] = None,
+    month: Optional[int] = Query(None, ge=1, le=12),
+    months: int = Query(6, ge=1, le=36),
+):
+    """What lies fixed and what is yours to steer.
+
+    "Recurring" is not the same as "fixed". The supermarket repeats every week
+    and the fuel station every fortnight, but nobody collects them — skipping
+    them is a decision you can make. A direct-debit mandate is not. So a cost
+    counts as fixed when it is mandated, or when it repeats at a genuinely
+    stable amount (which catches card subscriptions).
+    """
+    config = periods.load_config(db)
+    if year is None or month is None:
+        year, month = periods.period_of(date.today(), config)
+    start, end = periods.period_bounds(year, month, config)
+
+    groups = [g for g in recurring.detect(db, config) if g.is_active]
+    committed = [g for g in groups if g.is_committed]
+    committed_ids = recurring.recurring_transaction_ids(committed)
+
+    items = sorted(
+        (
+            {
+                "label": g.label,
+                "category": g.category_name,
+                "monthly": abs(g.monthly_equivalent_cents) / 100,
+                "amount": abs(g.typical_amount_cents) / 100,
+                "interval": g.interval,
+                "mandated": bool(g.creditor_id),
+                "last_seen": g.last_seen.isoformat(),
+                "amount_changed": g.amount_changed,
+            }
+            for g in committed
+        ),
+        key=lambda item: -item["monthly"],
+    )
+
+    fixed_monthly = sum(item["monthly"] for item in items)
+
+    fixed_by_category: dict[str, float] = {}
+    for item in items:
+        name = item["category"] or "Zonder categorie"
+        fixed_by_category[name] = fixed_by_category.get(name, 0) + item["monthly"]
+
+    # What actually went out this period, split the same way.
+    rows = db.execute(
+        select(Transaction.id, Transaction.amount_cents, Category.name, Category.color)
+        .join(Category, Category.id == Transaction.category_id, isouter=True)
+        .where(
+            Transaction.is_internal.is_(False),
+            Transaction.amount_cents < 0,
+            Transaction.booked_on >= start, Transaction.booked_on < end,
+        )
+    ).all()
+
+    period_fixed = 0
+    period_variable = 0
+    variable_by_category: dict[str, dict] = {}
+    for tx_id, amount, name, color in rows:
+        if tx_id in committed_ids:
+            period_fixed += abs(amount)
+            continue
+        period_variable += abs(amount)
+        key = name or "Zonder categorie"
+        entry = variable_by_category.setdefault(
+            key, {"name": key, "color": color or "#94a3b8", "amount": 0, "transactions": 0}
+        )
+        entry["amount"] += abs(amount)
+        entry["transactions"] += 1
+
+    for entry in variable_by_category.values():
+        entry["amount"] = entry["amount"] / 100
+
+    income = db.scalar(
+        select(func.coalesce(func.sum(Transaction.amount_cents), 0)).where(
+            Transaction.is_internal.is_(False),
+            Transaction.amount_cents > 0,
+            Transaction.booked_on >= start, Transaction.booked_on < end,
+        )
+    ) or 0
+
+    total_spend = period_fixed + period_variable
+    return {
+        "period": {"year": year, "month": month, "start": start.isoformat(), "end": end.isoformat()},
+        "monthly_commitment": round(fixed_monthly, 2),
+        "items": items,
+        "fixed_by_category": sorted(
+            ({"name": k, "amount": round(v, 2)} for k, v in fixed_by_category.items()),
+            key=lambda entry: -entry["amount"],
+        ),
+        "period_fixed": period_fixed / 100,
+        "period_variable": period_variable / 100,
+        "period_total": total_spend / 100,
+        "share_fixed": round(100 * period_fixed / total_spend, 1) if total_spend else None,
+        "income": income / 100,
+        "fixed_share_of_income": round(100 * period_fixed / income, 1) if income else None,
+        "left_after_fixed": (income - period_fixed) / 100,
+        "variable_by_category": sorted(
+            variable_by_category.values(), key=lambda entry: -entry["amount"]
+        )[:12],
+        "excluded_recurring": len(groups) - len(committed),
+    }
+
+
 @router.get("/fixed-variable")
 def fixed_variable(
     db: Session = Depends(get_db),
@@ -681,7 +789,7 @@ def available(
     # detection also finds the supermarket and the takeaway — those repeat, but
     # nobody is going to collect them, and counting them as money already spoken
     # for makes the free figure look far worse than it is.
-    groups = [g for g in recurring.detect(db, config) if g.is_active and g.creditor_id]
+    groups = [g for g in recurring.detect(db, config) if g.is_active and g.is_committed]
     upcoming = []
     for group in groups:
         if any(start <= value < end for value in group.dates):

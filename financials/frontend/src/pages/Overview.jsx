@@ -7,6 +7,7 @@ import {
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import AvailablePanel from "../components/AvailablePanel.jsx";
+import CostStructure from "../components/CostStructure.jsx";
 import { money } from "../format.js";
 
 const MONTHS = [
@@ -40,9 +41,10 @@ export default function Overview() {
       api.uncategorised(5),
       api.yearOverYear(4),
       api.availableThisPeriod(period || {}),
+      api.costStructure(period || {}),
     ])
-      .then(([summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available]) => {
-        setData({ summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available });
+      .then(([summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available, costs]) => {
+        setData({ summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available, costs });
         if (!period) setPeriod({ year: summary.year, month: summary.month });
       })
       .catch((e) => setError(e.message))
@@ -56,7 +58,7 @@ export default function Overview() {
   };
 
   if (loading && !data.summary) return <Spinner label="Overzicht laden…" />;
-  const { summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available } = data;
+  const { summary, cashflow, categories, incomeCategories, balances, fixed, counterparties, todo, yoy, available, costs } = data;
   if (!summary) return <Empty>Nog geen gegevens. Importeer eerst een CSV-bestand.</Empty>;
 
 
@@ -144,7 +146,7 @@ export default function Overview() {
         />
       </section>
 
-      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+      <section className="mb-6">
         <div className="card">
           <h3 className="mb-1 font-semibold">Saldoverloop</h3>
           <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
@@ -175,25 +177,9 @@ export default function Overview() {
           </ResponsiveContainer>
         </div>
 
-        <div className="card">
-          <h3 className="mb-1 font-semibold">Vaste versus variabele lasten</h3>
-          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-            {fixed.recurring_count} terugkerende betalingen herkend, samen{" "}
-            <strong>{money(fixed.monthly_commitment)}</strong> per maand aan vaste verplichtingen.
-          </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={fixed.months}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
-              <Tooltip formatter={(v) => money(v)} />
-              <Legend />
-              <Bar dataKey="fixed" name="Vast" stackId="a" fill="#6366f1" />
-              <Bar dataKey="variable" name="Variabel" stackId="a" fill="#c7d2fe" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </section>
+
+      <CostStructure data={costs} trend={fixed} />
 
       <section className="card mb-6">
         <h3 className="mb-1 font-semibold">Jaar op jaar</h3>

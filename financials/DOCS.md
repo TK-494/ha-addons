@@ -229,6 +229,29 @@ Bovenaan het overzicht staat een balk met vier dingen:
 
 Klik op *Hoe is dit berekend?* voor de som en de lijst met verwachte incasso's.
 
+## Vaste en variabele lasten
+
+Op het overzicht staat een blok dat je uitgaven in tweeën deelt, met bovenaan drie getallen: wat er
+deze periode vastlag, wat variabel was, en wat je van je inkomen overhoudt als de vaste lasten eraf
+zijn. De balk eronder laat in één oogopslag zien hoeveel van elke euro vastligt.
+
+Daaronder staat het belangrijkste: **welke** posten dat zijn. Huur, lening, zorgverzekering, energie,
+telefoon — met bedrag per maand, hoe vaak ze komen, en een melding als het bedrag veranderd is. Naast
+die lijst zie je waar het variabele geld heen ging, per categorie.
+
+### Wanneer telt iets als vast?
+
+Niet elke terugkerende betaling is een vaste last. De supermarkt komt ook elke week terug, maar die
+kun je overslaan. Een kost telt als vast wanneer:
+
+- er een **incassomachtiging** op zit — dan wordt het hoe dan ook afgeschreven, ook als het bedrag
+  schommelt zoals bij een verzekeringspremie of een aflossing; of
+- het **elke keer hetzelfde bedrag** is (binnen 15%), wat abonnementen op je creditcard vangt zoals
+  YouTube Premium.
+
+Alles wat wel terugkeert maar wisselt en niet geïncasseerd wordt — tankbeurten, thuisbezorgd,
+motorkleding — staat aan de variabele kant. Onderaan het blok zie je hoeveel posten dat zijn.
+
 ## Salaris
 
 Het tabblad **Salaris** verzamelt al je loonbetalingen op één plek, zodat je ze niet hoeft op te
@@ -318,7 +341,30 @@ Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag, 
 die je zelf kiest. Dit is alleen een weergave-instelling — je kunt vrij wisselen, er wordt niets
 opnieuw ingelezen.
 
-### Salarisdag: de échte datum, niet een vaste dag
+### Vaste en variabele lasten
+
+Op het overzicht staat een blok dat je uitgaven in tweeën deelt, met bovenaan drie getallen: wat er
+deze periode vastlag, wat variabel was, en wat je van je inkomen overhoudt als de vaste lasten eraf
+zijn. De balk eronder laat in één oogopslag zien hoeveel van elke euro vastligt.
+
+Daaronder staat het belangrijkste: **welke** posten dat zijn. Huur, lening, zorgverzekering, energie,
+telefoon — met bedrag per maand, hoe vaak ze komen, en een melding als het bedrag veranderd is. Naast
+die lijst zie je waar het variabele geld heen ging, per categorie.
+
+### Wanneer telt iets als vast?
+
+Niet elke terugkerende betaling is een vaste last. De supermarkt komt ook elke week terug, maar die
+kun je overslaan. Een kost telt als vast wanneer:
+
+- er een **incassomachtiging** op zit — dan wordt het hoe dan ook afgeschreven, ook als het bedrag
+  schommelt zoals bij een verzekeringspremie of een aflossing; of
+- het **elke keer hetzelfde bedrag** is (binnen 15%), wat abonnementen op je creditcard vangt zoals
+  YouTube Premium.
+
+Alles wat wel terugkeert maar wisselt en niet geïncasseerd wordt — tankbeurten, thuisbezorgd,
+motorkleding — staat aan de variabele kant. Onderaan het blok zie je hoeveel posten dat zijn.
+
+## Salarisdag: de échte datum, niet een vaste dag
 
 Een werkgever betaalt op een vaste datum, maar schuift die als hij in het weekend valt of rond de
 feestdagen. Bij een vaste grens op de 25e belandt het salaris in al die maanden in de *vorige*
