@@ -99,6 +99,35 @@ laat de app hem met rust:
 Wil je toch alles gelijktrekken met de regels, dan is daar één knop voor: *Ook handmatige keuzes
 overschrijven…*. Die vraagt eerst hoeveel van jouw keuzes eraan gaan en doet niets tot je bevestigt.
 
+### Een suggestie na het handmatig categoriseren
+
+Zet je zelf een categorie op een transactie, dan kijkt de app of dat vaker voorkomt. Staan er nog
+meer van dezelfde tegenpartij zonder categorie, dan verschijnt bovenaan:
+
+> Er staan nog **78** transacties van `WOONSTICHTING TRIADA` zonder categorie. Zal ik die ook
+> **Wonen** maken?
+
+Met daarbij een knop per bestaande regel voor die categorie. Klik je die aan, dan wordt het patroon
+aan die regel toegevoegd — er komt géén nieuwe regel bij. Dat is precies het verschil: zonder dit
+groeit je regellijst met elke correctie, en krijg je uiteindelijk drie losse McDonald's-regels.
+
+Je eigen regels staan bovenaan, daarna regels die al meerdere patronen verzamelen. Past het nergens
+bij, dan is *Liever een nieuwe regel* er nog.
+
+### Een regel met meerdere patronen
+
+Een regel bevat één patroon per regel tekst. Alle patronen delen dezelfde categorie en prioriteit,
+dus varianten van dezelfde winkel horen bij elkaar:
+
+```
+McDonald
+Mc Donald's
+MCDONALDS
+```
+
+In de lijst zie je het eerste patroon met daarachter hoeveel er nog meer zijn. Klik erop om ze alle
+te bewerken.
+
 ### Een regel aanpassen
 
 Klik op de waarde van een regel, of op **Bewerken**. Je kunt alles wijzigen: de categorie, waar hij

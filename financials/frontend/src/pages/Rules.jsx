@@ -121,13 +121,20 @@ function RuleEditor({ rule, categories, onClose, onSaved, onError }) {
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="label">Waarde</label>
-            <input
-              className="input font-mono"
+            <label className="label">
+              Patronen — één per regel
+              {form.value.split("\n").filter((v) => v.trim()).length > 1 &&
+                ` (${form.value.split("\n").filter((v) => v.trim()).length})`}
+            </label>
+            <textarea
+              className="input h-24 font-mono"
               value={form.value}
-              maxLength={200}
               onChange={(e) => setForm({ ...form, value: e.target.value })}
             />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Elke regel is een alternatief. Ze delen dezelfde categorie en prioriteit, dus varianten
+              van dezelfde winkel horen hier bij elkaar in plaats van in losse regels.
+            </p>
             {trailingSpace && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                 Deze waarde heeft een spatie aan het begin of eind — dat is bewust bruikbaar
@@ -597,11 +604,16 @@ export default function Rules() {
                   <td className="td">{FIELDS[rule.field] || rule.field}</td>
                   <td className="td">
                     <button
-                      className="font-mono text-xs hover:underline"
+                      className="text-left font-mono text-xs hover:underline"
                       title="Regel bewerken"
                       onClick={() => setEditRule(rule)}
                     >
-                      {rule.value}
+                      {rule.value.split("\n")[0]}
+                      {rule.value.split("\n").filter((v) => v.trim()).length > 1 && (
+                        <span className="ml-1 text-slate-500">
+                          +{rule.value.split("\n").filter((v) => v.trim()).length - 1}
+                        </span>
+                      )}
                     </button>
                   </td>
                   <td className="td">{rule.category_name}</td>

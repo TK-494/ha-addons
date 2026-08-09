@@ -296,3 +296,95 @@ def test_unused_rules_are_only_computed_on_request(client):
     report = client.get("/api/rules/conflicts", params={"include_unused": True}).json()
     assert report["unused_checked"] is True
     assert any(item["value"] == "ryanair" for item in report["unused"])
+
+
+# ─── suggestions after a manual categorisation ──────────────────────────────
+
+def test_a_manual_category_suggests_a_pattern_and_its_reach(client):
+    import_fixture(client, "rabobank_current.csv")
+    items = client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+    target = next(i for i in items if "Supermarkt" in (i["counter_name"] or ""))
+    client.patch(f"/api/transactions/{target['id']}/category",
+                 json={"category_id": category_id(client, "Boodschappen")})
+
+    suggestion = client.get(f"/api/transactions/{target['id']}/rule-suggestions").json()
+    assert suggestion["applicable"] is True
+    assert suggestion["pattern"] == target["counter_name"]
+    assert suggestion["field"] == "counter_name"
+    assert suggestion["similar_transactions"] >= 1
+
+
+def test_no_suggestion_without_a_category(client):
+    import_fixture(client, "rabobank_current.csv")
+    items = client.get("/api/transactions/", params={"uncategorised": True}).json()["items"]
+    if not items:
+        return
+    result = client.get(f"/api/transactions/{items[0]['id']}/rule-suggestions").json()
+    assert result["applicable"] is False
+
+
+def test_your_own_rules_are_offered_before_the_seeded_ones(client):
+    """Filing a landlord under the seeded "hypotheek" rule is valid and
+    obviously wrong; a rule you wrote yourself is the better home."""
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    mine = client.post("/api/rules/", json={
+        "category_id": wonen, "value": "mijn-eigen-woonregel", "field": "counter_name", "priority": 40,
+    }).json()["id"]
+
+    items = client.get("/api/transactions/", params={"page_size": 50}).json()["items"]
+    target = next(i for i in items if i["counter_name"])
+    client.patch(f"/api/transactions/{target['id']}/category", json={"category_id": wonen})
+
+    suggestion = client.get(f"/api/transactions/{target['id']}/rule-suggestions").json()
+    assert suggestion["existing_rules"][0]["rule_id"] == mine
+
+
+def test_adding_a_pattern_extends_the_rule_instead_of_making_a_new_one(client):
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    rule_id = client.post("/api/rules/", json={
+        "category_id": wonen, "value": "eerste", "field": "counter_name", "priority": 40,
+    }).json()["id"]
+
+    before = len(client.get("/api/rules/").json())
+    result = client.post(f"/api/transactions/rules/{rule_id}/add-pattern",
+                         json={"pattern": "Verhuurder"}).json()
+
+    assert result["added"] is True
+    assert result["patterns"] == ["eerste", "Verhuurder"]
+    assert len(client.get("/api/rules/").json()) == before, "no near-duplicate rule was created"
+
+
+def test_a_multi_pattern_rule_matches_on_every_pattern(client):
+    import_fixture(client, "rabobank_current.csv")
+    wonen = category_id(client, "Wonen")
+    rule_id = client.post("/api/rules/", json={
+        "category_id": wonen, "value": "onzin", "field": "counter_name", "priority": 2,
+    }).json()["id"]
+    client.post(f"/api/transactions/rules/{rule_id}/add-pattern", json={"pattern": "Verhuurder"})
+
+    tagged = client.get("/api/transactions/", params={"category_id": wonen}).json()
+    assert any("Verhuurder" in (i["counter_name"] or "") for i in tagged["items"])
+
+
+def test_adding_the_same_pattern_twice_is_a_no_op(client):
+    import_fixture(client, "rabobank_current.csv")
+    rule_id = client.post("/api/rules/", json={
+        "category_id": category_id(client, "Wonen"), "value": "eerste", "priority": 40,
+    }).json()["id"]
+
+    client.post(f"/api/transactions/rules/{rule_id}/add-pattern", json={"pattern": "tweede"})
+    again = client.post(f"/api/transactions/rules/{rule_id}/add-pattern", json={"pattern": "TWEEDE"}).json()
+    assert again["added"] is False
+    assert len(again["patterns"]) == 2
+
+
+def test_a_pattern_keeps_its_trailing_space_when_appended(client):
+    import_fixture(client, "rabobank_current.csv")
+    rule_id = client.post("/api/rules/", json={
+        "category_id": category_id(client, "Wonen"), "value": "eerste", "priority": 40,
+    }).json()["id"]
+    result = client.post(f"/api/transactions/rules/{rule_id}/add-pattern",
+                         json={"pattern": "ns "}).json()
+    assert result["patterns"][-1] == "ns "

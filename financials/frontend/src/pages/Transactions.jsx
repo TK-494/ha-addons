@@ -32,6 +32,7 @@ export default function Transactions() {
   const [noteFor, setNoteFor] = useState(null);
   const [tagFor, setTagFor] = useState(null);
   const [splitFor, setSplitFor] = useState(null);
+  const [suggestion, setSuggestion] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,6 +70,17 @@ export default function Transactions() {
     try {
       await api.setCategory(id, categoryId ? Number(categoryId) : null);
       load();
+      if (!categoryId) { setSuggestion(null); return; }
+
+      // One manual fix usually stands for a dozen identical rows. Offering to
+      // fold it into an existing rule is what keeps the rule list from growing
+      // a near-duplicate for every correction.
+      const result = await api.ruleSuggestions(id);
+      setSuggestion(
+        result.applicable && !result.already_covered && result.uncategorised_like_this > 0
+          ? result
+          : null
+      );
     } catch (e) {
       setError(e.message);
     }
@@ -101,6 +113,62 @@ export default function Transactions() {
 
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
       {notice && <Alert kind="success" onDismiss={() => setNotice(null)}>{notice}</Alert>}
+
+      {suggestion && (
+        <Alert kind="info" onDismiss={() => setSuggestion(null)}>
+          <p className="mb-2">
+            Er staan nog <strong>{suggestion.uncategorised_like_this}</strong> transacties van{" "}
+            <code>{suggestion.pattern}</code> zonder categorie. Zal ik die ook{" "}
+            <strong>{suggestion.category_name}</strong> maken?
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {suggestion.existing_rules.map((rule) => (
+              <button
+                key={rule.rule_id}
+                className="btn-primary"
+                title={
+                  `Voegt het patroon toe aan een bestaande regel met ${rule.patterns.length} ` +
+                  `patroon${rule.patterns.length === 1 ? "" : "en"}: ${rule.patterns.slice(0, 3).join(", ")}` +
+                  (rule.broader ? " — die regel kijkt ook naar de omschrijving" : "")
+                }
+                onClick={async () => {
+                  try {
+                    const result = await api.addPatternToRule(rule.rule_id, suggestion.pattern);
+                    setNotice(
+                      `Toegevoegd aan een bestaande regel (${result.patterns.length} patronen); ` +
+                      `${result.updated} transacties bijgewerkt.`
+                    );
+                    setSuggestion(null);
+                    load();
+                  } catch (e) {
+                    setError(e.message);
+                  }
+                }}
+              >
+                Toevoegen aan regel «{rule.patterns[0]}»
+                {rule.patterns.length > 1 && ` +${rule.patterns.length - 1}`}
+              </button>
+            ))}
+            <button
+              className="btn-ghost"
+              onClick={() => {
+                const tx = data?.items.find((i) => i.category_id === suggestion.category_id
+                  && (i.counter_name === suggestion.pattern || i.description === suggestion.pattern));
+                setRuleFor(tx || data?.items[0]);
+                setSuggestion(null);
+              }}
+            >
+              Liever een nieuwe regel
+            </button>
+          </div>
+          {suggestion.existing_rules.length === 0 && (
+            <p className="mt-1 text-xs">
+              Er is nog geen regel voor {suggestion.category_name} waar dit bij past — maak er een
+              nieuwe voor.
+            </p>
+          )}
+        </Alert>
+      )}
 
       <section className="card mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2">

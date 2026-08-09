@@ -294,23 +294,52 @@ class CompiledRule:
     category_id: int
 
 
-def compile_rules(db: Session) -> list[CompiledRule]:
-    """Load active rules once per import instead of per row — 9k rows against
-    a few hundred rules is the difference between instant and a minute."""
-    stmt = select(Rule).where(Rule.active.is_(True)).order_by(Rule.priority, Rule.id)
+def patterns_of(rule: Rule) -> list[str]:
+    """A rule holds one pattern per line.
+
+    Manually fixing a category used to mean a new rule every time, which is how
+    a rule list grows to three separate McDonald's entries. Alternatives now
+    live together in one rule, sharing its category and priority.
+
+    Values are not stripped: a leading or trailing space is part of the
+    pattern. Only the line breaks that separate them are removed.
+    """
+    return [line for line in (rule.value or "").split("\n") if line.strip()]
+
+
+def compile_rules_for(rule: Rule) -> list[CompiledRule]:
+    """Compile a single rule — used to ask "does this one already cover it?"."""
     return [
         CompiledRule(
-            field=r.field,
-            operator=r.operator,
-            needle=r.value.lower().strip(),
-            amount_min=r.amount_min_cents,
-            amount_max=r.amount_max_cents,
-            account_id=r.account_id,
-            category_id=r.category_id,
+            field=rule.field, operator=rule.operator, needle=pattern.lower(),
+            amount_min=rule.amount_min_cents, amount_max=rule.amount_max_cents,
+            account_id=rule.account_id, category_id=rule.category_id,
         )
-        for r in db.scalars(stmt).all()
-        if r.value and r.value.strip()
+        for pattern in patterns_of(rule)
     ]
+
+
+def compile_rules(db: Session) -> list[CompiledRule]:
+    """Load active rules once per import instead of per row — 9k rows against
+    a few hundred rules is the difference between instant and a minute.
+
+    A rule with several patterns compiles to several entries in a row, so the
+    first-match-wins evaluation downstream needs no knowledge of grouping.
+    """
+    stmt = select(Rule).where(Rule.active.is_(True)).order_by(Rule.priority, Rule.id)
+    compiled: list[CompiledRule] = []
+    for r in db.scalars(stmt).all():
+        for pattern in patterns_of(r):
+            compiled.append(CompiledRule(
+                field=r.field,
+                operator=r.operator,
+                needle=pattern.lower(),
+                amount_min=r.amount_min_cents,
+                amount_max=r.amount_max_cents,
+                account_id=r.account_id,
+                category_id=r.category_id,
+            ))
+    return compiled
 
 
 def _haystack(tx: Transaction, field: str) -> str:

@@ -123,7 +123,9 @@ class Rule(Base):
     field: Mapped[str] = mapped_column(String(20), default="any")
     # contains | equals | startswith
     operator: Mapped[str] = mapped_column(String(12), default="contains")
-    value: Mapped[str] = mapped_column(String(200))
+    # One pattern per line. Keeping alternatives in a single rule is what stops
+    # every manual correction from spawning another near-duplicate.
+    value: Mapped[str] = mapped_column(Text)
     amount_min_cents: Mapped[Optional[int]] = mapped_column(Integer)
     amount_max_cents: Mapped[Optional[int]] = mapped_column(Integer)
     account_id: Mapped[Optional[int]] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))

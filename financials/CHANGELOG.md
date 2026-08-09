@@ -1,5 +1,24 @@
 # Changelog — Financials
 
+## 0.10.0 — 2026-08-09
+
+### Nieuw
+- **Een regel kan meerdere patronen bevatten**, één per regel tekst, met dezelfde categorie en
+  prioriteit. Varianten van dezelfde winkel horen daarmee bij elkaar in plaats van in losse regels.
+- **Suggestie na handmatig categoriseren.** Zijn er meer transacties van dezelfde tegenpartij zonder
+  categorie, dan biedt de app aan het patroon toe te voegen aan een *bestaande* regel voor die
+  categorie. Zonder dat groeit de regellijst met elke correctie: op een echte set van 544 regels
+  waren er 168 zelfgemaakt, waaronder drie aparte McDonald's-varianten en tien motorzaken.
+- Je eigen regels worden als eerste voorgesteld, daarna regels die al meerdere patronen verzamelen.
+  Een geseede regel met alleen `hypotheek` aanbieden als plek voor je huisbaas is technisch juist en
+  duidelijk verkeerd.
+
+### Techniek
+- De regel-engine compileert een regel naar één vergelijking per patroon, dus de
+  eerste-passende-wint-volgorde downstream verandert niet.
+- Patronen behouden hun spaties; alleen de regeleindes die ze scheiden worden verwijderd.
+- 181 tests.
+
 ## 0.9.0 — 2026-08-09
 
 ### Nieuw

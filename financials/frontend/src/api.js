@@ -112,6 +112,9 @@ export const api = {
       method: "POST",
       body: { transaction_ids: ids, category_id: categoryId },
     }),
+  ruleSuggestions: (id) => request(`/transactions/${id}/rule-suggestions`),
+  addPatternToRule: (ruleId, pattern) =>
+    request(`/transactions/rules/${ruleId}/add-pattern`, { method: "POST", body: { pattern } }),
   rulePreview: (id, field, value) => request(`/transactions/${id}/rule-preview`, { params: { field, value } }),
   createRuleFrom: (id, payload) => request(`/transactions/${id}/rule`, { method: "POST", body: payload }),
   setNote: (id, note) => request(`/transactions/${id}/note`, { method: "PATCH", body: { note } }),

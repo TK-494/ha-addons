@@ -262,6 +262,126 @@ def bulk_category(payload: BulkCategory, db: Session = Depends(get_db)):
     return {"updated": updated}
 
 
+@router.get("/{tx_id}/rule-suggestions")
+def rule_suggestions(tx_id: int, db: Session = Depends(get_db)):
+    """After you categorise something by hand: what could be automated, and
+    which rule should absorb it.
+
+    The default answer used to be "make a new rule", which is how a rule list
+    ends up with three separate McDonald's entries. Existing rules for the same
+    category are offered first, so the pattern joins one of them instead.
+    """
+    tx = db.get(Transaction, tx_id)
+    if tx is None:
+        raise HTTPException(404, "Transactie niet gevonden.")
+    if tx.category_id is None:
+        return {"applicable": False, "reason": "Deze transactie heeft geen categorie."}
+
+    # The counterparty is the stable handle; the description carries dates,
+    # terminal numbers and city names that differ per payment.
+    pattern = (tx.counter_name or tx.description or "").strip()
+    field = "counter_name" if tx.counter_name.strip() else "description"
+    if len(pattern) < 3:
+        return {"applicable": False, "reason": "Te weinig tekst om een regel op te bouwen."}
+    pattern = pattern[:60]
+
+    needle = f"%{pattern.lower()}%"
+    column = Transaction.counter_name if field == "counter_name" else Transaction.description
+    similar = db.scalar(
+        select(func.count()).select_from(Transaction)
+        .where(func.lower(column).like(needle), Transaction.is_internal.is_(False))
+    ) or 0
+    uncategorised = db.scalar(
+        select(func.count()).select_from(Transaction).where(
+            func.lower(column).like(needle),
+            Transaction.is_internal.is_(False),
+            Transaction.category_id.is_(None),
+        )
+    ) or 0
+
+    already_covered = any(
+        rule.category_id == tx.category_id and rule.active
+        and categorize.match_rule(tx, [c])
+        for rule in db.scalars(select(Rule).where(Rule.category_id == tx.category_id)).all()
+        for c in categorize.compile_rules_for(rule)
+    )
+
+    candidates = [
+        {
+            "rule_id": rule.id,
+            "field": rule.field,
+            "operator": rule.operator,
+            "priority": rule.priority,
+            "patterns": categorize.patterns_of(rule),
+            "origin": rule.origin,
+            # An "any" rule searches description *and* counterparty, so a
+            # counterparty pattern slots into it without loss — it just also
+            # matches the description, which is worth saying out loud.
+            "compatible": rule.operator == "contains" and rule.field in ("any", field),
+            "broader": rule.field == "any" and field != "any",
+        }
+        for rule in db.scalars(
+            select(Rule)
+            .where(Rule.category_id == tx.category_id, Rule.active.is_(True))
+            .order_by(Rule.priority, Rule.id)
+        ).all()
+    ]
+    compatible = [c for c in candidates if c["compatible"]]
+
+    return {
+        "applicable": True,
+        "already_covered": already_covered,
+        "category_id": tx.category_id,
+        "category_name": tx.category.name if tx.category else None,
+        "field": field,
+        "pattern": pattern,
+        "similar_transactions": similar,
+        "uncategorised_like_this": uncategorised,
+        # Your own rules first, then the ones that already collect several
+        # alternatives. Offering the seeded single-keyword "hypotheek" rule as
+        # the place to file your landlord is technically valid and obviously
+        # wrong.
+        "existing_rules": sorted(
+            compatible,
+            key=lambda c: (c["origin"] == "seed", -len(c["patterns"]), c["priority"]),
+        )[:5],
+        "other_rules_for_category": len(candidates) - len(compatible),
+    }
+
+
+class AddPattern(BaseModel):
+    pattern: str = Field(..., min_length=2, max_length=200)
+    apply_to_existing: bool = True
+
+
+@router.post("/rules/{rule_id}/add-pattern")
+def add_pattern(rule_id: int, payload: AddPattern, db: Session = Depends(get_db)):
+    """Append a pattern to a rule instead of creating a near-duplicate."""
+    rule = db.get(Rule, rule_id)
+    if rule is None:
+        raise HTTPException(404, "Regel niet gevonden.")
+
+    existing = categorize.patterns_of(rule)
+    if any(p.lower() == payload.pattern.lower() for p in existing):
+        return {"rule_id": rule.id, "added": False, "patterns": existing, "updated": 0}
+
+    rule.value = "\n".join(existing + [payload.pattern])
+    db.commit()
+
+    updated = 0
+    if payload.apply_to_existing:
+        rules = categorize.compile_rules(db)
+        updated = categorize.apply_rules(db, db.scalars(select(Transaction)).all(), rules)
+        db.commit()
+
+    return {
+        "rule_id": rule.id,
+        "added": True,
+        "patterns": categorize.patterns_of(rule),
+        "updated": updated,
+    }
+
+
 class RuleFromTransaction(BaseModel):
     category_id: int
     field: Literal["any", "description", "counter_name", "counter_iban", "creditor_id"] = "counter_name"

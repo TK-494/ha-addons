@@ -190,6 +190,7 @@ def preview_rule(
         "bank_code": [Transaction.bank_code],
     }.get(field, [Transaction.description, Transaction.counter_name, Transaction.ultimate_party])
 
+    # The value may hold several patterns, one per line; count them together.
     needle = value.lower()
     if operator == "equals":
         pattern = needle
