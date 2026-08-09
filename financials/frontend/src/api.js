@@ -74,6 +74,10 @@ export const api = {
   uncategorised: (limit) => request("/dashboard/uncategorised", { params: { limit } }),
   availableThisPeriod: (params) => request("/dashboard/available", { params }),
 
+  salary: (limit) => request("/salary/", { params: { limit } }),
+  applySalaryTemplate: (transactionId) =>
+    request("/salary/apply-template", { method: "POST", body: { transaction_id: transactionId } }),
+
   getSplit: (id) => request(`/splits/${id}`),
   setSplit: (id, parts) => request(`/splits/${id}`, { method: "PUT", body: { parts } }),
   clearSplit: (id) => request(`/splits/${id}`, { method: "DELETE" }),

@@ -1,5 +1,24 @@
 # Changelog — Financials
 
+## 0.11.0 — 2026-08-09
+
+### Nieuw
+- **Tabblad Salaris**: al je loonbetalingen bij elkaar, met per betaling de opbouw in vast en
+  variabel, een gemiddelde over de laatste twaalf, en een gestapelde grafiek waarin de maand met
+  vakantiegeld er direct uitspringt.
+- **Sjabloon**: de laatst gemaakte verdeling wordt hergebruikt. De vaste delen blijven gelijk en het
+  verschil landt op het variabele deel — je basissalaris is elke maand hetzelfde, de vergoeding is
+  wat wisselt. Ook in één klik op alle nog niet verdeelde betalingen toe te passen.
+- Weigert het sjabloon toe te passen als de vaste delen samen groter zijn dan die betaling, in plaats
+  van een verdeling te maken die niet klopt.
+
+### Fixed
+- De salaris-route riep zichzelf intern aan als gewone functie, waardoor FastAPI's `Query`-object in
+  plaats van het getal in de query terechtkwam en de fout ver van de oorzaak opdook.
+
+### Techniek
+- 191 tests.
+
 ## 0.10.0 — 2026-08-09
 
 ### Nieuw

@@ -20,7 +20,8 @@ from . import config
 from .database import Base, SessionLocal, apply_migrations, engine
 from .parsers import ParseError
 from .routers import (
-    accounts, budgets, categories, dashboard, imports, settings, splits, tags, transactions,
+    accounts, budgets, categories, dashboard, imports, salary, settings, splits, tags,
+    transactions,
 )
 from .security import contained_path, mask_iban, security_headers_middleware
 from .services import ha
@@ -112,6 +113,7 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
 app.include_router(splits.router, prefix="/api")
+app.include_router(salary.router, prefix="/api")
 
 
 @app.exception_handler(ParseError)

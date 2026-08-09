@@ -229,6 +229,32 @@ Bovenaan het overzicht staat een balk met vier dingen:
 
 Klik op *Hoe is dit berekend?* voor de som en de lijst met verwachte incasso's.
 
+## Salaris
+
+Het tabblad **Salaris** verzamelt al je loonbetalingen op één plek, zodat je ze niet hoeft op te
+zoeken tussen duizenden transacties. Je ziet per betaling het bedrag, en zodra je hem verdeeld hebt
+ook hoeveel daarvan vast was en hoeveel variabel.
+
+Bovenaan staat het gemiddelde over de laatste twaalf betalingen, uitgesplitst in vast en variabel,
+plus hoeveel betalingen je al verdeeld hebt. De grafiek toont de opbouw per maand — daar zie je in
+één oogopslag de maand met vakantiegeld eruit springen.
+
+### Sjabloon
+
+Zodra je één loonbetaling verdeeld hebt, wordt die verdeling het sjabloon voor de rest. Klik op
+**Sjabloon** bij een betaling en de vaste delen worden overgenomen; het verschil komt automatisch op
+het variabele deel terecht. Dat is precies goed, want je basissalaris is elke maand hetzelfde en de
+vergoeding is wat wisselt.
+
+Met **Sjabloon op alle … toepassen** doe je in één keer alle betalingen die nog niet verdeeld zijn.
+
+Zijn de vaste delen samen groter dan een bepaalde betaling — bijvoorbeeld een maand met minder
+uren — dan weigert de app dat en moet je die maand handmatig verdelen. Een verdeling die niet klopt
+is erger dan geen verdeling.
+
+Een nog niet verdeelde betaling telt volledig als vast inkomen. Dat is wat er bekend is, geen
+bewering dat er geen vergoeding in zat.
+
 ## Vast en variabel inkomen
 
 Je loonstrook is één bankregel, maar bestaat uit meerdere delen: basissalaris plus reiskosten- en

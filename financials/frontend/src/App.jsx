@@ -6,6 +6,7 @@ import Accounts from "./pages/Accounts.jsx";
 import CategoryDetail from "./pages/CategoryDetail.jsx";
 import Recurring from "./pages/Recurring.jsx";
 import Budgets from "./pages/Budgets.jsx";
+import Salary from "./pages/Salary.jsx";
 import Counterparty from "./pages/Counterparty.jsx";
 import Tags from "./pages/Tags.jsx";
 import Rules from "./pages/Rules.jsx";
@@ -14,6 +15,7 @@ import Settings from "./pages/Settings.jsx";
 const NAV = [
   { to: "/overzicht", label: "Overzicht", icon: "◧" },
   { to: "/transacties", label: "Transacties", icon: "≡" },
+  { to: "/salaris", label: "Salaris", icon: "€" },
   { to: "/budget", label: "Budget", icon: "◑" },
   { to: "/terugkerend", label: "Terugkerend", icon: "↻" },
   { to: "/labels", label: "Labels", icon: "◆" },
@@ -74,6 +76,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/overzicht" replace />} />
           <Route path="/overzicht" element={<Overview />} />
           <Route path="/transacties" element={<Transactions />} />
+          <Route path="/salaris" element={<Salary />} />
           <Route path="/budget" element={<Budgets />} />
           <Route path="/terugkerend" element={<Recurring />} />
           <Route path="/categorie/:id" element={<CategoryDetail />} />
