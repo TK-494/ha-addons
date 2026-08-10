@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import CategoryDonut from "../components/CategoryDonut.jsx";
-import { money, shortDate } from "../format.js";
+import { axisMoney, money, shortDate } from "../format.js";
 
 /**
  * One page, two tabs: fixed expenses and variable expenses.
@@ -165,7 +165,7 @@ export default function Expenses({ kind }) {
                 <BarChart data={data.trend}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <XAxis dataKey="label" fontSize={11} />
-                  <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
+                  <YAxis fontSize={11} tickFormatter={axisMoney} />
                   <Tooltip formatter={(v) => money(v)} />
                   <Bar dataKey="amount" name={copy.title} fill={copy.bar} radius={[3, 3, 0, 0]} />
                 </BarChart>

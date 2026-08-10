@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Alert, PageHeader, Spinner } from "../components/Bits.jsx";
-import { money, shortDate } from "../format.js";
+import { maskAccount, money, shortDate } from "../format.js";
 import { THEMES, applyTheme } from "../theme.js";
 
 const MODES = [
@@ -227,7 +227,7 @@ export default function Settings() {
                   onChange={(e) => saveSalary({ account_id: e.target.value ? Number(e.target.value) : null })}
                 >
                   <option value="">Alle rekeningen</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{maskAccount(a.label)}</option>)}
                 </select>
               </div>
             </div>

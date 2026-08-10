@@ -400,6 +400,19 @@ Je kunt daar dashboardkaarten en automatiseringen op bouwen — bijvoorbeeld een
 uitgaven deze maand boven een bedrag komen. De waarden worden bijgewerkt na elke import en verder
 elk half uur.
 
+## Privacymodus
+
+Wil je de app laten zien zonder je cijfers te laten zien, klik dan op het **oogje** bovenaan de
+zijbalk — of druk op **P**. Alle bedragen worden dan `€ ••••` en van je rekeningnummers blijven
+alleen de laatste vier cijfers over. Grafieken blijven staan: je ziet nog wel de verhoudingen, maar
+niet meer de bedragen erbij.
+
+Nog een keer klikken (of `P`) zet het terug. De stand wordt onthouden, dus als je de pagina
+herlaadt blijft hij verborgen — de knop licht op zolang de modus aanstaat.
+
+Let op: **omschrijvingen en tegenpartijen blijven leesbaar.** Dat is bewust, anders valt er niets
+meer te laten zien. Wie meekijkt ziet dus wél waar je geweest bent, alleen niet voor hoeveel.
+
 ## Uiterlijk
 
 Onder **Instellingen → Uiterlijk** kies je een kleurenthema:

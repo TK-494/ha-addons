@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { Alert, Confirm, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
-import { bytes, dateTime, money, shortDate } from "../format.js";
+import { bytes, dateTime, maskAccount, money, shortDate } from "../format.js";
 
 /**
  * Upload → preview → confirm.
@@ -318,7 +318,7 @@ function PreviewPanel({ preview, busy, onConfirm, onCancel }) {
                 className="pill bg-slate-200 dark:bg-slate-700"
                 title={account.known ? "Bestaande rekening" : "Nieuwe rekening"}
               >
-                {account.card_last4 ? `${account.product_name || "Creditcard"} ••${account.card_last4}` : account.iban}
+                {account.card_last4 ? `${account.product_name || "Creditcard"} ••${account.card_last4}` : maskAccount(account.iban)}
                 {!account.known && <span className="text-sky-600 dark:text-sky-400">nieuw</span>}
               </span>
             ))}

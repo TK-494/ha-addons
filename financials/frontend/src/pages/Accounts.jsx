@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { money, shortDate } from "../format.js";
+import { axisMoney, maskAccount, money, shortDate } from "../format.js";
 
 const KINDS = [
   { value: "checking", label: "Betaalrekening" },
@@ -122,9 +122,9 @@ export default function Accounts() {
             <article key={account.id} className="card">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate font-semibold">{account.label}</h3>
+                  <h3 className="truncate font-semibold">{maskAccount(account.label)}</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {account.card_last4 ? `Creditcard ••${account.card_last4}` : account.iban}
+                    {account.card_last4 ? `Creditcard ••${account.card_last4}` : maskAccount(account.iban)}
                   </p>
                 </div>
                 <p className="whitespace-nowrap text-lg font-semibold">{money(account.balance)}</p>
@@ -141,7 +141,7 @@ export default function Accounts() {
                 {account.settlement_iban && (
                   <div className="col-span-2">
                     <dt className="inline">Wordt afgeschreven van: </dt>
-                    <dd className="inline">{account.settlement_iban}</dd>
+                    <dd className="inline">{maskAccount(account.settlement_iban)}</dd>
                   </div>
                 )}
               </dl>
@@ -209,7 +209,7 @@ export default function Accounts() {
             }))}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
+              <YAxis fontSize={11} tickFormatter={axisMoney} />
               <Tooltip formatter={(v) => money(v)} />
               <Line type="monotone" dataKey="Totaal" stroke="#0ea5e9" strokeWidth={2} dot={false} />
               {history.series.map((s, index) => (

@@ -8,7 +8,7 @@ import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import AvailablePanel from "../components/AvailablePanel.jsx";
 import CategoryDonut from "../components/CategoryDonut.jsx";
-import { money } from "../format.js";
+import { axisMoney, maskAccount, money } from "../format.js";
 
 const MONTHS = [
   "januari", "februari", "maart", "april", "mei", "juni",
@@ -70,7 +70,7 @@ export default function Overview() {
       >
         <select className="input w-auto" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           <option value="">Alle rekeningen (huishouden)</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          {accounts.map((a) => <option key={a.id} value={a.id}>{maskAccount(a.label)}</option>)}
         </select>
         <div className="flex items-center gap-1">
           <button className="btn-ghost" onClick={() => shift(-1)}>‹</button>
@@ -118,7 +118,7 @@ export default function Overview() {
           <BarChart data={cashflow}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
             <XAxis dataKey="label" fontSize={11} />
-            <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
+            <YAxis fontSize={11} tickFormatter={axisMoney} />
             <Tooltip formatter={(v) => money(v)} />
             <Legend />
             <Bar dataKey="income" name="Bij" fill="#10b981" radius={[3, 3, 0, 0]} />

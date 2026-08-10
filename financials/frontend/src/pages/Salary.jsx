@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
-import { money, shortDate } from "../format.js";
+import { axisMoney, money, shortDate } from "../format.js";
 
 /**
  * Every salary payment, and what each one was made of.
@@ -131,7 +131,7 @@ export default function Salary() {
             <BarChart data={chart}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => `€${Math.round(v / 100) / 10}k`} />
+              <YAxis fontSize={11} tickFormatter={axisMoney} />
               <Tooltip formatter={(v) => money(v)} />
               <Legend />
               <Bar dataKey="vast" stackId="a" fill="#15803d" />

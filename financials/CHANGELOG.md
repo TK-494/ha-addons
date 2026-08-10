@@ -1,5 +1,18 @@
 # Changelog — Financials
 
+## 0.19.0 — 2026-08-10
+
+### Nieuw
+- **Privacymodus**: knop bovenaan de zijbalk (en sneltoets **P**) die alle bedragen vervangt door
+  `€ ••••` en IBAN's inkort tot de laatste vier cijfers, zodat je de app kunt laten zien zonder je
+  cijfers te laten zien. Werkt op elk tabblad, inclusief de grafieken en hun tooltips. De stand
+  wordt onthouden, zodat een herlaadactie midden in een demo niet alsnog alles toont.
+
+### Techniek
+- Maskeren gebeurt in `format.js` (`money`, `axisMoney`, `maskAccount`) in plaats van per component,
+  zodat een nieuw scherm dat `money()` gebruikt automatisch meedoet.
+- Alle as-labels van de grafieken liepen langs een eigen formatter; die gaan nu door `axisMoney`.
+
 ## 0.18.0 — 2026-08-09
 
 ### Nieuw

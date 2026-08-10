@@ -8,7 +8,47 @@ const currency = new Intl.NumberFormat("nl-NL", {
 
 const number = new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 });
 
-export const money = (value) => currency.format(value ?? 0);
+/**
+ * Privacy mode.
+ *
+ * A module flag rather than a context: every amount in the app already goes
+ * through `money()`, so masking there covers the tables, the tooltips, the
+ * chart legends and the KPI tiles in one move — instead of threading a prop
+ * through twenty components and missing three of them.
+ *
+ * Toggling it re-renders from App, and these functions are read during render,
+ * so the whole tree follows.
+ */
+let hidden = false;
+
+export function setPrivate(value) {
+  hidden = Boolean(value);
+}
+
+export const isPrivate = () => hidden;
+
+const MASK = "€ ••••";
+
+export const money = (value) => (hidden ? MASK : currency.format(value ?? 0));
+
+/** Chart axes: same masking, but short enough to fit a tick label. */
+export const axisMoney = (value) =>
+  hidden ? "•••" : `€${Math.round((value ?? 0) / 100) / 10}k`;
+
+/**
+ * Account numbers identify a person as surely as an amount reveals a salary,
+ * so privacy mode masks them too — keeping the last four digits, which is
+ * enough to tell two accounts apart while demonstrating.
+ *
+ * Only IBAN-shaped tokens are touched, in place: an account you named
+ * "Boodschappen" is not a secret and stays readable.
+ */
+const IBAN = /\b[A-Z]{2}\d{2}[A-Z0-9]{8,26}\b/g;
+
+export function maskAccount(text) {
+  if (!hidden || !text) return text;
+  return String(text).replace(IBAN, (match) => `••••${match.slice(-4)}`);
+}
 
 export const count = (value) => number.format(value ?? 0);
 

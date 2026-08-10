@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import { Th, useColumnWidths } from "../components/DataTable.jsx";
-import { amountClass, bankCodeLabel, money, shortDate } from "../format.js";
+import { amountClass, bankCodeLabel, maskAccount, money, shortDate } from "../format.js";
 
 const EMPTY_FILTERS = {
   search: "", account_id: "", category_id: "", date_from: "", date_to: "",
@@ -205,7 +205,7 @@ export default function Transactions() {
           <label className="label">Rekening</label>
           <select className="input" value={filters.account_id} onChange={(e) => update({ account_id: e.target.value })}>
             <option value="">Alle rekeningen</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            {accounts.map((a) => <option key={a.id} value={a.id}>{maskAccount(a.label)}</option>)}
           </select>
         </div>
         <div>
@@ -403,7 +403,7 @@ export default function Transactions() {
                       </div>
                     )}
                   </td>
-                  <td className="td break-words text-xs">{tx.account_label}</td>
+                  <td className="td break-words text-xs">{maskAccount(tx.account_label)}</td>
                   <td className={`td whitespace-nowrap text-right font-medium ${amountClass(tx.amount)}`}>
                     {money(tx.amount)}
                   </td>
