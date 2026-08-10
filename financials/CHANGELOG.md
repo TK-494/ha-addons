@@ -1,5 +1,17 @@
 # Changelog — Financials
 
+## 0.19.1 — 2026-08-10
+
+### Opgelost
+- De knoppen **Verdelen / Labels / Notitie / Regel maken** liepen over het categorieveld heen. De
+  tabel heeft een vaste kolomindeling, dus wat niet in de kolom past wordt niet afgekapt maar over
+  de buurkolom heen getekend — en de actiekolom stond op 250px terwijl de vier knoppen samen 374px
+  nodig hebben (gemeten, niet geschat). De kolom is nu 380px.
+- Kolommen hebben nu een minimumbreedte, die ook geldt voor breedtes die je eerder had ingesteld.
+  Anders bleef een te smalle kolom te smal, ook na de fix.
+- Mocht een knop er ooit alsnog niet in passen, dan breken de knoppen af naar een tweede regel in
+  plaats van over de buurkolom heen te lopen. De categoriekeuze krimpt mee met zijn kolom.
+
 ## 0.19.0 — 2026-08-10
 
 ### Nieuw

@@ -13,8 +13,14 @@ const EMPTY_FILTERS = {
 
 const COLUMN_DEFAULTS = {
   select: 34, date: 96, description: 360, account: 150,
-  amount: 120, category: 200, actions: 250,
+  amount: 120, category: 200, actions: 380,
 };
+
+// Four buttons that may not wrap need the room for four buttons. Measured at
+// 14px system-ui: 350px for the row, 374px with the cell padding. Below that
+// the row silently paints over the category dropdown to its left, which is
+// exactly what it used to do at the old 250.
+const COLUMN_MIN = { actions: 380, category: 120, description: 140 };
 
 export default function Transactions() {
   // Links from the overview arrive with filters in the URL, so a click on a
@@ -41,7 +47,7 @@ export default function Transactions() {
   const [splitFor, setSplitFor] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { widths, startResize, reset: resetWidths } = useColumnWidths("financials.tx.columns", COLUMN_DEFAULTS);
+  const { widths, startResize, reset: resetWidths } = useColumnWidths("financials.tx.columns", COLUMN_DEFAULTS, COLUMN_MIN);
 
   useEffect(() => {
     Promise.all([api.accounts(), api.categories(), api.tags()])
@@ -433,17 +439,17 @@ export default function Transactions() {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1">
+                      <div className="flex min-w-0 items-center gap-1">
                         {tx.category_locked && (
                           <span
-                            className="text-xs text-sky-600 dark:text-sky-400"
+                            className="shrink-0 text-xs text-sky-600 dark:text-sky-400"
                             title="Handmatig ingesteld — wordt niet door regels overschreven"
                           >
                             vast
                           </span>
                         )}
                         <select
-                          className="input py-1"
+                          className="input min-w-0 py-1"
                           title={tx.category_locked
                             ? "Handmatig ingesteld — regels laten deze staan"
                             : "Automatisch toegekend door een regel"}
@@ -457,7 +463,7 @@ export default function Transactions() {
                     )}
                   </td>
                   <td className="td">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex flex-wrap justify-end gap-1">
                       <button
                         className="btn-ghost whitespace-nowrap"
                         title="Verdeel dit bedrag over meerdere categorieën"
