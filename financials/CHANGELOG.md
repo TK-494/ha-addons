@@ -1,5 +1,25 @@
 # Changelog — Financials
 
+## 0.20.1 — 2026-09-20
+
+### Nieuw
+- **Doorklikken vanuit de taartdiagrammen**: klik op een categorienaam of een taartpunt (overzicht
+  én de twee uitgaventabs) en je krijgt alle transacties van die categorie in precies de gekozen
+  periode. "Zonder categorie" gaat naar de ongecategoriseerde transacties van die periode.
+- **Categorieën alfabetisch** in elke keuzelijst (transacties, regels, budget, verdelen, te
+  categoriseren). Ze stonden op seed-volgorde, wat als willekeur oogde.
+
+### Gewijzigd
+- De periodekiezer toont per periode de echte datums zodra je maand niet op de 1e begint —
+  "augustus 2026 (25 aug – 24 sep)" — met een regel eronder die uitlegt waarom september nog niet
+  bestaat. Dat leek een ontbrekende maand.
+- Transacties leest `date_from`/`date_to` uit de URL, zodat een link een periode kan meegeven.
+
+### Techniek
+- `/dashboard/periods` geeft per optie `start`/`end` en de `boundary` (modus + dag).
+- `expense-breakdown` geeft `category_id` per categorierij.
+- 252 tests.
+
 ## 0.20.0 — 2026-09-20
 
 ### Nieuw

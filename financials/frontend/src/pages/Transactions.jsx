@@ -31,6 +31,8 @@ export default function Transactions() {
     search: searchParams.get("search") || "",
     category_id: searchParams.get("category_id") || "",
     account_id: searchParams.get("account_id") || "",
+    date_from: searchParams.get("date_from") || "",
+    date_to: searchParams.get("date_to") || "",
     uncategorised: searchParams.get("uncategorised") === "1",
     tag_id: searchParams.get("tag_id") || "",
   }));

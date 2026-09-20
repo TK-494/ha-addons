@@ -101,15 +101,25 @@ def period_options(db: Session = Depends(get_db)):
     current = periods.period_of(date.today(), config)
     earliest = periods.earliest_period(db, config) or current
 
+    # With the boundary on a salary day, "augustus" runs to late September —
+    # so every option carries its real dates, or the list reads as if the
+    # current month were missing.
     options = []
     cursor = current
     while cursor >= earliest:
-        options.append({"value": periods.label_of(*cursor), "label": periods.human_label(*cursor)})
+        start, end = periods.period_bounds(*cursor, config)
+        options.append({
+            "value": periods.label_of(*cursor),
+            "label": periods.human_label(*cursor),
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+        })
         cursor = periods.shift_period(*cursor, -1)
 
     return {
         "current": periods.label_of(*current),
         "earliest": periods.label_of(*earliest),
+        "boundary": {"mode": config.mode, "day": config.effective_day},
         "options": options,
     }
 
@@ -420,7 +430,7 @@ def expense_breakdown(
         select(
             Transaction.id, Transaction.amount_cents, Transaction.booked_on,
             Transaction.counter_name, Transaction.description,
-            Category.name, Category.color,
+            Category.id, Category.name, Category.color,
         )
         .join(Category, Category.id == Transaction.category_id, isouter=True)
         .where(
@@ -437,7 +447,7 @@ def expense_breakdown(
     fixed_total = 0
     variable_total = 0
 
-    for tx_id, amount, booked_on, counter, description, name, color in rows:
+    for tx_id, amount, booked_on, counter, description, cid, name, color in rows:
         value = abs(amount)
         is_fixed = tx_id in committed_ids
         if is_fixed:
@@ -452,7 +462,7 @@ def expense_breakdown(
         total += value
         key = name or "Zonder categorie"
         entry = by_category.setdefault(
-            key, {"name": key, "color": color or "#94a3b8", "cents": 0, "transactions": 0}
+            key, {"category_id": cid, "name": key, "color": color or "#94a3b8", "cents": 0, "transactions": 0}
         )
         entry["cents"] += value
         entry["transactions"] += 1
@@ -471,6 +481,7 @@ def expense_breakdown(
     categories = sorted(
         (
             {
+                "category_id": e["category_id"],
                 "name": e["name"], "color": e["color"],
                 "amount": e["cents"] / 100,
                 "transactions": e["transactions"],

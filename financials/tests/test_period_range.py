@@ -113,6 +113,22 @@ def test_periods_endpoint_runs_from_now_back_to_the_oldest_transaction(client):
     assert data["options"][0]["value"] == data["current"], "newest first"
     assert data["options"][-1]["value"] == "2024-01"
     assert data["options"][-1]["label"] == "januari 2024"
+    assert data["options"][-1]["start"] == "2024-01-01"
+    assert data["options"][-1]["end"] == "2024-02-01"
+    assert data["boundary"] == {"mode": "calendar", "day": 1}
+
+
+def test_periods_carry_their_real_dates_when_the_month_starts_on_a_salary_day(client):
+    """The case that looked like a missing month: with the boundary on the
+    25th, the running period is still called after the month it started in,
+    and its dates are what tell you September is in there."""
+    import_fixture(client, "rabobank_current.csv")
+    client.put("/api/settings/period", json={"mode": "day", "start_day": 25})
+    data = client.get("/api/dashboard/periods").json()
+    assert data["boundary"]["day"] == 25
+    first = data["options"][0]
+    assert first["start"].endswith("-25")
+    assert first["end"].endswith("-25")
 
 
 def test_summary_over_a_range_equals_the_sum_of_its_months(client):
@@ -167,9 +183,20 @@ def test_expense_breakdown_range_reports_what_it_covered(client):
     assert data["range"]["periods"] == 2
     assert [t["label"] for t in data["trend"]] == ["01-2024", "02-2024"]
     assert data["total"] == pytest.approx(sum(t["amount"] for t in data["trend"]))
+    # Every category row can be clicked through to its transactions.
+    assert all("category_id" in row for row in data["by_category"])
 
 
 def test_cashflow_window_ends_at_to(client):
     import_fixture(client, "rabobank_current.csv")
     rows = client.get("/api/dashboard/cashflow", params={"months": 3, "to": "2024-02"}).json()
     assert [r["period"] for r in rows] == ["2023-12", "2024-01", "2024-02"]
+
+
+def test_categories_list_alphabetically(client):
+    """Every dropdown in the app is fed by this list."""
+    client.post("/api/categories/", json={"name": "zebra"})
+    client.post("/api/categories/", json={"name": "Aardappels"})
+    names = [c["name"] for c in client.get("/api/categories/").json()]
+    assert names == sorted(names, key=str.lower)
+    assert names.index("Aardappels") < names.index("zebra")

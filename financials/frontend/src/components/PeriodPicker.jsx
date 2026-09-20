@@ -1,4 +1,19 @@
+import { Link } from "react-router-dom";
 import { periodLabel, usePeriod } from "../period.js";
+
+const SHORT_MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+
+/** "25 aug – 24 sep": the real span of a period, for when the month does not
+    start on the 1st. `end` is exclusive, so the last day shown is the day before. */
+function span(start, end) {
+  // Built from parts: `new Date("2026-08-25")` is UTC midnight, which west of
+  // Greenwich is still the 24th locally.
+  const local = (iso) => new Date(...iso.slice(0, 10).split("-").map((v, i) => Number(v) - (i === 1 ? 1 : 0)));
+  const s = local(start);
+  const e = local(end);
+  e.setDate(e.getDate() - 1);
+  return `${s.getDate()} ${SHORT_MONTHS[s.getMonth()]} – ${e.getDate()} ${SHORT_MONTHS[e.getMonth()]}`;
+}
 
 /**
  * From–to month selection, with the presets people reach for most.
@@ -24,10 +39,21 @@ export default function PeriodPicker({ compact = false }) {
   if (!period.range) return null;
 
   const { range, options, single, count, setRange, shift, preset } = period;
-  const choices = options?.options ?? [
-    { value: range.from, label: range.from },
-    ...(single ? [] : [{ value: range.to, label: range.to }]),
-  ];
+
+  // With the boundary on a salary day, "augustus" runs into late September.
+  // Without the dates next to it, the list reads as if September were missing.
+  const shifted = options?.boundary && options.boundary.day !== 1;
+  const choices = options?.options
+    ? options.options.map((o) => ({
+        value: o.value,
+        label: shifted ? `${o.label} (${span(o.start, o.end)})` : o.label,
+      }))
+    : [
+        { value: range.from, label: range.from },
+        ...(single ? [] : [{ value: range.to, label: range.to }]),
+      ];
+
+  const selected = options?.options?.find((o) => o.value === range.to);
 
   const canGoForward = !options || range.to < options.current;
 
@@ -74,6 +100,15 @@ export default function PeriodPicker({ compact = false }) {
             </button>
           ))}
         </div>
+      )}
+
+      {shifted && selected && (
+        <p className="basis-full text-xs text-slate-500 dark:text-slate-400">
+          Je maand begint op {options.boundary.mode === "salary" ? "je salarisdag" : `de ${options.boundary.day}e`}, dus{" "}
+          <strong>{selected.label}</strong> loopt t/m {span(selected.start, selected.end).split(" – ")[1]}.
+          Wil je kalendermaanden, zet de maandgrens dan op de 1e bij{" "}
+          <Link className="underline" to="/instellingen">Instellingen</Link>.
+        </p>
       )}
     </div>
   );

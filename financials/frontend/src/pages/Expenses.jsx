@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
-import CategoryDonut from "../components/CategoryDonut.jsx";
+import CategoryDonut, { transactionsLink } from "../components/CategoryDonut.jsx";
 import PeriodPicker from "../components/PeriodPicker.jsx";
 import { axisMoney, money, shortDate } from "../format.js";
 import { usePeriod } from "../period.js";
@@ -121,6 +121,7 @@ export default function Expenses({ kind }) {
             <div className="card">
               <CategoryDonut
                 rows={data.by_category}
+                range={data.range}
                 title="Per categorie"
                 empty={copy.empty}
                 height={280}
@@ -181,7 +182,9 @@ export default function Expenses({ kind }) {
                     <td className="td">
                       <span className="flex items-center gap-2">
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
-                        {row.name}
+                        <Link className="hover:underline" to={transactionsLink(row, data.range)} title="Alle transacties in deze periode">
+                          {row.name}
+                        </Link>
                       </span>
                     </td>
                     <td className="td text-right tabular-nums">{money(row.amount)}</td>

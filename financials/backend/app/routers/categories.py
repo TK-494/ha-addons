@@ -38,7 +38,10 @@ def list_categories(db: Session = Depends(get_db)):
     counts = dict(db.execute(
         select(Transaction.category_id, func.count()).group_by(Transaction.category_id)
     ).all())
-    categories = db.scalars(select(Category).order_by(Category.sort_order, Category.name)).all()
+    # Alphabetical, not seed order: every dropdown in the app lists these, and
+    # you find "Vakantie" by scanning to the V, not by remembering which batch
+    # it was seeded in.
+    categories = db.scalars(select(Category).order_by(func.lower(Category.name))).all()
     return [
         {
             "id": c.id,
@@ -353,7 +356,7 @@ def export_rules(db: Session = Depends(get_db), include_counts: bool = Query(Tru
                 "excluded_from_budget": c.excluded_from_budget,
                 "sort_order": c.sort_order,
             }
-            for c in db.scalars(select(Category).order_by(Category.sort_order, Category.name)).all()
+            for c in db.scalars(select(Category).order_by(func.lower(Category.name))).all()
         ],
         "rules": [
             {

@@ -61,7 +61,7 @@ def list_budgets(
     categories = db.scalars(
         select(Category).where(Category.is_income.is_(False),
                                Category.excluded_from_budget.is_(False))
-        .order_by(Category.sort_order, Category.name)
+        .order_by(func.lower(Category.name))
     ).all()
 
     previous_year, previous_month = periods.shift_period(year, month, -1)

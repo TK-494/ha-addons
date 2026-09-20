@@ -130,11 +130,13 @@ export default function Overview() {
         <CategoryDonut
           title="Uitgaven per categorie"
           rows={categories}
+          range={summary.range}
           empty="Geen uitgaven in deze periode."
         />
         <CategoryDonut
           title="Inkomsten per categorie"
           rows={incomeCategories}
+          range={summary.range}
           empty="Geen inkomsten in deze periode."
         />
       </section>

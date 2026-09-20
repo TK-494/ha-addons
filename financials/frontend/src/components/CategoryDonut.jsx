@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Empty } from "./Bits.jsx";
 import { money } from "../format.js";
@@ -14,9 +14,29 @@ import { money } from "../format.js";
  * confetti. The remainder is folded into one "overig" slice so the total the
  * ring represents still matches the number above it.
  */
+/**
+ * Where a click lands: the transactions of that category, in exactly the
+ * period the chart shows. `range.end` is exclusive (a period boundary); the
+ * transaction filter's `date_to` is inclusive, hence the day before.
+ */
+export function transactionsLink(row, range) {
+  const params = new URLSearchParams();
+  if (row.category_id) params.set("category_id", row.category_id);
+  else params.set("uncategorised", "1");
+  if (range?.start) params.set("date_from", range.start.slice(0, 10));
+  if (range?.end) {
+    const end = new Date(...range.end.slice(0, 10).split("-").map((v, i) => Number(v) - (i === 1 ? 1 : 0)));
+    end.setDate(end.getDate() - 1);
+    const pad = (n) => String(n).padStart(2, "0");
+    params.set("date_to", `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
+  }
+  return `/transacties?${params}`;
+}
+
 export default function CategoryDonut({
-  rows, title, empty = "Niets in deze periode.", height = 260, slices = 8, legend = 8,
+  rows, title, empty = "Niets in deze periode.", height = 260, slices = 8, legend = 8, range,
 }) {
+  const navigate = useNavigate();
   const total = (rows || []).reduce((sum, r) => sum + r.amount, 0);
 
   if (!rows || rows.length === 0) {
@@ -32,7 +52,7 @@ export default function CategoryDonut({
   const rest = rows.slice(slices);
   const restTotal = rest.reduce((sum, r) => sum + r.amount, 0);
   const chart = restTotal > 0
-    ? [...head, { name: `overig (${rest.length})`, amount: restTotal, color: "#cbd5e1" }]
+    ? [...head, { name: `overig (${rest.length})`, amount: restTotal, color: "#cbd5e1", rest: true }]
     : head;
 
   return (
@@ -45,7 +65,19 @@ export default function CategoryDonut({
       )}
       <ResponsiveContainer width="100%" height={height}>
         <PieChart>
-          <Pie data={chart} dataKey="amount" nameKey="name" innerRadius="52%" outerRadius="82%">
+          <Pie
+            data={chart}
+            dataKey="amount"
+            nameKey="name"
+            innerRadius="52%"
+            outerRadius="82%"
+            onClick={(entry) => {
+              // Recharts hands the sector; the datum sits on `payload`.
+              const row = entry?.payload ?? entry;
+              if (row && !row.rest) navigate(transactionsLink(row, range));
+            }}
+            className="cursor-pointer"
+          >
             {chart.map((row) => <Cell key={row.name} fill={row.color} />)}
           </Pie>
           <Tooltip formatter={(value, name) => [money(value), name]} />
@@ -56,11 +88,13 @@ export default function CategoryDonut({
           <li key={row.name} className="flex items-baseline justify-between gap-2">
             <span className="flex min-w-0 items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
-              {row.category_id ? (
-                <Link className="truncate hover:underline" to={`/categorie/${row.category_id}`}>{row.name}</Link>
-              ) : (
-                <span className="truncate">{row.name}</span>
-              )}
+              <Link
+                className="truncate hover:underline"
+                to={transactionsLink(row, range)}
+                title="Alle transacties in deze periode"
+              >
+                {row.name}
+              </Link>
             </span>
             <span className="whitespace-nowrap tabular-nums">
               {money(row.amount)}

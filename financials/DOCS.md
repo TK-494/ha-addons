@@ -250,7 +250,9 @@ maart zien.
   van je oudste transactie tot nu.
 
 Een "maand" volgt je maandgrens uit Instellingen: begint je maand op je salarisdag, dan loopt
-"maart" van salarisdag maart tot salarisdag april. Bij een bereik van meerdere maanden wordt
+"maart" van salarisdag maart tot salarisdag april. De kiezer laat dan per periode de echte datums
+zien — en dat verklaart ook waarom "september" er halverwege september nog niet in staat: die
+periode begint pas op de volgende salarisdag, de septemberdagen tot dan zitten in "augustus". Bij een bereik van meerdere maanden wordt
 vergeleken met een even lang bereik ervoor — een kwartaal met het vorige kwartaal, niet met één maand.
 
 Het blok *Wat is er nog vrij* verschijnt alleen bij één maand; over een bereik heeft die vraag geen
@@ -259,6 +261,13 @@ terug naar de huidige maand.
 
 **Budget** heeft een eigen maandkeuze, omdat een budget altijd per maand is. Daar kun je nu wel
 direct een maand kiezen in plaats van alleen met ‹ › te stappen.
+
+## Doorklikken naar transacties
+
+Elke categorie in een taartdiagram is een link: klik op de naam in de legenda of op het taartpunt
+zelf, en je landt op **Transacties** met die categorie én de gekozen periode als filter. Zo is
+"wat was dat dan, die €640 aan vakantie in maart" één klik. "Zonder categorie" brengt je naar de
+ongecategoriseerde transacties van die periode.
 
 ## Wat is er nog vrij deze maand
 
