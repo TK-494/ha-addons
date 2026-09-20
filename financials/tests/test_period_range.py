@@ -200,3 +200,19 @@ def test_categories_list_alphabetically(client):
     names = [c["name"] for c in client.get("/api/categories/").json()]
     assert names == sorted(names, key=str.lower)
     assert names.index("Aardappels") < names.index("zebra")
+
+
+def test_summary_splits_salary_from_other_income(client):
+    """A Tikkie is money in, but not income to plan on — the tile says which is which."""
+    import_fixture(client, "rabobank_current.csv")
+    before = client.get("/api/dashboard/summary", params={"year": 2024, "month": 1}).json()
+    assert before["income_salary"] is None, "nothing to split on until a payer is set"
+
+    items = client.get("/api/transactions/", params={"direction": "in", "page_size": 50}).json()["items"]
+    biggest = max((t for t in items if not t["is_internal"]), key=lambda t: t["amount"])
+    client.put("/api/settings/salary-source", json={"counterparty": biggest["counter_name"], "min_amount_cents": 100})
+
+    after = client.get("/api/dashboard/summary", params={"year": 2024, "month": 1}).json()
+    assert after["income_salary"] is not None
+    assert after["income_salary"] + after["income_other"] == pytest.approx(after["income"])
+    assert after["income_salary"] >= biggest["amount"] or after["income_salary"] == 0

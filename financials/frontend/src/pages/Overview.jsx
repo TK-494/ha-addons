@@ -55,6 +55,12 @@ export default function Overview() {
 
   // A quarter is compared with the quarter before it, so say so.
   const compareLabel = period.single ? "vorige maand" : `de ${period.count} maanden ervoor`;
+  // The period end is exclusive; the transaction filter's date_to is not.
+  const incomeEnd = (() => {
+    const d = new Date(...summary.range.end.split("-").map((v, i) => Number(v) - (i === 1 ? 1 : 0)));
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
 
 
   return (
@@ -83,7 +89,22 @@ export default function Overview() {
       {available && <AvailablePanel data={available} />}
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Inkomsten" value={summary.income} delta={summary.delta_income} good="up" periodsBefore={compareLabel} />
+        <Kpi label="Inkomsten" value={summary.income} delta={summary.delta_income} good="up" periodsBefore={compareLabel}>
+          {summary.income_salary === null ? (
+            <Link className="underline" to="/instellingen">Stel je salarisbetaler in om loon apart te zien</Link>
+          ) : (
+            <>
+              waarvan loon {money(summary.income_salary)} ·{" "}
+              <Link
+                className="underline"
+                to={`/transacties?direction=in&date_from=${summary.range.start}&date_to=${incomeEnd}`}
+                title="Alle bijschrijvingen in deze periode — Tikkies, terugbetalingen, en wat er verder binnenkwam"
+              >
+                overig {money(summary.income_other)}
+              </Link>
+            </>
+          )}
+        </Kpi>
         <Kpi label="Uitgaven" value={Math.abs(summary.expenses)} delta={summary.delta_expenses} good="down" periodsBefore={compareLabel} />
         <Kpi label="Netto" value={summary.net} />
 <div className="card">
@@ -243,13 +264,14 @@ export default function Overview() {
   );
 }
 
-function Kpi({ label, value, delta, good, periodsBefore = "vorige periode" }) {
+function Kpi({ label, value, delta, good, periodsBefore = "vorige periode", children }) {
   // "Better" differs per metric: more income is good, more expense is not.
   const improved = delta === undefined ? null : good === "down" ? delta < 0 : delta > 0;
   return (
     <div className="card">
       <p className="label">{label}</p>
       <p className="text-xl font-semibold tabular-nums">{money(value)}</p>
+      {children && <p className="text-xs text-slate-500 dark:text-slate-400">{children}</p>}
       {delta !== undefined && (
         <p className={`text-xs ${improved ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
           {delta >= 0 ? "+" : ""}{money(delta)} t.o.v. {periodsBefore}

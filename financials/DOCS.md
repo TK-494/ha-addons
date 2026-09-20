@@ -262,6 +262,19 @@ terug naar de huidige maand.
 **Budget** heeft een eigen maandkeuze, omdat een budget altijd per maand is. Daar kun je nu wel
 direct een maand kiezen in plaats van alleen met ‹ › te stappen.
 
+## Inkomsten: loon en overig
+
+De tegel *Inkomsten* op het overzicht telt alles wat binnenkwam, min overboekingen tussen je eigen
+rekeningen. Eronder staat de splitsing: **loon** (van je salarisbetaler, ingesteld bij Instellingen →
+Maandgrens) en **overig** — Tikkies, terugbetalingen, verkoop. Klik op *overig* en je ziet precies
+die bijschrijvingen.
+
+Is *overig* hoger dan je verwacht, kijk dan eerst naar overboekingen vanaf een eigen rekening die de
+app niet kent. Alleen rekeningen die geïmporteerd zijn of onder **Rekeningen** zijn toegevoegd
+tellen als "eigen"; een storting vanaf een spaarrekening bij een andere bank die je niet hebt
+toegevoegd telt als inkomen. Voeg het IBAN toe onder Rekeningen en de overboekingen worden meteen
+intern.
+
 ## Doorklikken naar transacties
 
 Elke categorie in een taartdiagram is een link: klik op de naam in de legenda of op het taartpunt

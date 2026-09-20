@@ -1,5 +1,18 @@
 # Changelog — Financials
 
+## 0.20.3 — 2026-09-20
+
+### Nieuw
+- De tegel **Inkomsten** op het overzicht splitst nu in **loon** en **overig**. Loon is wat van je
+  ingestelde salarisbetaler komt; overig is de rest — Tikkies, terugbetalingen, verkoop, en ook
+  overboekingen vanaf een eigen rekening die niet onder Rekeningen staat. "Overig" is een link
+  naar precies die bijschrijvingen in de gekozen periode, zodat je kunt zien wat het is.
+- Transacties leest `direction` uit de URL.
+
+### Techniek
+- `summary` geeft `income_salary` en `income_other` (null zolang er geen salarisbetaler is).
+  257 tests.
+
 ## 0.20.2 — 2026-09-20
 
 ### Opgelost

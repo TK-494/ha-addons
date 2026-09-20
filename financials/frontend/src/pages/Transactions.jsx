@@ -33,6 +33,7 @@ export default function Transactions() {
     account_id: searchParams.get("account_id") || "",
     date_from: searchParams.get("date_from") || "",
     date_to: searchParams.get("date_to") || "",
+    direction: searchParams.get("direction") || "",
     uncategorised: searchParams.get("uncategorised") === "1",
     tag_id: searchParams.get("tag_id") || "",
   }));

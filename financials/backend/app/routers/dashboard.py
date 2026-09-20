@@ -162,6 +162,19 @@ def summary(
     current = totals(window)
     previous = totals(window.previous(config))
 
+    # Income is not one thing. Salary is what you plan on; a Tikkie from a
+    # friend, a refund, a sold bike — real money, but not income you can build
+    # anything on. Split on the configured payer so the tile can say
+    # "waarvan loon", and "overig" stands out when it is bigger than expected.
+    # (Transfers from an own account that is *not* registered under
+    # Rekeningen also land in "overig" — that is where to look first.)
+    salary_stmt = periods._salary_query(config).with_only_columns(
+        func.coalesce(func.sum(Transaction.amount_cents), 0)
+    ).where(Transaction.booked_on >= window.start, Transaction.booked_on < window.end)
+    if account_id:
+        salary_stmt = salary_stmt.where(Transaction.account_id == account_id)
+    income_salary = (db.scalar(salary_stmt) or 0) if config.salary.configured else None
+
     # What actually moved into savings this period. Transfers are excluded from
     # income and expenses, so this is the honest "saved" figure — the amount
     # that left the current accounts and stayed inside the household.
@@ -190,6 +203,8 @@ def summary(
         "scope": "account" if account_id else "household",
         **current,
         "saved": saved / 100,
+        "income_salary": income_salary / 100 if income_salary is not None else None,
+        "income_other": (income - income_salary / 100) if income_salary is not None else None,
         "savings_rate": round(100 * (income + current["expenses"]) / income, 1) if income > 0 else None,
         "previous": previous,
         "delta_income": round(current["income"] - previous["income"], 2),
