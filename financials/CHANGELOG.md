@@ -21,12 +21,12 @@
   oude parameters blijven werken. Nieuw endpoint `/dashboard/periods` levert de keuzelijst.
 - Frontend: `period.js` (context, sessionStorage) en `PeriodPicker`. Twee `<select>`s in plaats
   van `<input type=month>`, dat Safari op de Mac niet ondersteunt.
-- 20 nieuwe tests (250 totaal).
+- 24 nieuwe tests; met de vier vervallen thematests komt het totaal op 250.
 
 ### Opgelost
 - DOCS.md bevatte drie secties dubbel onder *Instellingen*.
 
-## 0.20.0 — 2026-08-30
+### Ook in 0.20.0 — één vormgeving (30 augustus, tot nu ongecommit)
 
 Eerste van drie releases die de vormgeving op Apple's ontwerptaal zetten. Deze gaat over kleur en
 componenten; navigatie volgt in 0.21, de Budget-tab in 0.22.
@@ -56,7 +56,7 @@ componenten; navigatie volgt in 0.21, de Budget-tab in 0.22.
   Ingress-iframe kan `backdrop-filter` alleen dit document bemonsteren, nooit het HA-scherm
   eromheen — glas hoort dus op chrome en nergens anders.
 - `borderRadius.card` (18px) toegevoegd aan `tailwind.config.js`.
-- Vier tests over het thema vervallen; 226 tests draaien groen.
+- Vier tests over het thema vervallen.
 
 ## 0.19.1 — 2026-08-10
 
