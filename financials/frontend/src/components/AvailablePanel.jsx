@@ -76,7 +76,9 @@ export default function AvailablePanel({ data }) {
       {data.stale_accounts.length > 0 && (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-100">
           Nog niet bijgewerkt:{" "}
-          {data.stale_accounts.map((s) => `${s.label} (t/m ${shortDate(s.last_transaction)}, ${s.days_behind} dagen)`).join(" · ")}.
+          {data.stale_accounts
+            .map((s) => `${s.label} (t/m ${shortDate(s.current_through)}, ${s.days_behind} dagen — doet normaal elke ${s.typical_gap_days === 1 ? "dag" : `${s.typical_gap_days} dagen`} iets)`)
+            .join(" · ")}.
           Zolang die ontbreken is het bedrag hierboven te gunstig.
         </p>
       )}

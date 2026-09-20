@@ -283,9 +283,16 @@ Bovenaan het overzicht staat een balk met vier dingen:
   kreeg). Wisselt de betaaldag in een bepaalde maand te veel — december meestal — dan staat erbij dat
   het een schatting is.
 - **Inkomsten**, gesplitst in vast en variabel.
-- **Gegevens bijgewerkt tot** — de datum van de nieuwste transactie. Loopt een rekening achter, dan
-  staat eronder welke en hoeveel dagen. Zonder dat is "je hebt nog € 62 over" een misleidende
-  uitspraak als je laatste import drie weken oud is.
+- **Gegevens bijgewerkt tot** — tot wanneer je data loopt. Dat is de laatste **upload** waar een
+  rekening in zat, niet de laatste boeking: een gisteren geüploade CSV dekt tot gisteren, ook als er
+  twee maanden niets gebeurd is. Loopt een rekening achter, dan staat eronder welke en hoeveel dagen.
+  Zonder dat is "je hebt nog € 62 over" een misleidende uitspraak als je laatste import drie weken
+  oud is.
+
+  Wanneer "achter" is, hangt van de rekening af. Een betaalrekening waar dagelijks iets op gebeurt
+  is na tien dagen stilte verdacht; een spaarrekening die één keer per maand beweegt niet. De grens
+  is daarom drie keer het gebruikelijke ritme van die rekening, en nooit korter dan tien dagen. De
+  melding zegt erbij wat dat ritme is.
 
 Klik op *Hoe is dit berekend?* voor de som en de lijst met verwachte incasso's.
 

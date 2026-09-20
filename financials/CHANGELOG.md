@@ -1,5 +1,21 @@
 # Changelog — Financials
 
+## 0.20.2 — 2026-09-20
+
+### Opgelost
+- **"Nog niet bijgewerkt" sloeg aan op rekeningen die gewoon rustig zijn.** De maatstaf was tien
+  dagen sinds de laatste transactie, voor élke rekening. Nu geldt per rekening haar eigen ritme:
+  verouderd is pas na drie keer de gebruikelijke tijd tussen twee boekingen (en nooit binnen tien
+  dagen). Een spaarrekening die maandelijks beweegt wordt dus na 90 dagen gemeld, een betaalrekening
+  na 10.
+- "Bijgewerkt t/m" is nu de laatste **upload** waar de rekening in zat, niet de laatste boeking. Een
+  gisteren geüploade CSV dekt tot gisteren, ook als er twee maanden niets gebeurd is.
+- De melding zegt erbij wat het ritme van die rekening is, zodat je kunt zien waarom hij aanslaat.
+
+### Techniek
+- `_coverage_of()` in dashboard.py; `coverage`-rijen krijgen `last_upload`, `current_through`,
+  `typical_gap_days`, `stale_after_days`, `stale`. 4 nieuwe tests (256).
+
 ## 0.20.1 — 2026-09-20
 
 ### Nieuw

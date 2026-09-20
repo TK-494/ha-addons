@@ -21,7 +21,7 @@ from sqlalchemy import Integer, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Account, Category, Rule, Transaction, TransactionSplit
+from ..models import Account, Category, ImportBatch, Rule, Transaction, TransactionSplit
 from ..services import periods, recurring, workdays
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -1052,6 +1052,67 @@ def uncategorised(db: Session = Depends(get_db), limit: int = Query(25, ge=1, le
     }
 
 
+STALE_MIN_DAYS = 10
+STALE_GAP_FACTOR = 3
+
+
+def _coverage_of(db: Session, account: Account, today: date) -> dict:
+    """How current one account's data is — and whether that is a problem.
+
+    Two things a plain "days since the last transaction" gets wrong:
+
+    * The data is as fresh as the last *export* that covered the account, not
+      the last booking. A CSV uploaded yesterday says everything up to
+      yesterday, even if the last movement was two months ago.
+    * Quiet accounts are quiet. A savings account that moves once a month is
+      not stale after ten days; a current account that moves daily is. So the
+      threshold is the account's own rhythm — three times its typical gap
+      between transactions over the past year, and never under ten days.
+    """
+    last = db.scalar(
+        select(func.max(Transaction.booked_on)).where(Transaction.account_id == account.id)
+    )
+    last_tx = date.fromisoformat(last) if isinstance(last, str) else last
+
+    # Newest upload in which this account appeared.
+    uploaded = db.scalar(
+        select(func.max(ImportBatch.uploaded_at))
+        .join(Transaction, Transaction.import_batch_id == ImportBatch.id)
+        .where(Transaction.account_id == account.id, ImportBatch.committed.is_(True))
+    )
+    if isinstance(uploaded, str):
+        uploaded = date.fromisoformat(uploaded[:10])
+    elif uploaded is not None:
+        uploaded = uploaded.date()
+
+    current_through = max(d for d in (last_tx, uploaded) if d) if (last_tx or uploaded) else None
+
+    # The account's own rhythm: median gap between booking days, last year.
+    days = db.scalars(
+        select(Transaction.booked_on)
+        .where(Transaction.account_id == account.id, Transaction.booked_on >= today - timedelta(days=365))
+        .distinct()
+        .order_by(Transaction.booked_on)
+    ).all()
+    days = [date.fromisoformat(d) if isinstance(d, str) else d for d in days]
+    gaps = sorted((b - a).days for a, b in zip(days, days[1:]))
+    typical_gap = gaps[len(gaps) // 2] if gaps else None
+    threshold = max(STALE_MIN_DAYS, STALE_GAP_FACTOR * typical_gap) if typical_gap else STALE_MIN_DAYS
+
+    behind = (today - current_through).days if current_through else None
+    return {
+        "account_id": account.id,
+        "label": account.label,
+        "last_transaction": last_tx.isoformat() if last_tx else None,
+        "last_upload": uploaded.isoformat() if uploaded else None,
+        "current_through": current_through.isoformat() if current_through else None,
+        "days_behind": behind,
+        "typical_gap_days": typical_gap,
+        "stale_after_days": threshold,
+        "stale": behind is not None and behind > threshold,
+    }
+
+
 @router.get("/available")
 def available(
     db: Session = Depends(get_db),
@@ -1079,20 +1140,12 @@ def available(
     accounts = db.scalars(select(Account).where(Account.archived.is_(False))).all()
     coverage = []
     for account in accounts:
-        last = db.scalar(
-            select(func.max(Transaction.booked_on)).where(Transaction.account_id == account.id)
-        )
-        last_date = date.fromisoformat(last) if isinstance(last, str) else last
-        coverage.append({
-            "account_id": account.id,
-            "label": account.label,
-            "last_transaction": last_date.isoformat() if last_date else None,
-            "days_behind": (today - last_date).days if last_date else None,
-        })
+        c = _coverage_of(db, account, today)
+        coverage.append(c)
 
     dated = [c for c in coverage if c["last_transaction"]]
-    data_through = max((c["last_transaction"] for c in dated), default=None)
-    stale = [c for c in dated if c["days_behind"] is not None and c["days_behind"] > 10]
+    data_through = max((c["current_through"] for c in dated), default=None)
+    stale = [c for c in dated if c["stale"]]
 
     # ── income, split into what you can and cannot count on ─────────────────
     def income_parts() -> tuple[int, int]:
