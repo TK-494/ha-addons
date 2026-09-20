@@ -11,6 +11,10 @@ export default {
   darkMode: "media",
   theme: {
     extend: {
+      // Apple's cards are rounder than Tailwind's 2xl but not pill-round.
+      borderRadius: {
+        card: "18px",
+      },
       colors: {
         slate: {
           50: "rgb(var(--c-slate-50) / <alpha-value>)",

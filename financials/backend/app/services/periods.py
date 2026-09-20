@@ -306,6 +306,140 @@ def recent_periods(count: int, config: PeriodConfig, today: Optional[date] = Non
     return [shift_period(year, month, -offset) for offset in range(count - 1, -1, -1)]
 
 
+MONTHS_NL = [
+    "januari", "februari", "maart", "april", "mei", "juni",
+    "juli", "augustus", "september", "oktober", "november", "december",
+]
+
+
+def parse_label(value: str) -> tuple[int, int]:
+    """`YYYY-MM` → (year, month). Raises ValueError on anything else."""
+    year_text, _, month_text = value.partition("-")
+    year, month = int(year_text), int(month_text)
+    if not 1 <= month <= 12 or not 1900 <= year <= 2200:
+        raise ValueError(value)
+    return year, month
+
+
+def label_of(year: int, month: int) -> str:
+    return f"{year:04d}-{month:02d}"
+
+
+def human_label(year: int, month: int) -> str:
+    return f"{MONTHS_NL[month - 1]} {year}"
+
+
+@dataclass(frozen=True)
+class PeriodRange:
+    """A run of consecutive periods, `first` through `last` inclusive.
+
+    One month is the common case and just a range of length one: every
+    endpoint that works on a range works on a month, so a page never needs
+    two code paths.
+    """
+
+    first: tuple[int, int]
+    last: tuple[int, int]
+    start: date   # inclusive
+    end: date     # exclusive
+
+    @property
+    def count(self) -> int:
+        (y1, m1), (y2, m2) = self.first, self.last
+        return (y2 * 12 + m2) - (y1 * 12 + m1) + 1
+
+    @property
+    def single(self) -> bool:
+        return self.count == 1
+
+    @property
+    def labels(self) -> list[tuple[int, int]]:
+        return [shift_period(*self.first, offset) for offset in range(self.count)]
+
+    def previous(self, config: PeriodConfig) -> "PeriodRange":
+        """The same number of periods immediately before this range — what a
+        "compared to" figure should compare to. A quarter against the previous
+        quarter, not against one month."""
+        return make_range(
+            config,
+            shift_period(*self.first, -self.count),
+            shift_period(*self.last, -self.count),
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "from": label_of(*self.first),
+            "to": label_of(*self.last),
+            "start": self.start.isoformat(),
+            "end": self.end.isoformat(),
+            "periods": self.count,
+            "single": self.single,
+            "label": (
+                human_label(*self.first) if self.single
+                else f"{human_label(*self.first)} t/m {human_label(*self.last)}"
+            ),
+        }
+
+
+def make_range(config: PeriodConfig, first: tuple[int, int], last: tuple[int, int]) -> PeriodRange:
+    if first > last:
+        first, last = last, first
+    start, _ = period_bounds(*first, config)
+    _, end = period_bounds(*last, config)
+    return PeriodRange(first=first, last=last, start=start, end=end)
+
+
+def resolve_range(
+    config: PeriodConfig,
+    *,
+    from_label: Optional[str] = None,
+    to_label: Optional[str] = None,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    months: Optional[int] = None,
+    today: Optional[date] = None,
+) -> PeriodRange:
+    """One resolver for every way a caller can name a range.
+
+    Precedence, most explicit first:
+      1. `from`/`to` labels. Both: that range. `from` alone: that one period.
+         `to` alone: the `months` periods ending there (one, if unspecified) —
+         which is how a chart follows the period you are looking at.
+      2. `year`+`month` — that one period, or the `months` periods ending there.
+      3. `months` — that many periods ending at the current one.
+      4. nothing — the current period.
+
+    Older callers keep working unchanged; new ones say exactly what they mean.
+    """
+    current = period_of(today or date.today(), config)
+
+    if from_label and to_label:
+        return make_range(config, parse_label(from_label), parse_label(to_label))
+    if from_label:
+        first = parse_label(from_label)
+        return make_range(config, first, first)
+    if to_label:
+        last = parse_label(to_label)
+        return make_range(config, shift_period(*last, -((months or 1) - 1)), last)
+
+    if year is not None and month is not None:
+        last = (year, month)
+    else:
+        last = current
+    first = shift_period(*last, -((months or 1) - 1))
+    return make_range(config, first, last)
+
+
+def earliest_period(db: Session, config: PeriodConfig) -> Optional[tuple[int, int]]:
+    """The period the oldest transaction on record falls in."""
+    first = db.scalar(select(func.min(Transaction.booked_on)))
+    if first is None:
+        return None
+    if isinstance(first, str):
+        first = date.fromisoformat(first)
+    return period_of(first, config)
+
+
 def boundary_overview(db: Session, config: PeriodConfig, months: int = 12) -> list[dict]:
     """What the boundaries resolve to, and why — the table shown in Settings so
     a wrong month is visible and correctable."""

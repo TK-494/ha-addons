@@ -1,5 +1,63 @@
 # Changelog — Financials
 
+## 0.20.0 — 2026-09-20
+
+### Nieuw
+- **Periodekiezer**: op Overzicht, Vaste lasten en Variabele uitgaven kies je nu direct een maand
+  (van/t/m als keuzelijst) of een bereik van meerdere maanden. Eén keuze, gedeeld over de drie
+  pagina's. ‹ › schuiven het hele venster op; snelknoppen 3/6/12 mnd, Dit jaar en Alles eindigen op
+  de maand die je bekijkt.
+- Bij een bereik wordt vergeleken met een even lang bereik ervoor (kwartaal t.o.v. vorig kwartaal).
+- **Budget** krijgt een directe maandkeuze naast ‹ ›.
+
+### Gewijzigd
+- *Wat is er nog vrij* staat alleen bij één maand; over een bereik heeft die vraag geen antwoord.
+- De cashflow-grafiek op het overzicht volgt de gekozen periode (minimaal 12 maanden, eindigend op
+  de gekozen maand) in plaats van altijd de laatste 12.
+
+### Techniek
+- `periods.PeriodRange` + `resolve_range()`: één bereikbegrip voor alle dashboard-endpoints.
+  `summary`, `by-category`, `expense-breakdown` en `cashflow` accepteren `from`/`to` (JJJJ-MM);
+  oude parameters blijven werken. Nieuw endpoint `/dashboard/periods` levert de keuzelijst.
+- Frontend: `period.js` (context, sessionStorage) en `PeriodPicker`. Twee `<select>`s in plaats
+  van `<input type=month>`, dat Safari op de Mac niet ondersteunt.
+- 20 nieuwe tests (250 totaal).
+
+### Opgelost
+- DOCS.md bevatte drie secties dubbel onder *Instellingen*.
+
+## 0.20.0 — 2026-08-30
+
+Eerste van drie releases die de vormgeving op Apple's ontwerptaal zetten. Deze gaat over kleur en
+componenten; navigatie volgt in 0.21, de Budget-tab in 0.22.
+
+### Gewijzigd
+- **Eén vormgeving.** Het palet is vervangen door Apple's systeemkleuren. `Standaard` en `Google`
+  zijn allebei vervallen, en daarmee ook de themakiezer onder **Instellingen → Uiterlijk**.
+- **Donkere modus staat nu op zwart.** Voorheen was de grond `slate-900` met nog donkerder randen
+  erop; nu is de grond zwart en zijn de kaarten juist lichter. Diepte ontstaat door licht op zwart
+  te stapelen — andersom leest het vlak.
+- **Randen zijn vervangen door hoogte.** Kaarten hebben geen lijn meer maar een zachte schaduw,
+  knoppen zijn pilvormig, en invoervelden hebben een grijze vulling in plaats van een omlijning.
+- Licht of donker blijft de systeeminstelling volgen; dat liep al via `darkMode: "media"` en staat
+  los van het palet.
+
+### Verwijderd
+- `GET` en `PUT /api/settings/appearance`, de instelling `appearance_theme`, en `theme.js`. Een
+  achtergebleven rij in de settings-tabel is onschadelijk: die tabel is key/value, dus er is geen
+  migratie nodig.
+- De sleutel `financials.theme` uit `localStorage` wordt bij het opstarten opgeruimd.
+
+### Techniek
+- `index.css` draagt de hele omzetting: de kleurtrappen zijn hergebruikt, dus geen enkele
+  `bg-slate-800` in een pagina hoefde aangeraakt te worden. De neutrale trap is bewust asymmetrisch
+  — het lichte uiteinde draagt het lichte thema, het donkere uiteinde het donkere.
+- Nieuw: `.glass-bar` voor sticky balken, met een `@supports`-terugval naar dekkend. Binnen een
+  Ingress-iframe kan `backdrop-filter` alleen dit document bemonsteren, nooit het HA-scherm
+  eromheen — glas hoort dus op chrome en nergens anders.
+- `borderRadius.card` (18px) toegevoegd aan `tailwind.config.js`.
+- Vier tests over het thema vervallen; 226 tests draaien groen.
+
 ## 0.19.1 — 2026-08-10
 
 ### Opgelost

@@ -235,6 +235,31 @@ werkelijk gekost heeft, over alle categorieën heen.
 Labels veranderen niets aan je inkomsten-, uitgaven- of budgetcijfers. Ze zijn puur een extra manier
 om te filteren en op te tellen.
 
+## Periode kiezen
+
+Op **Overzicht**, **Vaste lasten** en **Variabele uitgaven** staat bovenaan dezelfde periodekiezer.
+Wat je daar kiest, geldt op alle drie: kies je maart op het overzicht, dan laat Vaste lasten ook
+maart zien.
+
+- **Eén maand**: zet *van* en *t/m* op dezelfde maand, of klik **Deze maand**.
+- **Meerdere maanden**: kies een begin- en eindmaand — januari t/m maart, of heel 2025.
+- **‹ ›** schuiven het hele venster op: bij één maand een maand, bij een kwartaal een kwartaal. Niet
+  voorbij de huidige maand.
+- **3 / 6 / 12 mnd** eindigen op de maand die je bekijkt, niet op vandaag — sta je op maart, dan
+  krijg je januari t/m maart. **Dit jaar** loopt van januari tot de maand die je bekijkt; **Alles**
+  van je oudste transactie tot nu.
+
+Een "maand" volgt je maandgrens uit Instellingen: begint je maand op je salarisdag, dan loopt
+"maart" van salarisdag maart tot salarisdag april. Bij een bereik van meerdere maanden wordt
+vergeleken met een even lang bereik ervoor — een kwartaal met het vorige kwartaal, niet met één maand.
+
+Het blok *Wat is er nog vrij* verschijnt alleen bij één maand; over een bereik heeft die vraag geen
+antwoord. De periode blijft staan zolang je in de app bezig bent en springt bij een nieuw bezoek
+terug naar de huidige maand.
+
+**Budget** heeft een eigen maandkeuze, omdat een budget altijd per maand is. Daar kun je nu wel
+direct een maand kiezen in plaats van alleen met ‹ › te stappen.
+
 ## Wat is er nog vrij deze maand
 
 Bovenaan het overzicht staat een balk met vier dingen:
@@ -261,9 +286,9 @@ Twee pagina's die dezelfde vraag van twee kanten stellen: wat ligt vast, en waar
 Beide met een taartdiagram per categorie, de grootste tegenpartijen, het verloop per maand en een
 tabel met bedrag, gemiddelde per maand, aandeel en aantal transacties.
 
-Bovenaan kies je de periode: **deze periode**, **3**, **6** of **12 maanden**, of **alles**. Dat
-laatste rekent vanaf je oudste transactie. Voor variabele uitgaven is een langere periode meestal
-zinvoller — één maand boodschappen zegt weinig, zes maanden wel.
+Bovenaan staat de periodekiezer (zie *Periode kiezen*), dezelfde als op het overzicht. Voor
+variabele uitgaven is een langere periode meestal zinvoller — één maand boodschappen zegt weinig,
+zes maanden wel — dus de snelknoppen **3**, **6** en **12 mnd** zijn hier het meest van nut.
 
 Het aandeelblok laat steeds de andere kant zien, zodat je de verhouding niet hoeft te onthouden: op
 Vaste lasten staat hoeveel er variabel was, en andersom.
@@ -415,72 +440,21 @@ meer te laten zien. Wie meekijkt ziet dus wél waar je geweest bent, alleen niet
 
 ## Uiterlijk
 
-Onder **Instellingen → Uiterlijk** kies je een kleurenthema:
+De app heeft sinds 0.20.0 één vormgeving, gebaseerd op de systeemkleuren van Apple. Er valt dus
+niets meer te kiezen — de themakiezer is verdwenen.
 
-- **Standaard** — neutrale grijstinten met een blauw accent.
-- **Google** — Google Material: dezelfde blauw (#1a73e8), rood, geel en groen als het Google-thema
-  in Home Assistant, met vlakke kaarten en ronde knoppen.
+**Licht of donker volgt je systeeminstelling**, net als in Home Assistant zelf. Zet je Mac, iPhone
+of browser op donker, dan is de app donker.
 
-Licht of donker volgt je systeeminstelling, net als in Home Assistant zelf.
-
-Home Assistant geeft zijn actieve thema **niet** door aan een add-on: die draait in een eigen venster
-en daar bestaat geen koppeling voor. Dit is dus een bijpassend thema dat je zelf kiest, geen
-automatische overname. Zet hem op hetzelfde als in HA en de twee sluiten op elkaar aan.
-
-De keuze wordt bij de add-on opgeslagen, niet in je browser — op je telefoon ziet het er dus hetzelfde
-uit als op je laptop.
+Home Assistant geeft zijn actieve thema niet door aan een add-on: die draait in een eigen venster en
+daar bestaat geen koppeling voor. Dat was de reden dat je vroeger zelf een bijpassend thema koos.
+Met één vormgeving vervalt die keuze; wat overblijft sluit aan op HA's eigen licht- en donkerstand.
 
 ## Instellingen
 
 Onder **Maandgrens** kies je waar een maand begint: op de 1e, op je salarisdag, of op een vaste dag
 die je zelf kiest. Dit is alleen een weergave-instelling — je kunt vrij wisselen, er wordt niets
 opnieuw ingelezen.
-
-### Tabbladen Vaste lasten en Variabele uitgaven
-
-Twee pagina's die dezelfde vraag van twee kanten stellen: wat ligt vast, en waar stuur je zelf.
-Beide met een taartdiagram per categorie, de grootste tegenpartijen, het verloop per maand en een
-tabel met bedrag, gemiddelde per maand, aandeel en aantal transacties.
-
-Bovenaan kies je de periode: **deze periode**, **3**, **6** of **12 maanden**, of **alles**. Dat
-laatste rekent vanaf je oudste transactie. Voor variabele uitgaven is een langere periode meestal
-zinvoller — één maand boodschappen zegt weinig, zes maanden wel.
-
-Het aandeelblok laat steeds de andere kant zien, zodat je de verhouding niet hoeft te onthouden: op
-Vaste lasten staat hoeveel er variabel was, en andersom.
-
-## Nog te categoriseren
-
-Een eigen tabblad met alles wat nog geen categorie heeft, gegroepeerd per tegenpartij en met de
-grootste bedragen bovenaan — daar vertekent een ontbrekende categorie je cijfers het meest. De balk
-bovenin laat zien hoeveel procent van je grootboek al ingedeeld is.
-
-Kies een categorie in de lijst en de hele groep is in één keer klaar. Staat **ook een regel maken**
-aangevinkt (standaard), dan wordt de keuze onthouden en staat dezelfde tegenpartij bij de volgende
-import meteen goed. Zonder dat komt dezelfde groep volgende maand gewoon terug.
-
-## Vaste en variabele lasten
-
-Op het overzicht staat een blok dat je uitgaven in tweeën deelt, met bovenaan drie getallen: wat er
-deze periode vastlag, wat variabel was, en wat je van je inkomen overhoudt als de vaste lasten eraf
-zijn. De balk eronder laat in één oogopslag zien hoeveel van elke euro vastligt.
-
-Daaronder staat het belangrijkste: **welke** posten dat zijn. Huur, lening, zorgverzekering, energie,
-telefoon — met bedrag per maand, hoe vaak ze komen, en een melding als het bedrag veranderd is. Naast
-die lijst zie je waar het variabele geld heen ging, per categorie.
-
-### Wanneer telt iets als vast?
-
-Niet elke terugkerende betaling is een vaste last. De supermarkt komt ook elke week terug, maar die
-kun je overslaan. Een kost telt als vast wanneer:
-
-- er een **incassomachtiging** op zit — dan wordt het hoe dan ook afgeschreven, ook als het bedrag
-  schommelt zoals bij een verzekeringspremie of een aflossing; of
-- het **elke keer hetzelfde bedrag** is (binnen 15%), wat abonnementen op je creditcard vangt zoals
-  YouTube Premium.
-
-Alles wat wel terugkeert maar wisselt en niet geïncasseerd wordt — tankbeurten, thuisbezorgd,
-motorkleding — staat aan de variabele kant. Onderaan het blok zie je hoeveel posten dat zijn.
 
 ## Salarisdag: de échte datum, niet een vaste dag
 

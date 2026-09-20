@@ -83,20 +83,54 @@ POSITIVE = case((Transaction.amount_cents > 0, Transaction.amount_cents), else_=
 NEGATIVE = case((Transaction.amount_cents < 0, Transaction.amount_cents), else_=0)
 
 
+def _range(config: periods.PeriodConfig, **kwargs) -> periods.PeriodRange:
+    """`resolve_range`, with a malformed label answered as a 422 rather than a 500."""
+    try:
+        return periods.resolve_range(config, **kwargs)
+    except ValueError as exc:
+        raise HTTPException(422, f"Ongeldige periode: {exc}. Gebruik JJJJ-MM.") from exc
+
+
+@router.get("/periods")
+def period_options(db: Session = Depends(get_db)):
+    """Everything the period picker needs: the current period, and every
+    period from the oldest transaction up to now, newest first, with a
+    readable label — so the picker is a plain <select> that works in every
+    browser rather than an <input type=month> that does not."""
+    config = periods.load_config(db)
+    current = periods.period_of(date.today(), config)
+    earliest = periods.earliest_period(db, config) or current
+
+    options = []
+    cursor = current
+    while cursor >= earliest:
+        options.append({"value": periods.label_of(*cursor), "label": periods.human_label(*cursor)})
+        cursor = periods.shift_period(*cursor, -1)
+
+    return {
+        "current": periods.label_of(*current),
+        "earliest": periods.label_of(*earliest),
+        "options": options,
+    }
+
+
 @router.get("/summary")
 def summary(
     db: Session = Depends(get_db),
     year: Optional[int] = None,
     month: Optional[int] = Query(None, ge=1, le=12),
+    from_label: Optional[str] = Query(None, alias="from"),
+    to_label: Optional[str] = Query(None, alias="to"),
     account_id: Optional[int] = None,
 ):
-    """KPI row for one period, with the previous period for comparison."""
+    """KPI row for a period or a range of periods, with the equally long
+    stretch before it for comparison."""
     config = periods.load_config(db)
-    if year is None or month is None:
-        year, month = periods.period_of(date.today(), config)
+    window = _range(config, from_label=from_label, to_label=to_label, year=year, month=month)
+    year, month = window.last
 
-    def totals(y: int, m: int) -> dict:
-        start, end = periods.period_bounds(y, m, config)
+    def totals(r: periods.PeriodRange) -> dict:
+        start, end = r.start, r.end
         stmt = _scope(
             select(
                 func.coalesce(func.sum(POSITIVE), 0),
@@ -115,13 +149,13 @@ def summary(
             "end": end.isoformat(),
         }
 
-    current = totals(year, month)
-    previous = totals(*periods.shift_period(year, month, -1))
+    current = totals(window)
+    previous = totals(window.previous(config))
 
     # What actually moved into savings this period. Transfers are excluded from
     # income and expenses, so this is the honest "saved" figure — the amount
     # that left the current accounts and stayed inside the household.
-    start, end = periods.period_bounds(year, month, config)
+    start, end = window.start, window.end
     saved = db.scalar(
         select(func.coalesce(func.sum(Transaction.amount_cents), 0))
         .join(Account, Account.id == Transaction.account_id)
@@ -142,6 +176,7 @@ def summary(
         "savings_accounts": savings_accounts,
         "year": year,
         "month": month,
+        "range": window.to_dict(),
         "scope": "account" if account_id else "household",
         **current,
         "saved": saved / 100,
@@ -156,11 +191,15 @@ def summary(
 def cashflow(
     db: Session = Depends(get_db),
     months: int = Query(12, ge=1, le=120),
+    to_label: Optional[str] = Query(None, alias="to"),
     account_id: Optional[int] = None,
 ):
-    """Income, expenses and net per period — one query for the whole range."""
+    """Income, expenses and net per period — one query for the whole range.
+
+    `to` moves the window: `months` periods ending there instead of now, so
+    the chart follows the period you are looking at."""
     config = periods.load_config(db)
-    labels = periods.recent_periods(months, config)
+    labels = _range(config, to_label=to_label, months=months).labels
     first_start, _ = periods.period_bounds(*labels[0], config)
     _, last_end = periods.period_bounds(*labels[-1], config)
 
@@ -194,13 +233,14 @@ def by_category(
     db: Session = Depends(get_db),
     year: Optional[int] = None,
     month: Optional[int] = Query(None, ge=1, le=12),
+    from_label: Optional[str] = Query(None, alias="from"),
+    to_label: Optional[str] = Query(None, alias="to"),
     account_id: Optional[int] = None,
     direction: Literal["out", "in"] = "out",
 ):
     config = periods.load_config(db)
-    if year is None or month is None:
-        year, month = periods.period_of(date.today(), config)
-    start, end = periods.period_bounds(year, month, config)
+    window = _range(config, from_label=from_label, to_label=to_label, year=year, month=month)
+    start, end = window.start, window.end
 
     amount_filter = Transaction.amount_cents < 0 if direction == "out" else Transaction.amount_cents > 0
 
@@ -343,16 +383,25 @@ def expense_breakdown(
     db: Session = Depends(get_db),
     kind: Literal["fixed", "variable", "all"] = "variable",
     months: int = Query(6, ge=0, le=240),
+    from_label: Optional[str] = Query(None, alias="from"),
+    to_label: Optional[str] = Query(None, alias="to"),
 ):
     """Expenses over a range, split fixed or variable.
 
-    `months=0` means everything on record. The range matters more here than on
-    the overview: a single month of variable spending is mostly noise, and the
-    question "what does this actually cost me" only has an answer over several.
+    `from`/`to` name the range outright; without them `months` counts back
+    from now, and `months=0` means everything on record. The range matters
+    more here than on the overview: a single month of variable spending is
+    mostly noise, and "what does this actually cost me" only has an answer
+    over several.
     """
     config = periods.load_config(db)
+    window = None
 
-    if months == 0:
+    if from_label or to_label:
+        window = _range(config, from_label=from_label, to_label=to_label)
+        labels = window.labels
+        start, end = window.start, window.end
+    elif months == 0:
         first = db.scalar(select(func.min(Transaction.booked_on)))
         start = date.fromisoformat(first) if isinstance(first, str) else first
         if start is None:
@@ -449,10 +498,11 @@ def expense_breakdown(
         "kind": kind,
         "range": {
             "months": months,
-            "label": RANGE_LABELS.get(months, f"{months} maanden"),
+            "label": window.to_dict()["label"] if window else RANGE_LABELS.get(months, f"{months} maanden"),
             "start": start.isoformat(),
             "end": end.isoformat(),
             "periods": span,
+            **({"from": window.to_dict()["from"], "to": window.to_dict()["to"]} if window else {}),
         },
         "total": total / 100,
         "monthly_average": round(total / 100 / span, 2) if span else 0,

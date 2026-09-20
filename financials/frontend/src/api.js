@@ -68,8 +68,9 @@ export const api = {
   balanceHistory: (months) => request("/dashboard/balance-history", { params: { months } }),
   fixedVariable: (months) => request("/dashboard/fixed-variable", { params: { months } }),
   costStructure: (params) => request("/dashboard/cost-structure", { params }),
-  expenseBreakdown: (kind, months) =>
-    request("/dashboard/expense-breakdown", { params: { kind, months } }),
+  periodOptions: () => request("/dashboard/periods"),
+  expenseBreakdown: (kind, params) =>
+    request("/dashboard/expense-breakdown", { params: { kind, ...params } }),
   recurring: (params) => request("/dashboard/recurring", { params }),
   topCounterparties: (params) => request("/dashboard/top-counterparties", { params }),
   yearOverYear: (years) => request("/dashboard/year-over-year", { params: { years } }),
@@ -160,9 +161,6 @@ export const api = {
       method: "POST",
       params: { include_locked: includeLocked, dry_run: dryRun },
     }),
-
-  appearance: () => request("/settings/appearance"),
-  saveAppearance: (theme) => request("/settings/appearance", { method: "PUT", body: { theme } }),
 
   periodSettings: () => request("/settings/period"),
   savePeriodSettings: (payload) => request("/settings/period", { method: "PUT", body: payload }),

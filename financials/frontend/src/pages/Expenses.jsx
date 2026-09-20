@@ -4,7 +4,9 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import CategoryDonut from "../components/CategoryDonut.jsx";
+import PeriodPicker from "../components/PeriodPicker.jsx";
 import { axisMoney, money, shortDate } from "../format.js";
+import { usePeriod } from "../period.js";
 
 /**
  * One page, two tabs: fixed expenses and variable expenses.
@@ -14,17 +16,11 @@ import { axisMoney, money, shortDate } from "../format.js";
  * A category rendered blue on one page and green on the other would make the
  * reader do work the chart is meant to do.
  *
- * The range selector matters more here than on the overview: one month of
- * variable spending is mostly noise, and "what does this actually cost me"
- * only has an answer across several.
+ * The period is the shared one, so it follows you from the overview. It
+ * matters more here than there: one month of variable spending is mostly
+ * noise, and "what does this actually cost me" only has an answer across
+ * several — which is what the 3/6/12-month presets are for.
  */
-const RANGES = [
-  { value: 1, label: "Deze periode" },
-  { value: 3, label: "3 maanden" },
-  { value: 6, label: "6 maanden" },
-  { value: 12, label: "12 maanden" },
-  { value: 0, label: "Alles" },
-];
 
 const COPY = {
   fixed: {
@@ -57,33 +53,28 @@ const COPY = {
 };
 
 export default function Expenses({ kind }) {
-  const [months, setMonths] = useState(6);
+  const period = usePeriod();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const copy = COPY[kind];
 
   useEffect(() => {
+    if (!period.range) return;
     setData(null);
-    api.expenseBreakdown(kind, months).then(setData).catch((e) => setError(e.message));
-  }, [kind, months]);
+    api.expenseBreakdown(kind, period.params).then(setData).catch((e) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, period.range?.from, period.range?.to]);
 
   if (error) return <Alert kind="error">{error}</Alert>;
 
   return (
     <>
-      <PageHeader title={copy.title} subtitle={copy.subtitle}>
-        <div className="flex flex-wrap gap-1">
-          {RANGES.map((range) => (
-            <button
-              key={range.value}
-              className={months === range.value ? "btn-primary" : "btn-ghost"}
-              onClick={() => setMonths(range.value)}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
-      </PageHeader>
+      <PageHeader title={copy.title} subtitle={copy.subtitle} />
+
+      <div className="card mb-6 flex flex-wrap items-center justify-between gap-3">
+        <PeriodPicker />
+        {data && <span className="text-sm font-medium">{data.range.label}</span>}
+      </div>
 
       {!data ? (
         <Spinner />

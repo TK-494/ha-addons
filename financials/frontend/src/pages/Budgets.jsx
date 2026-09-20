@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import { money } from "../format.js";
+import { usePeriod } from "../period.js";
 
 const MONTHS = [
   "januari", "februari", "maart", "april", "mei", "juni",
@@ -11,6 +12,7 @@ const MONTHS = [
 
 export default function Budgets() {
   const [period, setPeriod] = useState(null);
+  const monthOptions = usePeriod().options?.options;
   const [data, setData] = useState(null);
   const [suggestions, setSuggestions] = useState(null);
   const [error, setError] = useState(null);
@@ -46,6 +48,13 @@ export default function Budgets() {
 
   if (!data) return <Spinner />;
 
+  // Budgets are also set for months that have not happened yet, and those are
+  // not in the shared list — so the month being shown is always offered.
+  const monthValue = `${data.year}-${String(data.month).padStart(2, "0")}`;
+  const monthChoices = monthOptions && !monthOptions.some((o) => o.value === monthValue)
+    ? [{ value: monthValue, label: `${MONTHS[data.month - 1]} ${data.year}` }, ...monthOptions]
+    : monthOptions;
+
   const spentShare = data.total_available
     ? Math.round((100 * data.total_spent) / data.total_available)
     : null;
@@ -63,9 +72,25 @@ export default function Budgets() {
       >
         <div className="flex items-center gap-1">
           <button className="btn-ghost" onClick={() => shift(-1)}>‹</button>
-          <span className="min-w-[9rem] text-center text-sm font-medium">
-            {MONTHS[data.month - 1]} {data.year}
-          </span>
+          {/* A budget is per month, so this page keeps its own month rather
+              than the shared range — but you can jump straight to one. */}
+          {monthOptions ? (
+            <select
+              className="input w-auto py-1"
+              value={monthValue}
+              onChange={(e) => {
+                const [year, month] = e.target.value.split("-").map(Number);
+                setPeriod({ year, month });
+              }}
+              aria-label="Maand"
+            >
+              {monthChoices.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ) : (
+            <span className="min-w-[9rem] text-center text-sm font-medium">
+              {MONTHS[data.month - 1]} {data.year}
+            </span>
+          )}
           <button className="btn-ghost" onClick={() => shift(1)}>›</button>
         </div>
         <button

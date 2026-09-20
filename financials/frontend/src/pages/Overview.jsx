@@ -8,15 +8,12 @@ import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import AvailablePanel from "../components/AvailablePanel.jsx";
 import CategoryDonut from "../components/CategoryDonut.jsx";
+import PeriodPicker from "../components/PeriodPicker.jsx";
 import { axisMoney, maskAccount, money } from "../format.js";
-
-const MONTHS = [
-  "januari", "februari", "maart", "april", "mei", "juni",
-  "juli", "augustus", "september", "oktober", "november", "december",
-];
+import { usePeriod } from "../period.js";
 
 export default function Overview() {
-  const [period, setPeriod] = useState(null);
+  const period = usePeriod();
   const [accountId, setAccountId] = useState("");
   const [accounts, setAccounts] = useState([]);
   const [data, setData] = useState({});
@@ -28,34 +25,36 @@ export default function Overview() {
   }, []);
 
   useEffect(() => {
+    if (!period.range) return;  // the shared period is still being resolved
     setLoading(true);
-    const params = { account_id: accountId || undefined, ...(period || {}) };
+    const params = { account_id: accountId || undefined, ...period.params };
     Promise.all([
       api.summary(params),
-      api.cashflow({ months: 12, account_id: accountId || undefined }),
+      // The cashflow chart follows the window: at least a year, ending where
+      // the selection ends, so one month still gets its context.
+      api.cashflow({ months: Math.max(12, period.count), to: period.range.to, account_id: accountId || undefined }),
       api.byCategory(params),
       api.byCategory({ ...params, direction: "in" }),
       api.uncategorised(5),
       api.yearOverYear(4),
-      api.availableThisPeriod(period || {}),
+      // "What is still free" is a question about one month; over a range it
+      // has no answer, so the panel simply stays away.
+      period.single ? api.availableThisPeriod({ year: Number(period.range.to.slice(0, 4)), month: Number(period.range.to.slice(5, 7)) }) : Promise.resolve(null),
     ])
       .then(([summary, cashflow, categories, incomeCategories, todo, yoy, available]) => {
         setData({ summary, cashflow, categories, incomeCategories, todo, yoy, available });
-        if (!period) setPeriod({ year: summary.year, month: summary.month });
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, period?.year, period?.month]);
+  }, [accountId, period.range?.from, period.range?.to]);
 
-  const shift = (delta) => {
-    const index = period.year * 12 + (period.month - 1) + delta;
-    setPeriod({ year: Math.floor(index / 12), month: (index % 12) + 1 });
-  };
-
-  if (loading && !data.summary) return <Spinner label="Overzicht laden…" />;
+  if (!period.range || (loading && !data.summary)) return <Spinner label="Overzicht laden…" />;
   const { summary, cashflow, categories, incomeCategories, todo, yoy, available } = data;
   if (!summary) return <Empty>Nog geen gegevens. Importeer eerst een CSV-bestand.</Empty>;
+
+  // A quarter is compared with the quarter before it, so say so.
+  const compareLabel = period.single ? "vorige maand" : `de ${period.count} maanden ervoor`;
 
 
   return (
@@ -72,22 +71,20 @@ export default function Overview() {
           <option value="">Alle rekeningen (huishouden)</option>
           {accounts.map((a) => <option key={a.id} value={a.id}>{maskAccount(a.label)}</option>)}
         </select>
-        <div className="flex items-center gap-1">
-          <button className="btn-ghost" onClick={() => shift(-1)}>‹</button>
-          <span className="min-w-[9rem] text-center text-sm font-medium">
-            {MONTHS[summary.month - 1]} {summary.year}
-          </span>
-          <button className="btn-ghost" onClick={() => shift(1)}>›</button>
-        </div>
       </PageHeader>
+
+      <div className="card mb-6 flex flex-wrap items-center justify-between gap-3">
+        <PeriodPicker />
+        <span className="text-sm font-medium">{summary.range?.label}</span>
+      </div>
 
       {error && <Alert kind="error" onDismiss={() => setError(null)}>{error}</Alert>}
 
-      <AvailablePanel data={available} />
+      {available && <AvailablePanel data={available} />}
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Inkomsten" value={summary.income} delta={summary.delta_income} good="up" />
-        <Kpi label="Uitgaven" value={Math.abs(summary.expenses)} delta={summary.delta_expenses} good="down" />
+        <Kpi label="Inkomsten" value={summary.income} delta={summary.delta_income} good="up" periodsBefore={compareLabel} />
+        <Kpi label="Uitgaven" value={Math.abs(summary.expenses)} delta={summary.delta_expenses} good="down" periodsBefore={compareLabel} />
         <Kpi label="Netto" value={summary.net} />
 <div className="card">
           <p className="label">Gespaard</p>
@@ -244,7 +241,7 @@ export default function Overview() {
   );
 }
 
-function Kpi({ label, value, delta, good }) {
+function Kpi({ label, value, delta, good, periodsBefore = "vorige periode" }) {
   // "Better" differs per metric: more income is good, more expense is not.
   const improved = delta === undefined ? null : good === "down" ? delta < 0 : delta > 0;
   return (
@@ -253,7 +250,7 @@ function Kpi({ label, value, delta, good }) {
       <p className="text-xl font-semibold tabular-nums">{money(value)}</p>
       {delta !== undefined && (
         <p className={`text-xs ${improved ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-          {delta >= 0 ? "+" : ""}{money(delta)} t.o.v. vorige periode
+          {delta >= 0 ? "+" : ""}{money(delta)} t.o.v. {periodsBefore}
         </p>
       )}
     </div>

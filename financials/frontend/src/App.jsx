@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api.js";
-import { applyTheme } from "./theme.js";
 import { setPrivate } from "./format.js";
+import { PeriodProvider } from "./period.js";
 import Overview from "./pages/Overview.jsx";
 import Import from "./pages/Import.jsx";
 import Transactions from "./pages/Transactions.jsx";
@@ -73,16 +73,6 @@ export default function App() {
     }
   });
 
-  // The stored theme is the source of truth; the cache only prevents a flash.
-  useEffect(() => {
-    api.appearance()
-      .then(({ theme }) => {
-        applyTheme(theme);
-        try { localStorage.setItem("financials.theme", theme); } catch { /* ignore */ }
-      })
-      .catch(() => { /* keep whatever the cache applied */ });
-  }, []);
-
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
@@ -128,6 +118,7 @@ export default function App() {
   );
 
   return (
+    <PeriodProvider>
     <div className="mx-auto flex min-h-screen max-w-[110rem] gap-4 p-4">
       <nav className={`hidden shrink-0 md:block ${collapsed ? "w-14" : "w-56"} transition-[width] duration-150`}>
         <div className={`mb-6 flex items-center gap-2 ${collapsed ? "justify-center" : "justify-between px-2"}`}>
@@ -223,5 +214,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </PeriodProvider>
   );
 }

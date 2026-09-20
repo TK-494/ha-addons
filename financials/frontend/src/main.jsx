@@ -4,14 +4,12 @@ import { HashRouter } from "react-router-dom";
 import App from "./App.jsx";
 import "./index.css";
 
-// Applied before the first paint from a local cache, then reconciled with the
-// stored setting. Waiting for the API would show the wrong palette for a beat
-// on every load.
+// One palette since 0.20.0, so there is nothing to apply before paint. Light
+// and dark still follow the system through Tailwind's `darkMode: "media"`.
 try {
-  const cached = localStorage.getItem("financials.theme");
-  if (cached && cached !== "default") document.documentElement.dataset.theme = cached;
+  localStorage.removeItem("financials.theme");
 } catch {
-  /* private mode — the theme still applies once the API answers */
+  /* private mode — the leftover key is harmless either way */
 }
 
 // HashRouter, not BrowserRouter: under Ingress the path prefix is dynamic and
