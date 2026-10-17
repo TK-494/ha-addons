@@ -1,0 +1,50 @@
+name: Media Requests
+version: "0.1.0"
+slug: media-requests
+description: Zet muziek, boeken, films en series op een HA-takenlijst en ze worden toegevoegd aan Lidarr, Readarr, Radarr en Sonarr.
+url: https://github.com/TK-494/ha-addons/tree/main/media-requests
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+# Reads and updates the to-do list through Supervisor's Core API proxy.
+homeassistant_api: true
+# Read-only: the *arr add-ons keep their API key and UrlBase in config.xml,
+# so nobody has to copy keys into this add-on by hand.
+map:
+  - type: all_addon_configs
+    read_only: true
+options:
+  todo_entity: todo.media_verzoeken
+  poll_seconds: 60
+  notify_service: ""
+  lidarr_artist_monitor: all
+  readarr_author_monitor: all
+  sonarr_series_monitor: all
+schema:
+  todo_entity: "match(^todo\\.[a-z0-9_]+$)"
+  poll_seconds: "int(15,3600)"
+  notify_service: "str?"
+  lidarr_url: "url?"
+  lidarr_api_key: "password?"
+  lidarr_quality_profile: "str?"
+  lidarr_metadata_profile: "str?"
+  lidarr_root_folder: "str?"
+  lidarr_artist_monitor: "list(all|future|missing|existing|latest|first|none)"
+  readarr_url: "url?"
+  readarr_api_key: "password?"
+  readarr_quality_profile: "str?"
+  readarr_metadata_profile: "str?"
+  readarr_root_folder: "str?"
+  readarr_author_monitor: "list(all|future|missing|existing|latest|first|none)"
+  radarr_url: "url?"
+  radarr_api_key: "password?"
+  radarr_quality_profile: "str?"
+  radarr_root_folder: "str?"
+  sonarr_url: "url?"
+  sonarr_api_key: "password?"
+  sonarr_quality_profile: "str?"
+  sonarr_root_folder: "str?"
+  sonarr_series_monitor: "list(all|future|missing|existing|pilot|firstSeason|lastSeason|none)"
