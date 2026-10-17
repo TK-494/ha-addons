@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 2026-10-17
+- Fixed: a song request could add its single instead of the album. Direct Lidarr matches are now studio albums only; singles/EPs need an explicit `lidarr:` ID.
+- Fixed: Readarr `POST book` failed with "Author.ForeignAuthorId must not be empty" — the book lookup returns an author stub, so the author is now resolved through `author/lookup` first.
+- *arr validation errors are shown as their message, not as raw JSON.
+
 ## 0.1.1 — 2026-10-17
 - Removed personal setup details from README and a code comment.
 - Fixed: `SUPERVISOR_TOKEN missing` on start — s6-overlay doesn't pass it to a plain CMD; the token is now also read from `/run/s6/container_environment`.

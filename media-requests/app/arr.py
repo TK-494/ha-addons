@@ -43,7 +43,16 @@ def http_json(method: str, url: str, headers: dict | None = None, body=None):
             raw = resp.read()
             return json.loads(raw) if raw else None
     except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")[:500]
+        detail = e.read().decode(errors="replace")
+        try:
+            parsed = json.loads(detail)
+            if isinstance(parsed, list):
+                detail = "; ".join(str(x.get("errorMessage", x)) for x in parsed if isinstance(x, dict))
+            elif isinstance(parsed, dict):
+                detail = str(parsed.get("message") or parsed.get("errorMessage") or parsed)
+        except ValueError:
+            pass
+        detail = detail[:300]
         if e.code >= 500:
             raise TransientError(f"HTTP {e.code} from {redact(url)}: {detail}") from e
         raise RequestError(f"HTTP {e.code} from {redact(url)}: {detail}") from e

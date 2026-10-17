@@ -238,7 +238,7 @@ def test_musicbrainz_prefers_studio_album(fake):
 def test_readarr_book_marks_one_edition(fake):
     a = mk("readarr")
     fake.on("GET", "/api/v1/book/lookup", [{"title": "Dune", "releaseDate": "1965-08-01", "foreignBookId": "w1",
-                                           "author": {"authorName": "Frank Herbert"},
+                                           "author": {"authorName": "Frank Herbert", "foreignAuthorId": "a-1"},
                                            "editions": [{"id": 0, "monitored": False}, {"monitored": False}]}])
     profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "author")
     fake.on("POST", "/api/v1/book", {})
@@ -325,3 +325,44 @@ def test_ha_get_items_shape(fake):
     ha = main.HA("t", "http://supervisor/core/api")
     assert ha.open_items("todo.x") == [{"uid": "1", "summary": "s"}]
     assert json.dumps(fake.calls[0][3]) == '{"entity_id": "todo.x", "status": "needs_action"}'
+
+
+# ------------------------------------------------------ live-found regressions ---
+
+def test_lidarr_song_does_not_pick_its_single(fake, monkeypatch):
+    a = mk("lidarr")
+    fake.on("GET", "/api/v1/album/lookup", lambda q, _: [album("Mezzanine", "Massive Attack", "rg-1")]
+            if q["term"][0] == "lidarr:rg-1" else
+            [album("Teardrop", "Massive Attack", "rg-s", albumType="Single")])
+    monkeypatch.setattr(handlers, "musicbrainz_album_for_track",
+                        lambda t: [{"rgid": "rg-1", "title": "Mezzanine", "artist": "Massive Attack",
+                                    "year": "1998", "track": "Teardrop", "score": 100}])
+    fake.on("GET", "/api/v1/album", [])
+    profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "artist")
+    fake.on("POST", "/api/v1/album", {})
+    r = handlers.lidarr_album(a, "Teardrop - Massive Attack", "muziek")
+    assert fake.writes("POST")[0][3]["foreignAlbumId"] == "rg-1" and "Mezzanine" in r.message
+
+
+def test_readarr_author_stub_is_resolved(fake):
+    a = mk("readarr")
+    fake.on("GET", "/api/v1/book/lookup", [{"title": "Project Hail Mary", "releaseDate": "2021-05-04",
+                                           "foreignBookId": "w2", "authorTitle": "weir, andy",
+                                           "author": {"authorName": None}, "editions": [{"monitored": True}]}])
+    fake.on("GET", "/api/v1/author/lookup", [{"authorName": "Andy Weir", "foreignAuthorId": "a-9"}])
+    profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "author")
+    fake.on("POST", "/api/v1/book", {})
+    r = handlers.readarr_book(a, "Project Hail Mary", "boek")
+    body = fake.writes("POST")[0][3]
+    assert r.status == "added" and body["author"]["foreignAuthorId"] == "a-9"
+    assert [c[2]["term"] for c in fake.calls if c[1].endswith("author/lookup")] == [["andy weir"]]
+
+
+def test_validation_error_is_compact(monkeypatch):
+    import io
+    import urllib.error
+    err = urllib.error.HTTPError("http://x/api", 400, "Bad", {},
+                                 io.BytesIO(b'[{"propertyName":"A","errorMessage":"A must not be empty."}]'))
+    monkeypatch.setattr(arr.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(err))
+    with pytest.raises(arr.RequestError, match=r"HTTP 400 from http://x/api: A must not be empty\.$"):
+        arr.http_json("GET", "http://x/api")

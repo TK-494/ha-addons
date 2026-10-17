@@ -67,7 +67,10 @@ def _album_label(a):
 def lidarr_album(arr: Arr, query: str, prefix: str) -> Result:
     explicit = bool(EXPLICIT_RE.match(query))
     albums = arr.call("GET", "album/lookup", term=query) or []
-    chosen, ranked = pick(query, albums, _album_label, explicit)
+    # A song title also matches its single ("Teardrop" the single), which isn't what a
+    # song request means. Singles and EPs are only added by explicit ID.
+    studio = [a for a in albums if str(a.get("albumType", "Album")).lower() == "album"]
+    chosen, ranked = pick(query, albums if explicit else studio, _album_label, explicit)
     via_track = ""
     if chosen is None and not explicit:
         # Probably a song title: find the album it's on through MusicBrainz.
@@ -150,7 +153,7 @@ def readarr_book(arr: Arr, query: str, prefix: str) -> Result:
         return Result("added", f"Readarr had dit boek al maar bewaakte het niet. Nu bewaakt en gezocht: {label}.")
 
     q_id, m_id, root, notes = arr.profiles("author", need_metadata=True)
-    author = dict(chosen.get("author") or {})
+    author = _readarr_full_author(arr, chosen)
     author.update({
         "qualityProfileId": q_id, "metadataProfileId": m_id, "rootFolderPath": root,
         "monitored": True, "monitorNewItems": "none",
@@ -164,6 +167,27 @@ def readarr_book(arr: Arr, query: str, prefix: str) -> Result:
                  "addOptions": {"searchForNewBook": True}})
     arr.call("POST", "book", body)
     return Result("added", f"Toegevoegd aan Readarr en zoekopdracht gestart: {label}.", notes=notes)
+
+
+def _readarr_full_author(arr: Arr, book: dict) -> dict:
+    """book/lookup can return an author stub without foreignAuthorId; POST book rejects that."""
+    author = dict(book.get("author") or {})
+    if author.get("foreignAuthorId"):
+        return author
+    name = author.get("authorName") or ""
+    if not name and book.get("authorTitle"):  # "weir, andy" -> "andy weir"
+        last, _, first = book["authorTitle"].partition(",")
+        name = f"{first.strip()} {last.strip()}".strip()
+    if not name:
+        raise RequestError("Readarr gaf geen auteur bij dit boek; voeg eerst de auteur toe met 'auteur: <naam>'.")
+    found = arr.call("GET", "author/lookup", term=name) or []
+    chosen, _ = pick(name, [dict(c, title=c.get("authorName", "")) for c in found],
+                     lambda a: a.get("authorName", ""), False)
+    if chosen is None:
+        raise RequestError(f"Readarr: auteur '{name}' niet eenduidig gevonden; voeg eerst de auteur toe met "
+                           f"'auteur: <naam>'.")
+    chosen.pop("title", None)
+    return chosen
 
 
 def readarr_author(arr: Arr, query: str, prefix: str, monitor: str) -> Result:
