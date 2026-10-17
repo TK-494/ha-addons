@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-10-17
+- Fixed: `album: Mezzanine Massive Attack` added an unrelated album. Every album titled "Mezzanine" tied on its bare title, so the artist was ignored; the bare title now only counts when the query names nothing else.
+- Fixed: the MusicBrainz song fallback accepted any recording. It now runs for song prefixes only (`muziek:`, `nummer:`, …, never `album:`) and requires track + artist to match the query.
+- Summaries, study guides and tribute/karaoke releases score half unless the query asks for them.
+
 ## 0.1.2 — 2026-10-17
 - Fixed: a song request could add its single instead of the album. Direct Lidarr matches are now studio albums only; singles/EPs need an explicit `lidarr:` ID.
 - Fixed: Readarr `POST book` failed with "Author.ForeignAuthorId must not be empty" — the book lookup returns an author stub, so the author is now resolved through `author/lookup` first.

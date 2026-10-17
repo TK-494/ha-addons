@@ -366,3 +366,41 @@ def test_validation_error_is_compact(monkeypatch):
     monkeypatch.setattr(arr.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(err))
     with pytest.raises(arr.RequestError, match=r"HTTP 400 from http://x/api: A must not be empty\.$"):
         arr.http_json("GET", "http://x/api")
+
+
+def test_album_with_artist_beats_same_title_by_others(fake):
+    a = mk("lidarr")
+    fake.on("GET", "/api/v1/album/lookup", [album("Mezzanine", "Some Jazz Trio", "rg-x", 2015),
+                                            album("Mezzanine", "Massive Attack", "rg-1"),
+                                            album("Mezzanine", "DJ Nobody", "rg-y", 2003)])
+    fake.on("GET", "/api/v1/album", [])
+    profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "artist")
+    fake.on("POST", "/api/v1/album", {})
+    r = handlers.lidarr_album(a, "Mezzanine Massive Attack", "album")
+    assert r.status == "added" and fake.writes("POST")[0][3]["foreignAlbumId"] == "rg-1"
+
+
+def test_album_prefix_never_uses_song_fallback(fake, monkeypatch):
+    a = mk("lidarr")
+    fake.on("GET", "/api/v1/album/lookup", [])
+    monkeypatch.setattr(handlers, "musicbrainz_album_for_track",
+                        lambda t: (_ for _ in ()).throw(AssertionError("must not be called")))
+    r = handlers.lidarr_album(a, "Mezzanine Massive Attack", "album")
+    assert r.status == "failed" and fake.writes() == []
+
+
+def test_song_fallback_rejects_unrelated_recording(fake, monkeypatch):
+    a = mk("lidarr")
+    fake.on("GET", "/api/v1/album/lookup", [])
+    monkeypatch.setattr(handlers, "musicbrainz_album_for_track",
+                        lambda t: [{"rgid": "rg-z", "title": "Homage", "artist": "Other Band",
+                                    "year": "2009", "track": "Massive Attack", "score": 100}])
+    r = handlers.lidarr_album(a, "Mezzanine Massive Attack", "muziek")
+    assert r.status == "failed" and fake.writes() == []
+
+
+def test_summary_books_do_not_outrank_the_book():
+    cands = [{"title": "Summary of Project Hail Mary by Andy Weir", "authorTitle": "thomas, harry"},
+             {"title": "Project Hail Mary", "authorTitle": "weir, andy", "releaseDate": "2021-05-04"}]
+    chosen, _ = arr.pick("Project Hail Mary Andy Weir", cands, handlers._book_label, False)
+    assert chosen["title"] == "Project Hail Mary"

@@ -91,16 +91,32 @@ ACCEPT = 0.75   # minimum score to add without asking
 MARGIN = 0.08   # top result must beat the runner-up by this much
 
 
+DERIVATIVE_RE = re.compile(
+    r"\b(summary|summaries|study guide|analysis|workbook|samenvatting|conversation starters|"
+    r"tribute|karaoke|cover versions?)\b", re.I)
+
+
+def rank_score(query: str, cand: dict, label) -> float:
+    full = score(query, label(cand))
+    title = cand.get("title", "")
+    # The bare title only counts when the query says nothing beyond it. Otherwise every
+    # album called "Mezzanine" ties at 1.0 and the artist the user named is ignored.
+    if set(norm(query).split()) <= set(norm(title).split()):
+        full = max(full, score(query, title))
+    # Summaries, study guides and tribute albums name the original in their title and
+    # outscore it; they only win when asked for.
+    if DERIVATIVE_RE.search(label(cand)) and not DERIVATIVE_RE.search(query):
+        full *= 0.5
+    return round(full, 3)
+
+
 def pick(query: str, candidates: list[dict], label, explicit: bool):
     """Return (chosen, ranked). chosen is None when it's not a clear win."""
     if not candidates:
         return None, []
     if explicit:  # tmdb:/tvdb:/lidarr:/isbn: lookups return the thing asked for
         return candidates[0], [(1.0, candidates[0])]
-    # Best of full label and bare title: "Dune" shouldn't lose points for not
-    # also naming the author, and "dune herbert" shouldn't for naming them.
-    ranked = sorted(((max(score(query, label(c)), score(query, c.get("title", ""))), c)
-                     for c in candidates),
+    ranked = sorted(((rank_score(query, c, label), c) for c in candidates),
                     key=lambda t: t[0], reverse=True)
     top_s, top = ranked[0]
     second_s = ranked[1][0] if len(ranked) > 1 else 0.0

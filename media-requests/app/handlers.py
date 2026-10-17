@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from arr import EXPLICIT_RE, Arr, RequestError, musicbrainz_album_for_track, pick
+from arr import ACCEPT, EXPLICIT_RE, Arr, RequestError, musicbrainz_album_for_track, pick, score
 
 
 @dataclass
@@ -26,6 +26,7 @@ PREFIXES = {
     "serie": ("sonarr", "series"), "series": ("sonarr", "series"), "tv": ("sonarr", "series"),
     "show": ("sonarr", "series"),
 }
+SONG_PREFIXES = {"muziek", "music", "nummer", "song", "track"}  # "album:" never means a song
 PREFIX_RE = re.compile(r"^\s*([A-Za-zë]+)\s*[:：]\s*(.+?)\s*$")
 
 
@@ -52,7 +53,7 @@ def _ambiguous(prefix: str, ranked, label, ident, what: str) -> Result:
     if not ranked:
         return Result("failed", f"Niets gevonden voor deze {what}. Controleer de spelling of gebruik een ID.")
     choices = [f"{prefix}: {ident(c)}  ({label(c)})" for _, c in ranked[:4]]
-    return Result("ambiguous", f"Meerdere mogelijke {what}s of geen duidelijke match. "
+    return Result("ambiguous", f"Meerdere mogelijke treffers ({what}) of geen duidelijke match. "
                                "Hernoem dit item naar één van de opties hieronder (alleen het deel vóór de haakjes is nodig).",
                   choices)
 
@@ -72,9 +73,12 @@ def lidarr_album(arr: Arr, query: str, prefix: str) -> Result:
     studio = [a for a in albums if str(a.get("albumType", "Album")).lower() == "album"]
     chosen, ranked = pick(query, albums if explicit else studio, _album_label, explicit)
     via_track = ""
-    if chosen is None and not explicit:
-        # Probably a song title: find the album it's on through MusicBrainz.
+    if chosen is None and not explicit and prefix in SONG_PREFIXES:
+        # Probably a song title: find the album it's on through MusicBrainz. Only accept
+        # a recording that actually matches what was typed, track and artist both.
         for cand in musicbrainz_album_for_track(query)[:3]:
+            if score(query.replace(" - ", " "), f"{cand['track']} {cand['artist']}") < ACCEPT:
+                continue
             hits = arr.call("GET", "album/lookup", term=f"lidarr:{cand['rgid']}") or []
             if hits:
                 chosen = hits[0]
