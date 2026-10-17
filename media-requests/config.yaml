@@ -1,5 +1,5 @@
 name: Media Requests
-version: "0.1.3"
+version: "0.1.4"
 slug: media-requests
 description: Zet muziek, boeken, films en series op een HA-takenlijst en ze worden toegevoegd aan Lidarr, Readarr, Radarr en Sonarr.
 url: https://github.com/TK-494/ha-addons/tree/main/media-requests

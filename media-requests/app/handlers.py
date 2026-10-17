@@ -137,8 +137,20 @@ def lidarr_artist(arr: Arr, query: str, prefix: str, monitor: str) -> Result:
 
 # ----------------------------------------------------------------- readarr ---
 
+def _readarr_author_name(book: dict) -> str:
+    """authorName, else authorTitle, which Readarr formats as "weir, andy Project Hail Mary"."""
+    name = (book.get("author") or {}).get("authorName") or ""
+    if name or not book.get("authorTitle"):
+        return name
+    t, title = book["authorTitle"].strip(), (book.get("title") or "").strip()
+    if title and t.lower().endswith(title.lower()):
+        t = t[: -len(title)].strip()
+    last, _, first = t.partition(",")
+    return f"{first.strip()} {last.strip()}".strip()
+
+
 def _book_label(b):
-    author = (b.get("author") or {}).get("authorName", "") or b.get("authorTitle", "")
+    author = _readarr_author_name(b)
     return f"{b.get('title', '')} — {author} {_year(b)}".strip()
 
 
@@ -178,10 +190,7 @@ def _readarr_full_author(arr: Arr, book: dict) -> dict:
     author = dict(book.get("author") or {})
     if author.get("foreignAuthorId"):
         return author
-    name = author.get("authorName") or ""
-    if not name and book.get("authorTitle"):  # "weir, andy" -> "andy weir"
-        last, _, first = book["authorTitle"].partition(",")
-        name = f"{first.strip()} {last.strip()}".strip()
+    name = _readarr_author_name(book)
     if not name:
         raise RequestError("Readarr gaf geen auteur bij dit boek; voeg eerst de auteur toe met 'auteur: <naam>'.")
     found = arr.call("GET", "author/lookup", term=name) or []

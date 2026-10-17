@@ -347,7 +347,7 @@ def test_lidarr_song_does_not_pick_its_single(fake, monkeypatch):
 def test_readarr_author_stub_is_resolved(fake):
     a = mk("readarr")
     fake.on("GET", "/api/v1/book/lookup", [{"title": "Project Hail Mary", "releaseDate": "2021-05-04",
-                                           "foreignBookId": "w2", "authorTitle": "weir, andy",
+                                           "foreignBookId": "w2", "authorTitle": "weir, andy Project Hail Mary",
                                            "author": {"authorName": None}, "editions": [{"monitored": True}]}])
     fake.on("GET", "/api/v1/author/lookup", [{"authorName": "Andy Weir", "foreignAuthorId": "a-9"}])
     profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "author")
@@ -404,3 +404,17 @@ def test_summary_books_do_not_outrank_the_book():
              {"title": "Project Hail Mary", "authorTitle": "weir, andy", "releaseDate": "2021-05-04"}]
     chosen, _ = arr.pick("Project Hail Mary Andy Weir", cands, handlers._book_label, False)
     assert chosen["title"] == "Project Hail Mary"
+
+
+def test_variant_titles_do_not_block_the_exact_album():
+    cands = [album("Mezzanine", "Massive Attack", "rg-1"),
+             album("Mezzanine B-Sides", "Massive Attack", "rg-b", 2001),
+             album("Mezzanine: The Remixes", "Massive Attack", "rg-r", 2006),
+             album("Mezzanine", "Some Jazz Trio", "rg-x", 2015)]
+    chosen, _ = arr.pick("Mezzanine Massive Attack", cands, handlers._album_label, False)
+    assert chosen["foreignAlbumId"] == "rg-1"
+
+
+def test_readarr_author_name_strips_book_title():
+    assert handlers._readarr_author_name(
+        {"title": "Project Hail Mary", "authorTitle": "weir, andy Project Hail Mary", "author": {}}) == "andy weir"

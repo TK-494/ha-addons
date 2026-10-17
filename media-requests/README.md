@@ -53,7 +53,7 @@ tests/           pytest with a fake HTTP layer; all fixtures invented
 
 ## Verified vs. not verified
 
-The 36 pytest tests (counted, `pytest -q`) cover parsing, scoring, every handler's request body,
+The 38 pytest tests (counted, `pytest -q`) cover parsing, scoring, every handler's request body,
 config.xml discovery, and the loop's answer-once, retry-after-rename and transient behaviour. All of
 them run against a **fake** HTTP layer.
 

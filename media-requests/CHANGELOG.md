@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 — 2026-10-17
+- Fixed: the Readarr author lookup searched "andy Project Hail Mary weir" — `authorTitle` carries the book title after the name ("weir, andy Project Hail Mary"); it is now stripped.
+- Lookup timeout 30 → 60 s; Readarr's metadata mirror is slow.
+- Close scores: the single candidate whose title is in the query and whose label covers the rest wins ("Mezzanine Massive Attack" no longer asks about "Mezzanine B-Sides"). Same-title remakes still ask.
+
 ## 0.1.3 — 2026-10-17
 - Fixed: `album: Mezzanine Massive Attack` added an unrelated album. Every album titled "Mezzanine" tied on its bare title, so the artist was ignored; the bare title now only counts when the query names nothing else.
 - Fixed: the MusicBrainz song fallback accepted any recording. It now runs for song prefixes only (`muziek:`, `nummer:`, …, never `album:`) and requires track + artist to match the query.

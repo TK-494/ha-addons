@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from difflib import SequenceMatcher
 
-TIMEOUT = 30
+TIMEOUT = 60  # Readarr's metadata mirror regularly needs 30+ s for a lookup
 USER_AGENT = "media-requests-ha-addon/0.1 (https://github.com/TK-494/ha-addons)"
 
 
@@ -122,10 +122,13 @@ def pick(query: str, candidates: list[dict], label, explicit: bool):
     second_s = ranked[1][0] if len(ranked) > 1 else 0.0
     if top_s >= ACCEPT and top_s - second_s >= MARGIN:
         return top, ranked
-    # Identical scores happen when a title and its remake both match; only
-    # accept a tie-free exact title.
-    exact = [c for s, c in ranked if norm(c.get("title", "")) == norm(query)]
-    if len(exact) == 1 and top_s >= ACCEPT:
+    # Close scores: accept the one candidate whose title is fully in the query and whose
+    # label covers everything else typed ("Mezzanine Massive Attack" -> Mezzanine by
+    # Massive Attack, not "Mezzanine B-Sides"). Two such candidates (a remake) stay a question.
+    q = set(norm(query).split())
+    exact = [c for s, c in ranked if s >= ACCEPT
+             and set(norm(c.get("title", "")).split()) <= q <= set(norm(label(c)).split())]
+    if len(exact) == 1:
         return exact[0], ranked
     return None, ranked
 
