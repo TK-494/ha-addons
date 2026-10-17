@@ -5,11 +5,9 @@ A to-do list as the request queue for Lidarr, Readarr, Radarr and Sonarr. The en
 
 ## Why a to-do list
 
-Claude reaches this home only through the Home Assistant MCP server on Roel's Mac. The Mac's shell
-sandbox blocks LAN addresses, and the cloud can't reach HA's external URL. HA's own API is the one
-path that works, and a to-do list is the HA-native object that any client can write to: the HA app,
-Assist, an automation, or Claude through MCP. It also persists while the Mac is off, which was the
-original requirement: a request made while the Mac is offline is waiting there for whoever adds it.
+A to-do list is the HA-native object that any client can write to: the HA app, Assist, an
+automation, or an AI assistant through the Home Assistant MCP server. No *arr app has to be exposed
+outside the LAN, and requests wait in the list until the add-on can process them.
 
 ## How it works
 

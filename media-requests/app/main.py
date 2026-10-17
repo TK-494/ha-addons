@@ -1,6 +1,6 @@
 """Poll a Home Assistant to-do list and turn its items into *arr requests.
 
-The list is the queue: anyone (Roel, Assist, Claude through the HA MCP server)
+The list is the queue: anyone (the HA app, Assist, an assistant through the HA MCP server)
 adds "film: The Matrix" and this loop does the rest. Results go into the item's
 description; an item is only marked completed when something was actually added
 or already present, so nothing disappears unseen.
@@ -132,13 +132,22 @@ def process(ha: HA, arrs: dict, opts: dict, state: dict) -> int:
     return written
 
 
+def read_s6_env(name: str) -> str:
+    # s6-overlay stores the container environment here; a plain CMD doesn't inherit it.
+    try:
+        with open(f"/run/s6/container_environment/{name}") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
 def main():
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
                         format="%(asctime)s %(levelname)s %(message)s")
     opts = load_json(OPTIONS_PATH, {})
     opts.setdefault("todo_entity", "todo.media_verzoeken")
     interval = max(15, int(opts.get("poll_seconds") or 60))
-    token = os.environ.get("SUPERVISOR_TOKEN")
+    token = os.environ.get("SUPERVISOR_TOKEN") or read_s6_env("SUPERVISOR_TOKEN")
     if not token:
         log.error("SUPERVISOR_TOKEN missing: is homeassistant_api enabled in config.yaml?")
         sys.exit(1)
