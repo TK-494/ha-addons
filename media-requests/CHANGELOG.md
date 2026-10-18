@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 — 2026-10-18
+- Fixed: a 5xx or timeout on a write (POST/PUT) was retried every minute. Writes are never retried automatically now; the item says what happened and a rename retries.
+- Readarr: a book without editions is fetched again by `work:<id>`; still none → a clear message instead of a 500. Suspected cause of "Sequence contains no matching element" (not verified).
+
 ## 0.1.4 — 2026-10-17
 - Fixed: the Readarr author lookup searched "andy Project Hail Mary weir" — `authorTitle` carries the book title after the name ("weir, andy Project Hail Mary"); it is now stripped.
 - Lookup timeout 30 → 60 s; Readarr's metadata mirror is slow.

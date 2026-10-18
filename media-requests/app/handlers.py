@@ -177,7 +177,15 @@ def readarr_book(arr: Arr, query: str, prefix: str) -> Result:
     })
     body = dict(chosen)
     editions = body.get("editions") or []
-    if editions and not any(e.get("monitored") for e in editions):
+    if not editions and body.get("foreignBookId"):
+        # Title searches can return a book without editions; the work lookup includes them.
+        hits = arr.call("GET", "book/lookup", term=f"work:{body['foreignBookId']}") or []
+        editions = (hits[0].get("editions") if hits else None) or []
+    if not editions:
+        # Readarr needs exactly one monitored edition; without any, POST book is a 500.
+        raise RequestError("Readarr gaf geen edities bij dit boek, dus het kan niet worden toegevoegd. "
+                           "Probeer 'boek: isbn:<nummer>' of voeg het toe in Readarr zelf.")
+    if not any(e.get("monitored") for e in editions):
         editions[0]["monitored"] = True  # Readarr needs one monitored edition to grab
     body.update({"author": author, "monitored": True, "editions": editions,
                  "addOptions": {"searchForNewBook": True}})

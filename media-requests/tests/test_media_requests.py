@@ -418,3 +418,38 @@ def test_variant_titles_do_not_block_the_exact_album():
 def test_readarr_author_name_strips_book_title():
     assert handlers._readarr_author_name(
         {"title": "Project Hail Mary", "authorTitle": "weir, andy Project Hail Mary", "author": {}}) == "andy weir"
+
+
+def test_write_5xx_is_not_retried(fake):
+    a = mk("radarr")
+    fake.on("GET", "/api/v3/movie/lookup", [{"title": "Heat", "year": 1995, "tmdbId": 949}])
+    profiles(fake, "", "v3", [{"qualityProfileId": 1}], "movie", metadata=False)
+    fake.on("POST", "/api/v3/movie", arr.TransientError("HTTP 500 from x: boom"))
+    with pytest.raises(arr.RequestError, match="hernoem het item"):
+        handlers.radarr_movie(a, "Heat 1995", "film")
+
+
+def test_readarr_book_without_editions_refetches_by_work(fake):
+    a = mk("readarr")
+
+    def lookup(q, _):
+        if q["term"][0] == "work:w3":
+            return [{"title": "Artemis", "editions": [{"foreignEditionId": "e1", "monitored": False}]}]
+        return [{"title": "Artemis", "foreignBookId": "w3", "releaseDate": "2017-11-14",
+                 "author": {"authorName": "Andy Weir", "foreignAuthorId": "a-9"}, "editions": []}]
+    fake.on("GET", "/api/v1/book/lookup", lookup)
+    profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "author")
+    fake.on("POST", "/api/v1/book", {})
+    r = handlers.readarr_book(a, "Artemis Andy Weir", "boek")
+    assert r.status == "added" and fake.writes("POST")[0][3]["editions"][0]["monitored"] is True
+
+
+def test_readarr_book_without_any_editions_is_reported(fake):
+    a = mk("readarr")
+    fake.on("GET", "/api/v1/book/lookup", lambda q, _: [] if q["term"][0].startswith("work:") else
+            [{"title": "Artemis", "foreignBookId": "w3", "releaseDate": "2017-11-14",
+              "author": {"authorName": "Andy Weir", "foreignAuthorId": "a-9"}, "editions": []}])
+    profiles(fake, "", "v1", [{"qualityProfileId": 1, "metadataProfileId": 2}], "author")
+    with pytest.raises(arr.RequestError, match="geen edities"):
+        handlers.readarr_book(a, "Artemis Andy Weir", "boek")
+    assert fake.writes() == []

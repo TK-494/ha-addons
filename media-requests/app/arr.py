@@ -201,8 +201,17 @@ class Arr:
             raise RequestError(
                 f"{self.title}: geen API-key gevonden. Vul '{self.name}_api_key' in bij de add-on-opties.")
         qs = ("?" + urllib.parse.urlencode(params)) if params else ""
-        return http_json(method, f"{self.url}/api/{self.api}/{path}{qs}",
-                         {"X-Api-Key": self.key}, body)
+        try:
+            return http_json(method, f"{self.url}/api/{self.api}/{path}{qs}",
+                             {"X-Api-Key": self.key}, body)
+        except TransientError as e:
+            if method == "GET":
+                raise
+            # Never auto-retry a write: a 500 repeats every poll, and a timeout may have
+            # half-succeeded. Report it and let a rename trigger the next attempt.
+            raise RequestError(f"{self.title} weigerde of beantwoordde de wijziging niet ({e}). "
+                               f"Controleer in {self.title} wat er is aangekomen; hernoem het item om "
+                               f"het opnieuw te proberen.") from e
 
     # --- defaults, never silent: every choice is reported back in `notes` ---
 
