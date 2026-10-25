@@ -1,5 +1,21 @@
 # Changelog — Financials
 
+## 0.23.1 — 2026-10-25
+
+### Opgelost
+- **"Ik heb bijgewerkt maar zie de oude versie."** `index.html` werd uitgeleverd zonder
+  `Cache-Control`. Een browser mag dan zelf bepalen hoe lang de pagina geldig blijft — in de praktijk
+  ongeveer een tiende van de leeftijd van het bestand, dus een versie die vijf weken stond hield de
+  oude pagina dagen vast zonder de server iets te vragen. Een update van de add-on veranderde dan
+  niets op het scherm. De pagina gaat nu op `no-cache` (altijd navragen, met de ETag kost dat een
+  304 en een paar bytes) en de bundels op `immutable` (hun naam bevat al een vingerafdruk, dus die
+  mogen voor altijd bewaard blijven).
+- Dit gold voor élke update, niet alleen deze: 0.22.0, 0.22.1 en 0.23.0 waren geïnstalleerd terwijl
+  het scherm 0.21.0 bleef tonen.
+
+### Techniek
+- Cache-headers in `main.py`, met 4 tests. 272 tests.
+
 ## 0.23.0 — 2026-10-25
 
 ### Gewijzigd

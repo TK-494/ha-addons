@@ -130,10 +130,31 @@ def health():
 
 # ─── static SPA ─────────────────────────────────────────────────────────────
 
+# Vite fingerprints every bundle, so an asset's URL changes whenever its
+# content does and it can be cached forever. `index.html` is the opposite: its
+# URL never changes and it is the only thing that names the current bundles.
+#
+# Served without a Cache-Control header, as it was until 0.23.1, a browser is
+# free to invent its own freshness — roughly a tenth of the file's age, so a
+# version installed five weeks ago kept its shell cached for days. Updating the
+# add-on then changed nothing on screen: the browser never asked. `no-cache`
+# means "always revalidate", which with the ETag already on the response is a
+# 304 and a few bytes, not a re-download.
+IMMUTABLE = "public, max-age=31536000, immutable"
+REVALIDATE = "no-cache"
+
+
+class _CachedStatic(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = IMMUTABLE
+        return response
+
+
 if config.STATIC_DIR.exists():
     assets = config.STATIC_DIR / "assets"
     if assets.exists():
-        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+        app.mount("/assets", _CachedStatic(directory=assets), name="assets")
 
     _INDEX = config.STATIC_DIR / "index.html"
 
@@ -148,5 +169,11 @@ if config.STATIC_DIR.exists():
         if full_path:
             candidate = contained_path(config.STATIC_DIR, full_path)
             if candidate is not None and candidate.is_file():
-                return FileResponse(candidate)
-        return FileResponse(_INDEX)
+                # A fingerprinted name may be cached forever; anything else
+                # (favicon, manifest) must be allowed to change in place.
+                immutable = full_path.startswith("assets/")
+                return FileResponse(
+                    candidate,
+                    headers={"Cache-Control": IMMUTABLE if immutable else REVALIDATE},
+                )
+        return FileResponse(_INDEX, headers={"Cache-Control": REVALIDATE})
