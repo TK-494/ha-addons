@@ -126,6 +126,10 @@ body {
   }
   .btn-primary { @apply btn bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-400 dark:text-slate-900 dark:hover:bg-sky-300; }
   .btn-ghost   { @apply btn bg-slate-500/10 text-sky-600 hover:bg-slate-500/20 dark:text-sky-400; }
+  /* The row-action cluster. Five buttons at the normal size need 506px of
+     every row, which puts the last one past the right edge of a laptop
+     screen; at this size the same five words fit in 385px. */
+  .btn-row     { @apply px-2 py-1 text-xs; }
   .btn-danger  { @apply btn bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-400 dark:text-slate-900 dark:hover:bg-rose-300; }
 
   /* Filled, not outlined — the fill is what says "you can type here". */

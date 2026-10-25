@@ -1,5 +1,16 @@
 # Changelog — Financials
 
+## 0.22.1 — 2026-10-25
+
+### Opgelost
+- **De knop "Eenmalig" was niet te vinden.** Hij werd wel getekend, maar vijf knoppen op normale
+  maat hebben 506px nodig terwijl de kolom op 480 stond — de laatste viel naar een tweede regel of
+  voorbij de rechterrand van het scherm. De knoppen in de actiekolom zijn nu compacter (zelfde
+  woorden, kleinere maat): vijf passen in 385px, en de kolom staat op 390 — net zo breed als toen
+  er vier knoppen stonden.
+- Mijn meting van 476px klopte niet: die ging uit van `px-3`, terwijl de knoppen sinds de
+  palet-refactor `px-4` zijn.
+
 ## 0.22.0 — 2026-10-25
 
 ### Nieuw

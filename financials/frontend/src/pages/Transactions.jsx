@@ -13,14 +13,16 @@ const EMPTY_FILTERS = {
 
 const COLUMN_DEFAULTS = {
   select: 34, date: 96, description: 360, account: 150,
-  amount: 120, category: 200, actions: 480,
+  amount: 120, category: 200, actions: 390,
 };
 
-// Four buttons that may not wrap need the room for four buttons. Measured at
-// 14px system-ui: 350px for the row, 374px with the cell padding. Below that
-// the row silently paints over the category dropdown to its left, which is
-// exactly what it used to do at the old 250.
-const COLUMN_MIN = { actions: 480, category: 120, description: 140 };
+// Buttons that may not wrap need the room for all of them. Measured at 12px
+// system-ui with px-2 — the `btn-row` size — five labels come to 361px, 385px
+// with the cell padding. Below that the row would paint over the category
+// dropdown to its left. At the normal button size the same five need 506px,
+// which is past the right edge of a laptop screen: the button was rendered
+// but out of reach, which is worse than overlapping.
+const COLUMN_MIN = { actions: 390, category: 120, description: 140 };
 
 export default function Transactions() {
   // Links from the overview arrive with filters in the URL, so a click on a
@@ -471,34 +473,34 @@ export default function Transactions() {
                   <td className="td">
                     <div className="flex flex-wrap justify-end gap-1">
                       <button
-                        className="btn-ghost whitespace-nowrap"
+                        className="btn-ghost btn-row whitespace-nowrap"
                         title="Verdeel dit bedrag over meerdere categorieën"
                         onClick={() => setSplitFor(tx)}
                       >
                         Verdelen
                       </button>
                       <button
-                        className="btn-ghost whitespace-nowrap"
+                        className="btn-ghost btn-row whitespace-nowrap"
                         title="Labels beheren"
                         onClick={() => setTagFor(tx)}
                       >
                         Labels
                       </button>
                       <button
-                        className="btn-ghost whitespace-nowrap"
+                        className="btn-ghost btn-row whitespace-nowrap"
                         title={tx.note || "Notitie toevoegen"}
                         onClick={() => setNoteFor(tx)}
                       >
                         {tx.note ? "Notitie ●" : "Notitie"}
                       </button>
                       {!tx.is_internal && (
-                        <button className="btn-ghost whitespace-nowrap" onClick={() => setRuleFor(tx)}>
+                        <button className="btn-ghost btn-row whitespace-nowrap" onClick={() => setRuleFor(tx)}>
                           Regel maken
                         </button>
                       )}
                       {!tx.is_internal && tx.amount < 0 && (
                         <button
-                          className={`whitespace-nowrap ${tx.one_off ? "btn-primary" : "btn-ghost"}`}
+                          className={`btn-row whitespace-nowrap ${tx.one_off ? "btn-primary" : "btn-ghost"}`}
                           title={tx.one_off
                             ? "Eenmalige aankoop — telt niet mee in het gemiddelde en de mediaan per maand. Klik om terug te zetten."
                             : "Markeer als eenmalige aankoop: blijft in het totaal en in zijn categorie, maar valt uit de maandcijfers"}
