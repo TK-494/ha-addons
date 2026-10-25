@@ -200,6 +200,15 @@ instelling wordt onthouden. Met **Kolommen herstellen** ga je terug naar de stan
 Met de knop **«** linksboven klap je het menu in tot alleen pictogrammen, wat de tabel zo'n 170
 pixels extra geeft. Ook dat wordt onthouden.
 
+### Acties achter ⋯
+
+Achter elke rij staat één knop **⋯**. Die opent alle acties voor die transactie: verdelen over
+meerdere categorieën, labels, een notitie, er een regel van maken, en markeren als eenmalige
+aankoop. Bovenaan staat welke transactie je te pakken hebt, zodat je niet de verkeerde rij bewerkt.
+
+Dat is bewust één knop en geen rij knoppen: vijf tekstknoppen per rij maakten de tabel 1440px
+breed, en dan valt de rechtse actie van je scherm af.
+
 ### Selecteren en in bulk aanpassen
 
 Met het vinkje in de kopregel selecteer je alles op de pagina. Staan er meer resultaten dan op één
@@ -324,8 +333,8 @@ staat er een melding met de duurste maand erbij.
 ### Eenmalige aankopen
 
 Een motor van € 9000 in één maand maakt een gemiddelde over twaalf maanden € 750 hoger, elke maand,
-terwijl je dat bedrag nooit maandelijks uitgeeft. Zet daarom bij Transacties het vinkje **Eenmalig**
-op zo'n aankoop. Hij blijft dan in je totaal staan en in zijn categorie — het geld is immers weg —
+terwijl je dat bedrag nooit maandelijks uitgeeft. Open zo'n aankoop daarom bij Transacties met de
+knop **⋯** achter de rij en kies **Markeer als eenmalig**. Hij blijft dan in je totaal staan en in zijn categorie — het geld is immers weg —
 maar valt uit het gemiddelde, de mediaan en het verloop per maand. Onder de mediaan staat hoeveel er
 zo buiten beschouwing is gelaten, dus het blijft zichtbaar.
 

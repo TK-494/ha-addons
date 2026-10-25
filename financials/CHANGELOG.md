@@ -1,5 +1,18 @@
 # Changelog — Financials
 
+## 0.23.0 — 2026-10-25
+
+### Gewijzigd
+- **Alle rij-acties zitten achter één knop ⋯.** Verdelen, Labels, Notitie, Regel maken en Markeer
+  als eenmalig staan nu in één venster per transactie, met bovenaan welke transactie het is. Vijf
+  tekstknoppen per rij maakten de tabel 1440px breed en de rechtse actie onbereikbaar; horizontaal
+  scrollen is daarvoor geen oplossing. De tabel is nu 1024px en past zonder zijwaarts schuiven.
+- Een transactie die als eenmalig is gemarkeerd draagt het label **eenmalig** vóór de omschrijving,
+  dus de stand is zichtbaar zonder het venster te openen.
+
+### Opgelost
+- Dat de knop *Eenmalig* uit 0.22.0 in de praktijk niet te vinden was.
+
 ## 0.22.1 — 2026-10-25
 
 ### Opgelost

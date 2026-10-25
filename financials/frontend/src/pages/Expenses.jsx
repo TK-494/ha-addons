@@ -255,9 +255,9 @@ export default function Expenses({ kind }) {
               {data.busiest_period && (
                 <p className="text-xs">
                   De duurste was <strong>{data.busiest_period.label}</strong> met{" "}
-                  {money(data.busiest_period.amount)}. Was het een eenmalige aankoop, zet er dan het
-                  vinkje <em>Eenmalig</em> op bij Transacties — hij blijft dan in je totaal staan,
-                  maar valt uit het gemiddelde en de mediaan.{" "}
+                  {money(data.busiest_period.amount)}. Was het een eenmalige aankoop, open hem dan bij
+                  Transacties met <strong>⋯</strong> en kies <em>Markeer als eenmalig</em> — hij
+                  blijft dan in je totaal staan, maar valt uit het gemiddelde en de mediaan.{" "}
                   <Link className="underline" to={`${transactionsLink({}, data.range)}&direction=out&sort=amount&desc=0`}>
                     Bekijk de grootste uitgaven in deze periode
                   </Link>{" "}

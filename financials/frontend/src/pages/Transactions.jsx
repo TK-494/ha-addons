@@ -13,16 +13,13 @@ const EMPTY_FILTERS = {
 
 const COLUMN_DEFAULTS = {
   select: 34, date: 96, description: 360, account: 150,
-  amount: 120, category: 200, actions: 390,
+  amount: 120, category: 200, actions: 64,
 };
 
-// Buttons that may not wrap need the room for all of them. Measured at 12px
-// system-ui with px-2 — the `btn-row` size — five labels come to 361px, 385px
-// with the cell padding. Below that the row would paint over the category
-// dropdown to its left. At the normal button size the same five need 506px,
-// which is past the right edge of a laptop screen: the button was rendered
-// but out of reach, which is worse than overlapping.
-const COLUMN_MIN = { actions: 390, category: 120, description: 140 };
+// One ⋯ button needs 24px plus the cell's own padding. The table as a whole
+// now comes to about 1024px, which fits a laptop without scrolling sideways —
+// the five-button cluster made it 1440 and the last action unreachable.
+const COLUMN_MIN = { actions: 56, category: 120, description: 140 };
 
 export default function Transactions() {
   // Links from the overview arrive with filters in the URL, so a click on a
@@ -51,6 +48,7 @@ export default function Transactions() {
   const [notice, setNotice] = useState(null);
   const [ruleFor, setRuleFor] = useState(null);
   const [noteFor, setNoteFor] = useState(null);
+  const [actionsFor, setActionsFor] = useState(null);
   const [tagFor, setTagFor] = useState(null);
   const [splitFor, setSplitFor] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
@@ -395,7 +393,17 @@ export default function Transactions() {
                   </td>
                   <td className="td whitespace-nowrap">{shortDate(tx.booked_on)}</td>
                   <td className="td">
-                    <div className="break-words">{tx.description || "—"}</div>
+                    <div className="break-words">
+                      {tx.one_off && (
+                        <span
+                          className="pill mr-1 bg-sky-600 text-[11px] text-white dark:bg-sky-400 dark:text-slate-900"
+                          title="Eenmalige aankoop — telt niet mee in het gemiddelde en de mediaan per maand"
+                        >
+                          eenmalig
+                        </span>
+                      )}
+                      {tx.description || "—"}
+                    </div>
                     <div className="break-words text-xs text-slate-500 dark:text-slate-400">
                       {tx.counter_name}
                       {tx.bank_code && ` · ${bankCodeLabel(tx.bank_code)}`}
@@ -471,44 +479,19 @@ export default function Transactions() {
                     )}
                   </td>
                   <td className="td">
-                    <div className="flex flex-wrap justify-end gap-1">
+                    <div className="flex justify-end">
+                      {/* One button, not five. Five labelled actions per row
+                          made the table 1440px wide, which put the rightmost
+                          one past the edge of the screen — reachable only by
+                          horizontal scrolling, which is not a solution. */}
                       <button
-                        className="btn-ghost btn-row whitespace-nowrap"
-                        title="Verdeel dit bedrag over meerdere categorieën"
-                        onClick={() => setSplitFor(tx)}
+                        className="btn-ghost btn-row"
+                        onClick={() => setActionsFor(tx)}
+                        title="Acties voor deze transactie"
+                        aria-label="Acties voor deze transactie"
                       >
-                        Verdelen
+                        ⋯
                       </button>
-                      <button
-                        className="btn-ghost btn-row whitespace-nowrap"
-                        title="Labels beheren"
-                        onClick={() => setTagFor(tx)}
-                      >
-                        Labels
-                      </button>
-                      <button
-                        className="btn-ghost btn-row whitespace-nowrap"
-                        title={tx.note || "Notitie toevoegen"}
-                        onClick={() => setNoteFor(tx)}
-                      >
-                        {tx.note ? "Notitie ●" : "Notitie"}
-                      </button>
-                      {!tx.is_internal && (
-                        <button className="btn-ghost btn-row whitespace-nowrap" onClick={() => setRuleFor(tx)}>
-                          Regel maken
-                        </button>
-                      )}
-                      {!tx.is_internal && tx.amount < 0 && (
-                        <button
-                          className={`btn-row whitespace-nowrap ${tx.one_off ? "btn-primary" : "btn-ghost"}`}
-                          title={tx.one_off
-                            ? "Eenmalige aankoop — telt niet mee in het gemiddelde en de mediaan per maand. Klik om terug te zetten."
-                            : "Markeer als eenmalige aankoop: blijft in het totaal en in zijn categorie, maar valt uit de maandcijfers"}
-                          onClick={() => api.setOneOff(tx.id, !tx.one_off).then(load).catch((e) => setError(e.message))}
-                        >
-                          {tx.one_off ? "Eenmalig ✓" : "Eenmalig"}
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -547,6 +530,20 @@ export default function Transactions() {
           onClose={() => setTagFor(null)}
           onSaved={() => { setTagFor(null); load(); refreshTags(); }}
           onError={setError}
+        />
+      )}
+
+      {actionsFor && (
+        <ActionsDialog
+          transaction={actionsFor}
+          onClose={() => setActionsFor(null)}
+          onSplit={() => { setSplitFor(actionsFor); setActionsFor(null); }}
+          onTags={() => { setTagFor(actionsFor); setActionsFor(null); }}
+          onNote={() => { setNoteFor(actionsFor); setActionsFor(null); }}
+          onRule={() => { setRuleFor(actionsFor); setActionsFor(null); }}
+          onOneOff={() => api.setOneOff(actionsFor.id, !actionsFor.one_off)
+            .then(() => { setActionsFor(null); load(); })
+            .catch((e) => setError(e.message))}
         />
       )}
 
@@ -803,6 +800,66 @@ function TagPicker({ transaction, tags, onClose, onSaved, onError }) {
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onClose} disabled={busy}>Annuleren</button>
           <button className="btn-primary" onClick={save} disabled={busy}>Opslaan</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Every action for one row, on one sheet.
+ *
+ * The alternative was a dropdown anchored to the row, but the table scrolls
+ * horizontally and that clips an absolutely-positioned menu. A dialog renders
+ * at page level, so it cannot be cut off — and it has room to say which
+ * transaction you are about to change, which a menu does not.
+ */
+function ActionsDialog({ transaction, onClose, onSplit, onTags, onNote, onRule, onOneOff }) {
+  const tx = transaction;
+  const actions = [
+    { label: "Verdelen", hint: "Verdeel dit bedrag over meerdere categorieën", onClick: onSplit },
+    { label: "Labels", hint: "Labels beheren", onClick: onTags },
+    { label: tx.note ? "Notitie wijzigen" : "Notitie toevoegen", hint: tx.note || "Nog geen notitie", onClick: onNote },
+  ];
+  if (!tx.is_internal) {
+    actions.push({ label: "Regel maken", hint: "Maak hier een categorieregel van", onClick: onRule });
+  }
+  if (!tx.is_internal && tx.amount < 0) {
+    actions.push({
+      label: tx.one_off ? "Niet meer eenmalig" : "Markeer als eenmalig",
+      hint: tx.one_off
+        ? "Telt weer mee in het gemiddelde en de mediaan per maand"
+        : "Een grote eenmalige aankoop blijft in het totaal en in zijn categorie, maar valt uit het gemiddelde, de mediaan en het verloop per maand",
+      onClick: onOneOff,
+      active: tx.one_off,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="card w-full max-w-md">
+        <h3 className="mb-1 text-lg font-semibold">Acties</h3>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          {shortDate(tx.booked_on)} · {tx.description || tx.counter_name || "—"} ·{" "}
+          <span className={amountClass(tx.amount)}>{money(tx.amount)}</span>
+        </p>
+
+        <ul className="mb-4 space-y-2">
+          {actions.map((action) => (
+            <li key={action.label}>
+              <button
+                className={`w-full text-left ${action.active ? "btn-primary" : "btn-ghost"}`}
+                onClick={action.onClick}
+              >
+                {action.label}
+              </button>
+              <p className="mt-0.5 px-4 text-xs text-slate-500 dark:text-slate-400">{action.hint}</p>
+            </li>
+          ))}
+        </ul>
+
+        <div className="flex justify-end">
+          <button className="btn-ghost" onClick={onClose}>Sluiten</button>
         </div>
       </div>
     </div>
