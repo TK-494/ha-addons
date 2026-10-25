@@ -13,6 +13,7 @@ Two reading levels, and the difference matters:
 from __future__ import annotations
 
 from datetime import date, timedelta
+from statistics import median
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -444,7 +445,7 @@ def expense_breakdown(
     rows = db.execute(
         select(
             Transaction.id, Transaction.amount_cents, Transaction.booked_on,
-            Transaction.counter_name, Transaction.description,
+            Transaction.counter_name, Transaction.description, Transaction.counter_iban,
             Category.id, Category.name, Category.color,
         )
         .join(Category, Category.id == Transaction.category_id, isouter=True)
@@ -455,6 +456,22 @@ def expense_breakdown(
         )
     ).all()
 
+    # Money that goes out to an account that also pays you is rarely spending.
+    # It is a savings or investment account the app has not been told about, a
+    # joint account, or somebody you settle up with. Counting it as an expense
+    # is what makes a variable total exceed an income — so it gets named
+    # instead of silently inflating the number.
+    incoming = dict(db.execute(
+        select(Transaction.counter_iban, func.coalesce(func.sum(Transaction.amount_cents), 0))
+        .where(
+            Transaction.is_internal.is_(False),
+            Transaction.amount_cents > 0,
+            Transaction.counter_iban.is_not(None), Transaction.counter_iban != "",
+            Transaction.booked_on >= start, Transaction.booked_on < end,
+        )
+        .group_by(Transaction.counter_iban)
+    ).all())
+
     by_category: dict[str, dict] = {}
     by_party: dict[str, dict] = {}
     per_period: dict[str, int] = {}
@@ -462,7 +479,9 @@ def expense_breakdown(
     fixed_total = 0
     variable_total = 0
 
-    for tx_id, amount, booked_on, counter, description, cid, name, color in rows:
+    round_trip: dict[str, dict] = {}
+
+    for tx_id, amount, booked_on, counter, description, counter_iban, cid, name, color in rows:
         value = abs(amount)
         is_fixed = tx_id in committed_ids
         if is_fixed:
@@ -486,6 +505,14 @@ def expense_breakdown(
         pentry = by_party.setdefault(party, {"name": party, "cents": 0, "transactions": 0})
         pentry["cents"] += value
         pentry["transactions"] += 1
+
+        if counter_iban and counter_iban in incoming:
+            rentry = round_trip.setdefault(counter_iban, {
+                "iban": counter_iban, "name": party,
+                "paid_out": 0, "received": incoming[counter_iban], "transactions": 0,
+            })
+            rentry["paid_out"] += value
+            rentry["transactions"] += 1
 
         year, month = periods.period_of(
             booked_on if not isinstance(booked_on, str) else date.fromisoformat(booked_on), config
@@ -520,6 +547,15 @@ def expense_breakdown(
         ]
         span = max(1, len(per_period))
 
+    # Median next to the mean, because the mean is the wrong summary for
+    # spending: one month with a car repair, a holiday paid up front or a
+    # transfer to an account the app does not know about drags it somewhere no
+    # month actually was. The median says what a normal month costs, and the
+    # gap between the two is itself the signal that something is off.
+    trend_values = [row["amount"] for row in trend]
+    monthly_median = round(median(trend_values), 2) if trend_values else 0
+    busiest = max(trend, key=lambda row: row["amount"], default=None)
+
     return {
         "kind": kind,
         "range": {
@@ -532,6 +568,26 @@ def expense_breakdown(
         },
         "total": total / 100,
         "monthly_average": round(total / 100 / span, 2) if span else 0,
+        "monthly_median": monthly_median,
+        "busiest_period": busiest if busiest and len(trend) > 1 else None,
+        "round_trip": {
+            "total": sum(e["paid_out"] for e in round_trip.values()) / 100,
+            "share": round(100 * sum(e["paid_out"] for e in round_trip.values()) / total, 1)
+            if total else 0,
+            "parties": sorted(
+                (
+                    {
+                        "iban": e["iban"], "name": e["name"],
+                        "paid_out": e["paid_out"] / 100,
+                        "received": e["received"] / 100,
+                        "net": (e["paid_out"] - e["received"]) / 100,
+                        "transactions": e["transactions"],
+                    }
+                    for e in round_trip.values()
+                ),
+                key=lambda e: -e["paid_out"],
+            )[:8],
+        },
         "transactions": sum(e["transactions"] for e in by_category.values()),
         "by_category": categories,
         "top_counterparties": sorted(

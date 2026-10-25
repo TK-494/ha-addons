@@ -315,6 +315,19 @@ Twee pagina's die dezelfde vraag van twee kanten stellen: wat ligt vast, en waar
 Beide met een taartdiagram per categorie, de grootste tegenpartijen, het verloop per maand en een
 tabel met bedrag, gemiddelde per maand, aandeel en aantal transacties.
 
+Het hoofdgetal is de **mediaan per maand**, met het gemiddelde eronder. Dat is bewust die kant op:
+het gemiddelde van uitgaven liegt zodra er één dure maand tussen zit — een vakantie vooruitbetaald,
+een autoreparatie, een overboeking naar je spaarrekening — en trekt dan naar een bedrag waar geen
+enkele maand zat. De mediaan zegt wat een normale maand kost. Verschillen ze meer dan 25%, dan
+staat er een melding met de duurste maand erbij.
+
+Komt het totaal hoger uit dan haalbaar, kijk dan naar het blok **geld dat heen en terug ging**. Is
+er in dezelfde periode geld gegaan naar een rekening die jou óók betaalde, dan staat dat daar met
+bedrag eruit, bedrag erin en netto. Dat is bijna altijd geen uitgave maar een eigen spaar- of
+beleggingsrekening die de app niet kent, een gezamenlijke rekening, of iemand met wie je verrekent.
+Voeg een eigen IBAN toe onder **Rekeningen** en die overboekingen worden intern: ze verdwijnen dan
+uit je uitgaven én uit je inkomsten.
+
 Bovenaan staat de periodekiezer (zie *Periode kiezen*), dezelfde als op het overzicht. Voor
 variabele uitgaven is een langere periode meestal zinvoller — één maand boodschappen zegt weinig,
 zes maanden wel — dus de snelknoppen **3**, **6** en **12 mnd** zijn hier het meest van nut.

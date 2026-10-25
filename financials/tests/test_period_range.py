@@ -216,3 +216,119 @@ def test_summary_splits_salary_from_other_income(client):
     assert after["income_salary"] is not None
     assert after["income_salary"] + after["income_other"] == pytest.approx(after["income"])
     assert after["income_salary"] >= biggest["amount"] or after["income_salary"] == 0
+
+
+def test_expense_breakdown_reports_a_median_beside_the_mean(client):
+    """The mean is the wrong summary for spending: one expensive month drags it
+    somewhere no month actually was. These fixtures are small, so the point
+    being pinned is that both numbers are present and consistent."""
+    import_fixture(client, "rabobank_current.csv")
+    data = client.get(
+        "/api/dashboard/expense-breakdown",
+        params={"kind": "all", "from": "2024-01", "to": "2024-02"},
+    ).json()
+
+    amounts = sorted(row["amount"] for row in data["trend"])
+    assert len(amounts) == 2
+    assert data["monthly_median"] == pytest.approx(round(sum(amounts) / 2, 2))
+    assert data["monthly_average"] == pytest.approx(round(data["total"] / 2, 2))
+    assert data["busiest_period"]["amount"] == max(amounts)
+
+
+def test_a_single_period_has_no_busiest_month_to_point_at(client):
+    import_fixture(client, "rabobank_current.csv")
+    data = client.get(
+        "/api/dashboard/expense-breakdown", params={"kind": "all", "from": "2024-01", "to": "2024-01"},
+    ).json()
+    assert data["busiest_period"] is None
+    assert data["monthly_median"] == pytest.approx(data["monthly_average"])
+
+
+def test_an_outlier_month_pulls_the_mean_above_the_median(client):
+    """The case behind the request: a mean of 3000 where no normal month is.
+
+    Three periods, because the median of two values *is* their mean — so a
+    two-month window can never show the divergence this warns about.
+    """
+    import_fixture(client, "rabobank_current.csv")
+    account_id = client.get("/api/accounts/").json()[0]["id"]
+
+    from app.database import SessionLocal
+    from app.models import Transaction
+
+    db = SessionLocal()
+    try:
+        db.add(Transaction(
+            account_id=account_id, import_hash="quiet", booked_on=date(2023, 12, 10),
+            amount_cents=-5000, description="rustige maand",
+        ))
+        db.add(Transaction(
+            account_id=account_id, import_hash="outlier", booked_on=date(2024, 2, 10),
+            amount_cents=-900000, description="eenmalige grote uitgave",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    data = client.get(
+        "/api/dashboard/expense-breakdown",
+        params={"kind": "all", "from": "2023-12", "to": "2024-02"},
+    ).json()
+
+    assert [row["label"] for row in data["trend"]] == ["12-2023", "01-2024", "02-2024"]
+    assert data["monthly_average"] > data["monthly_median"] * 1.25, \
+        "the mean must visibly diverge, which is what the warning keys on"
+    assert data["busiest_period"]["label"] == "02-2024"
+
+    middle = sorted(row["amount"] for row in data["trend"])[1]
+    assert data["monthly_median"] == pytest.approx(middle), "the median is a month that happened"
+    assert data["monthly_average"] > middle * 2, "the mean is nowhere near any normal month"
+
+
+def test_money_that_round_trips_is_named_not_buried(client):
+    """A savings account the app has not been told about looks like spending.
+    Over €1500 out and €1200 back in a month, that single unregistered account
+    can be most of a "variable expenses" total — so it gets listed."""
+    import_fixture(client, "rabobank_current.csv")
+    account_id = client.get("/api/accounts/").json()[0]["id"]
+
+    from app.database import SessionLocal
+    from app.models import Transaction
+
+    db = SessionLocal()
+    try:
+        db.add(Transaction(
+            account_id=account_id, import_hash="out-to-own", booked_on=date(2024, 1, 5),
+            amount_cents=-150000, counter_iban="NL99OTHER0000000001",
+            counter_name="Eigen spaarrekening elders", description="overboeking",
+        ))
+        db.add(Transaction(
+            account_id=account_id, import_hash="back-from-own", booked_on=date(2024, 1, 25),
+            amount_cents=120000, counter_iban="NL99OTHER0000000001",
+            counter_name="Eigen spaarrekening elders", description="terug",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    data = client.get(
+        "/api/dashboard/expense-breakdown", params={"kind": "all", "from": "2024-01", "to": "2024-01"},
+    ).json()
+
+    parties = data["round_trip"]["parties"]
+    assert [p["iban"] for p in parties] == ["NL99OTHER0000000001"]
+    assert parties[0]["paid_out"] == 1500.0
+    assert parties[0]["received"] == 1200.0
+    assert parties[0]["net"] == 300.0, "only the net 300 was really spent"
+    assert data["round_trip"]["total"] == 1500.0
+    assert data["round_trip"]["share"] > 50, "this one account dominates the total"
+
+
+def test_an_ordinary_shop_is_not_a_round_trip(client):
+    """The supermarket never pays you, so it must not show up here."""
+    import_fixture(client, "rabobank_current.csv")
+    data = client.get(
+        "/api/dashboard/expense-breakdown", params={"kind": "all", "from": "2024-01", "to": "2024-02"},
+    ).json()
+    assert data["round_trip"]["parties"] == []
+    assert data["round_trip"]["total"] == 0

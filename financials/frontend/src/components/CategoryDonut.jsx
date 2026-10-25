@@ -18,11 +18,15 @@ import { money } from "../format.js";
  * Where a click lands: the transactions of that category, in exactly the
  * period the chart shows. `range.end` is exclusive (a period boundary); the
  * transaction filter's `date_to` is inclusive, hence the day before.
+ *
+ * A row with a name but no `category_id` is the "Zonder categorie" slice, so
+ * that filters on uncategorised. `{}` means no category filter at all — the
+ * whole period — which is what a "show me everything here" link wants.
  */
 export function transactionsLink(row, range) {
   const params = new URLSearchParams();
   if (row.category_id) params.set("category_id", row.category_id);
-  else params.set("uncategorised", "1");
+  else if (row.name) params.set("uncategorised", "1");
   if (range?.start) params.set("date_from", range.start.slice(0, 10));
   if (range?.end) {
     const end = new Date(...range.end.slice(0, 10).split("-").map((v, i) => Number(v) - (i === 1 ? 1 : 0)));

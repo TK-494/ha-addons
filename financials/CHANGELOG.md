@@ -1,5 +1,23 @@
 # Changelog — Financials
 
+## 0.21.0 — 2026-10-25
+
+### Nieuw
+- **Mediaan per maand** op Vaste lasten en Variabele uitgaven, nu als hoofdgetal met het gemiddelde
+  eronder. Het gemiddelde is de verkeerde samenvatting van uitgaven: één dure maand trekt het naar
+  een bedrag waar geen enkele maand zat.
+- **Waarschuwing bij scheefheid**: ligt het gemiddelde meer dan 25% boven de mediaan, dan staat
+  erbij welke maand de duurste was, met een link naar de grootste uitgaven in die periode.
+- **Geld dat heen en terug gaat wordt benoemd.** Ging er in dezelfde periode geld naar een rekening
+  die jou óók betaalde, dan staat dat apart met bedrag eruit, bedrag erin en netto — meestal een
+  eigen spaarrekening die de app niet kent, een gezamenlijke rekening, of iemand met wie je
+  verrekent. Dit is de gebruikelijke oorzaak van een variabel totaal dat hoger is dan je inkomen.
+
+### Techniek
+- `expense-breakdown` geeft `monthly_median`, `busiest_period` en `round_trip` (totaal, aandeel,
+  tegenpartijen met in/uit/netto). Transacties leest `sort`/`desc` uit de URL.
+- 262 tests.
+
 ## 0.20.3 — 2026-09-20
 
 ### Nieuw

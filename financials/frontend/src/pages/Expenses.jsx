@@ -67,6 +67,9 @@ export default function Expenses({ kind }) {
 
   if (error) return <Alert kind="error">{error}</Alert>;
 
+  // A mean well above the median means outliers, not a higher normal month.
+  const skewed = data && data.monthly_median > 0 && data.monthly_average > data.monthly_median * 1.25;
+
   return (
     <>
       <PageHeader title={copy.title} subtitle={copy.subtitle} />
@@ -91,10 +94,11 @@ export default function Expenses({ kind }) {
               </p>
             </div>
             <div className="card">
-              <p className="label">Gemiddeld per maand</p>
-              <p className="text-2xl font-semibold tabular-nums">{money(data.monthly_average)}</p>
+              <p className="label">Mediaan per maand</p>
+              <p className="text-2xl font-semibold tabular-nums">{money(data.monthly_median)}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                over {data.range.periods} {data.range.periods === 1 ? "periode" : "perioden"}
+                gemiddeld {money(data.monthly_average)} over {data.range.periods}{" "}
+                {data.range.periods === 1 ? "periode" : "perioden"}
               </p>
             </div>
             <div className="card">
@@ -198,6 +202,60 @@ export default function Expenses({ kind }) {
               </tbody>
             </table>
           </section>
+
+          {data.round_trip.parties.length > 0 && (
+            <Alert kind="warning">
+              <p className="mb-2">
+                <strong>{money(data.round_trip.total)}</strong> ({data.round_trip.share}% van dit
+                totaal) ging naar rekeningen die je in deze periode óók geld hebben betaald. Dat is
+                zelden een uitgave: meestal een eigen spaar- of beleggingsrekening die de app niet
+                kent, een gezamenlijke rekening, of iemand met wie je verrekent.
+              </p>
+              <ul className="mb-2 space-y-0.5 text-xs">
+                {data.round_trip.parties.map((party) => (
+                  <li key={party.iban} className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-medium">{party.name}</span>
+                    <span className="tabular-nums">
+                      {money(party.paid_out)} eruit, {money(party.received)} erin — netto{" "}
+                      <strong>{money(party.net)}</strong>
+                    </span>
+                    <Link className="underline" to={`/transacties?search=${encodeURIComponent(party.iban)}`}>
+                      bekijk
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs">
+                Is het een eigen rekening? Voeg het IBAN toe onder{" "}
+                <Link className="underline" to="/rekeningen">Rekeningen</Link> — dan worden deze
+                overboekingen intern en verdwijnen ze uit je uitgaven én je inkomsten.
+              </p>
+            </Alert>
+          )}
+
+          {skewed && (
+            <Alert kind="warning">
+              <p className="mb-1">
+                Het gemiddelde ({money(data.monthly_average)}) ligt{" "}
+                {Math.round((data.monthly_average / data.monthly_median - 1) * 100)}% boven de mediaan
+                ({money(data.monthly_median)}). Eén of enkele maanden trekken het omhoog — het
+                gemiddelde beschrijft dus geen normale maand.
+              </p>
+              {data.busiest_period && (
+                <p className="text-xs">
+                  De duurste was <strong>{data.busiest_period.label}</strong> met{" "}
+                  {money(data.busiest_period.amount)}.{" "}
+                  <Link className="underline" to={`${transactionsLink({}, data.range)}&direction=out&sort=amount&desc=0`}>
+                    Bekijk de grootste uitgaven in deze periode
+                  </Link>{" "}
+                  om te zien wat daar in zat. Staat er een overboeking naar een eigen rekening
+                  tussen, voeg die rekening dan toe onder{" "}
+                  <Link className="underline" to="/rekeningen">Rekeningen</Link> — dan telt hij
+                  voortaan niet meer als uitgave.
+                </p>
+              )}
+            </Alert>
+          )}
 
           <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{copy.note}</p>
         </>

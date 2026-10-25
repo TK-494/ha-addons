@@ -34,6 +34,9 @@ export default function Transactions() {
     date_from: searchParams.get("date_from") || "",
     date_to: searchParams.get("date_to") || "",
     direction: searchParams.get("direction") || "",
+    ...(searchParams.get("sort") ? { sort: searchParams.get("sort") } : {}),
+    // Expenses are negative, so "largest first" is ascending.
+    ...(searchParams.get("desc") ? { desc: searchParams.get("desc") === "1" } : {}),
     uncategorised: searchParams.get("uncategorised") === "1",
     tag_id: searchParams.get("tag_id") || "",
   }));
