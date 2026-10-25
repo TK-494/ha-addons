@@ -252,3 +252,37 @@ def test_assigning_a_worklist_group_pins_the_choice(client):
         if t["category_locked"] and t["category_id"] == category
     ]
     assert locked, "the assignment should be pinned against rule reruns"
+
+
+# ─── one-off purchases ──────────────────────────────────────────────────────
+
+def test_the_one_off_mark_survives_an_update(client):
+    """Marking the motorbike as a one-off is a judgement only you can make, so
+    an add-on update — create_all, migrations, reseeding — must leave it."""
+    import_fixture(client, "rabobank_current.csv")
+    target = pick_expense(client)
+    client.patch(f"/api/transactions/{target['id']}/one-off", json={"one_off": True})
+
+    from app.database import Base, SessionLocal, apply_migrations, engine
+    from app.services.categorize import seed_defaults
+
+    Base.metadata.create_all(bind=engine)
+    apply_migrations()
+    db = SessionLocal()
+    try:
+        seed_defaults(db)
+    finally:
+        db.close()
+
+    assert fetch(client, target["id"])["one_off"] is True
+
+
+def test_a_later_import_does_not_clear_the_one_off_mark(client):
+    import_fixture(client, "rabobank_current.csv")
+    target = pick_expense(client)
+    client.patch(f"/api/transactions/{target['id']}/one-off", json={"one_off": True})
+
+    import_fixture(client, "asn.csv")
+    import_fixture(client, "rabobank_creditcard.csv")
+
+    assert fetch(client, target["id"])["one_off"] is True

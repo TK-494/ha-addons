@@ -61,7 +61,7 @@ def get_db():
 # 4 — period_overrides: a new table only.
 # 5 — rules gain provenance: origin, seed_batch, source_transaction_id, note.
 # 6 — transaction_splits table + categories.variable_income column.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 def apply_migrations() -> None:
@@ -105,6 +105,11 @@ def apply_migrations() -> None:
         if current < 6:
             _add_column_if_missing(
                 conn, "categories", "variable_income", "BOOLEAN NOT NULL DEFAULT 0"
+            )
+
+        if current < 7:
+            _add_column_if_missing(
+                conn, "transactions", "one_off", "BOOLEAN NOT NULL DEFAULT 0"
             )
 
         conn.execute(text("UPDATE schema_version SET version = :v"), {"v": SCHEMA_VERSION})

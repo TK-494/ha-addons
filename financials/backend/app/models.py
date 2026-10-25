@@ -220,6 +220,10 @@ class Transaction(Base):
     # Set when a human picked the category: rule re-runs must never overwrite
     # a decision the user made by hand.
     category_locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    # A one-off purchase — a motorbike, a new boiler — is real money spent, but
+    # it says nothing about what a month costs. Flagged rows stay in totals and
+    # keep their category; they drop out of the per-month figures.
+    one_off: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     # ── internal transfers (see PLAN §11) ──────────────────────────────────
     # Both legs of a transfer keep existing and keep moving their own account's

@@ -13,14 +13,14 @@ const EMPTY_FILTERS = {
 
 const COLUMN_DEFAULTS = {
   select: 34, date: 96, description: 360, account: 150,
-  amount: 120, category: 200, actions: 380,
+  amount: 120, category: 200, actions: 480,
 };
 
 // Four buttons that may not wrap need the room for four buttons. Measured at
 // 14px system-ui: 350px for the row, 374px with the cell padding. Below that
 // the row silently paints over the category dropdown to its left, which is
 // exactly what it used to do at the old 250.
-const COLUMN_MIN = { actions: 380, category: 120, description: 140 };
+const COLUMN_MIN = { actions: 480, category: 120, description: 140 };
 
 export default function Transactions() {
   // Links from the overview arrive with filters in the URL, so a click on a
@@ -494,6 +494,17 @@ export default function Transactions() {
                       {!tx.is_internal && (
                         <button className="btn-ghost whitespace-nowrap" onClick={() => setRuleFor(tx)}>
                           Regel maken
+                        </button>
+                      )}
+                      {!tx.is_internal && tx.amount < 0 && (
+                        <button
+                          className={`whitespace-nowrap ${tx.one_off ? "btn-primary" : "btn-ghost"}`}
+                          title={tx.one_off
+                            ? "Eenmalige aankoop — telt niet mee in het gemiddelde en de mediaan per maand. Klik om terug te zetten."
+                            : "Markeer als eenmalige aankoop: blijft in het totaal en in zijn categorie, maar valt uit de maandcijfers"}
+                          onClick={() => api.setOneOff(tx.id, !tx.one_off).then(load).catch((e) => setError(e.message))}
+                        >
+                          {tx.one_off ? "Eenmalig ✓" : "Eenmalig"}
                         </button>
                       )}
                     </div>

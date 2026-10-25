@@ -1,5 +1,24 @@
 # Changelog — Financials
 
+## 0.22.0 — 2026-10-25
+
+### Nieuw
+- **Vinkje "Eenmalig" per transactie.** Een grote eenmalige aankoop — een motor, een nieuwe ketel —
+  is echt geld, maar zegt niets over wat een maand kost. Markeer hem bij Transacties en hij valt uit
+  het gemiddelde, de mediaan en het verloop per maand, maar blijft in het totaal en in zijn
+  categorie staan. Het aantal en het bedrag staan erbij op de uitgaventabs.
+- De scheefheidsmelding wijst nu naar dat vinkje.
+
+### Gewijzigd
+- De trendgrafiek *Vaste en variabele lasten* op het overzicht laat eenmalige posten ook weg — een
+  maandreeks met één aankoop erin is een grafiek van die aankoop.
+- Actiekolom van de transactietabel 380 → 480px, want er staat een vijfde knop (gemeten: 476 nodig).
+
+### Techniek
+- Schemaversie 7: kolom `transactions.one_off`. `PATCH /transactions/{id}/one-off`.
+  `expense-breakdown` geeft `one_off` (totaal + aantal) en rekent gemiddelde/mediaan/verloop zonder.
+- Twee tests dat de markering een add-on-update en een latere import overleeft. 268 tests.
+
 ## 0.21.0 — 2026-10-25
 
 ### Nieuw

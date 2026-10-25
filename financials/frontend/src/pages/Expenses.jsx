@@ -91,6 +91,12 @@ export default function Expenses({ kind }) {
               <p className={`text-2xl font-semibold tabular-nums ${copy.accent}`}>{money(data.total)}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {shortDate(data.range.start)} t/m {shortDate(data.range.end)}
+                {data.one_off.transactions > 0 && (
+                  <>
+                    {" "}— inclusief {data.one_off.transactions} eenmalige{" "}
+                    {data.one_off.transactions === 1 ? "aankoop" : "aankopen"}
+                  </>
+                )}
               </p>
             </div>
             <div className="card">
@@ -99,6 +105,11 @@ export default function Expenses({ kind }) {
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 gemiddeld {money(data.monthly_average)} over {data.range.periods}{" "}
                 {data.range.periods === 1 ? "periode" : "perioden"}
+                {data.one_off.transactions > 0 && (
+                  <>
+                    {" "}· {money(data.one_off.total)} eenmalig niet meegerekend
+                  </>
+                )}
               </p>
             </div>
             <div className="card">
@@ -244,7 +255,9 @@ export default function Expenses({ kind }) {
               {data.busiest_period && (
                 <p className="text-xs">
                   De duurste was <strong>{data.busiest_period.label}</strong> met{" "}
-                  {money(data.busiest_period.amount)}.{" "}
+                  {money(data.busiest_period.amount)}. Was het een eenmalige aankoop, zet er dan het
+                  vinkje <em>Eenmalig</em> op bij Transacties — hij blijft dan in je totaal staan,
+                  maar valt uit het gemiddelde en de mediaan.{" "}
                   <Link className="underline" to={`${transactionsLink({}, data.range)}&direction=out&sort=amount&desc=0`}>
                     Bekijk de grootste uitgaven in deze periode
                   </Link>{" "}

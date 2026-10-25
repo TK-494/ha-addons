@@ -17,7 +17,7 @@ from .. import config
 from ..database import get_db
 from ..models import Account, Category, Rule, Transaction, transaction_tags
 from ..security import csv_safe
-from ..services import categorize, transfers
+from ..services import categorize, recurring, transfers
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -100,6 +100,7 @@ def _serialise(tx: Transaction) -> dict:
         "category_name": tx.category.name if tx.category else None,
         "category_color": tx.category.color if tx.category else None,
         "category_locked": tx.category_locked,
+        "one_off": tx.one_off,
         "is_internal": tx.is_internal,
         "transfer_group": tx.transfer_group,
         "transfer_pending": tx.transfer_pending,
@@ -486,6 +487,27 @@ def create_rule_from_transaction(
 
 class NoteUpdate(BaseModel):
     note: Optional[str] = Field(default=None, max_length=2000)
+
+
+class OneOffIn(BaseModel):
+    one_off: bool
+
+
+@router.patch("/{tx_id}/one-off")
+def set_one_off(tx_id: int, payload: OneOffIn, db: Session = Depends(get_db)):
+    """Mark a transaction as a one-off purchase, or unmark it.
+
+    Deliberately not a category property: a category like "Vervoer" holds both
+    the monthly fuel and the once-in-a-decade motorbike, so the distinction
+    belongs on the row. It is a user decision, so nothing automatic touches it.
+    """
+    tx = db.get(Transaction, tx_id)
+    if tx is None:
+        raise HTTPException(404, "Transactie niet gevonden")
+    tx.one_off = payload.one_off
+    db.commit()
+    recurring.invalidate()
+    return {"id": tx.id, "one_off": tx.one_off}
 
 
 @router.patch("/{tx_id}/note")

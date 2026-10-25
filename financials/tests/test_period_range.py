@@ -332,3 +332,93 @@ def test_an_ordinary_shop_is_not_a_round_trip(client):
     ).json()
     assert data["round_trip"]["parties"] == []
     assert data["round_trip"]["total"] == 0
+
+
+def mark_one_off(client, description):
+    items = client.get("/api/transactions/", params={"page_size": 200}).json()["items"]
+    tx = next(t for t in items if t["description"] == description)
+    assert client.patch(f"/api/transactions/{tx['id']}/one-off", json={"one_off": True}).status_code == 200
+    return tx["id"]
+
+
+def breakdown(client, **params):
+    return client.get("/api/dashboard/expense-breakdown", params={"kind": "all", **params}).json()
+
+
+def test_a_one_off_leaves_the_monthly_figures_but_stays_in_the_total(client):
+    """The motorbike case: €9000 in one month must not become €750/month."""
+    import_fixture(client, "rabobank_current.csv")
+    account_id = client.get("/api/accounts/").json()[0]["id"]
+
+    from app.database import SessionLocal
+    from app.models import Transaction
+
+    db = SessionLocal()
+    try:
+        db.add(Transaction(
+            account_id=account_id, import_hash="motor", booked_on=date(2024, 2, 10),
+            amount_cents=-900000, description="motor",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    before = breakdown(client, **{"from": "2024-01", "to": "2024-02"})
+    mark_one_off(client, "motor")
+    after = breakdown(client, **{"from": "2024-01", "to": "2024-02"})
+
+    assert after["total"] == pytest.approx(before["total"]), "the money was still spent"
+    assert after["one_off"] == {"total": 9000.0, "transactions": 1}
+    assert after["monthly_average"] == pytest.approx(before["monthly_average"] - 4500)
+    assert sum(row["amount"] for row in after["trend"]) == pytest.approx(after["total"] - 9000)
+    assert after["busiest_period"]["amount"] < 9000, "the outlier month is no longer the outlier"
+
+
+def test_a_one_off_keeps_its_category_and_its_place_in_the_pie(client):
+    """Excluding it from the average must not hide what it was."""
+    import_fixture(client, "rabobank_current.csv")
+    account_id = client.get("/api/accounts/").json()[0]["id"]
+    category = client.post("/api/categories/", json={"name": "Grote aankopen"}).json()["id"]
+
+    from app.database import SessionLocal
+    from app.models import Transaction
+
+    db = SessionLocal()
+    try:
+        db.add(Transaction(
+            account_id=account_id, import_hash="motor2", booked_on=date(2024, 1, 10),
+            amount_cents=-900000, description="motor", category_id=category, category_locked=True,
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    mark_one_off(client, "motor")
+    data = breakdown(client, **{"from": "2024-01", "to": "2024-01"})
+    row = next(r for r in data["by_category"] if r["name"] == "Grote aankopen")
+    assert row["amount"] == 9000.0, "still visible as what it was"
+
+
+def test_marking_one_off_is_a_manual_choice_no_rule_run_undoes(client):
+    import_fixture(client, "rabobank_current.csv")
+    items = client.get("/api/transactions/", params={"page_size": 200}).json()["items"]
+    target = next(t for t in items if t["amount"] < 0 and not t["is_internal"])
+    client.patch(f"/api/transactions/{target['id']}/one-off", json={"one_off": True})
+
+    client.post("/api/rules/reapply", params={"include_locked": True})
+
+    after = next(
+        t for t in client.get("/api/transactions/", params={"page_size": 200}).json()["items"]
+        if t["id"] == target["id"]
+    )
+    assert after["one_off"] is True
+
+
+def test_unmarking_puts_it_back(client):
+    import_fixture(client, "rabobank_current.csv")
+    items = client.get("/api/transactions/", params={"page_size": 200}).json()["items"]
+    target = next(t for t in items if t["amount"] < 0 and not t["is_internal"])
+    client.patch(f"/api/transactions/{target['id']}/one-off", json={"one_off": True})
+    client.patch(f"/api/transactions/{target['id']}/one-off", json={"one_off": False})
+    data = breakdown(client, **{"from": "2024-01", "to": "2024-02"})
+    assert data["one_off"] == {"total": 0, "transactions": 0}

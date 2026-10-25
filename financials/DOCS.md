@@ -321,7 +321,18 @@ een autoreparatie, een overboeking naar je spaarrekening — en trekt dan naar e
 enkele maand zat. De mediaan zegt wat een normale maand kost. Verschillen ze meer dan 25%, dan
 staat er een melding met de duurste maand erbij.
 
-Komt het totaal hoger uit dan haalbaar, kijk dan naar het blok **geld dat heen en terug ging**. Is
+### Eenmalige aankopen
+
+Een motor van € 9000 in één maand maakt een gemiddelde over twaalf maanden € 750 hoger, elke maand,
+terwijl je dat bedrag nooit maandelijks uitgeeft. Zet daarom bij Transacties het vinkje **Eenmalig**
+op zo'n aankoop. Hij blijft dan in je totaal staan en in zijn categorie — het geld is immers weg —
+maar valt uit het gemiddelde, de mediaan en het verloop per maand. Onder de mediaan staat hoeveel er
+zo buiten beschouwing is gelaten, dus het blijft zichtbaar.
+
+Het is een handmatige keuze: geen regel, import of herberekening haalt het vinkje weg, en het
+overleeft een update van de add-on.
+
+Komt het totaal hoger uit dan haalbaar, kijk dan ook naar het blok **geld dat heen en terug ging**. Is
 er in dezelfde periode geld gegaan naar een rekening die jou óók betaalde, dan staat dat daar met
 bedrag eruit, bedrag erin en netto. Dat is bijna altijd geen uitgave maar een eigen spaar- of
 beleggingsrekening die de app niet kent, een gezamenlijke rekening, of iemand met wie je verrekent.

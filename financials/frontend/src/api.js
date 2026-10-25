@@ -131,6 +131,8 @@ export const api = {
   rulePreview: (id, field, value) => request(`/transactions/${id}/rule-preview`, { params: { field, value } }),
   createRuleFrom: (id, payload) => request(`/transactions/${id}/rule`, { method: "POST", body: payload }),
   setNote: (id, note) => request(`/transactions/${id}/note`, { method: "PATCH", body: { note } }),
+  setOneOff: (id, oneOff) =>
+    request(`/transactions/${id}/one-off`, { method: "PATCH", body: { one_off: oneOff } }),
   unlinkTransfer: (group) => request(`/transactions/transfer-group/${group}`, { method: "DELETE" }),
   exportUrl: (params) => {
     const url = new URL(`${API_BASE}/transactions/export`, window.location.origin);

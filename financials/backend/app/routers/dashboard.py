@@ -446,6 +446,7 @@ def expense_breakdown(
         select(
             Transaction.id, Transaction.amount_cents, Transaction.booked_on,
             Transaction.counter_name, Transaction.description, Transaction.counter_iban,
+            Transaction.one_off,
             Category.id, Category.name, Category.color,
         )
         .join(Category, Category.id == Transaction.category_id, isouter=True)
@@ -481,7 +482,10 @@ def expense_breakdown(
 
     round_trip: dict[str, dict] = {}
 
-    for tx_id, amount, booked_on, counter, description, counter_iban, cid, name, color in rows:
+    one_off_total = 0
+    one_off_count = 0
+
+    for tx_id, amount, booked_on, counter, description, counter_iban, one_off, cid, name, color in rows:
         value = abs(amount)
         is_fixed = tx_id in committed_ids
         if is_fixed:
@@ -513,6 +517,15 @@ def expense_breakdown(
             })
             rentry["paid_out"] += value
             rentry["transactions"] += 1
+
+        if one_off:
+            # Counted in the total and in its category — the money did leave —
+            # but kept out of the per-month series, which exists to answer
+            # "what does a month cost" and cannot answer that with a motorbike
+            # in it.
+            one_off_total += value
+            one_off_count += 1
+            continue
 
         year, month = periods.period_of(
             booked_on if not isinstance(booked_on, str) else date.fromisoformat(booked_on), config
@@ -567,8 +580,12 @@ def expense_breakdown(
             **({"from": window.to_dict()["from"], "to": window.to_dict()["to"]} if window else {}),
         },
         "total": total / 100,
-        "monthly_average": round(total / 100 / span, 2) if span else 0,
+        "monthly_average": round((total - one_off_total) / 100 / span, 2) if span else 0,
         "monthly_median": monthly_median,
+        "one_off": {
+            "total": one_off_total / 100,
+            "transactions": one_off_count,
+        },
         "busiest_period": busiest if busiest and len(trend) > 1 else None,
         "round_trip": {
             "total": sum(e["paid_out"] for e in round_trip.values()) / 100,
@@ -736,6 +753,9 @@ def fixed_variable(
         .where(
             Transaction.is_internal.is_(False),
             Transaction.amount_cents < 0,
+            # A month-by-month trend with a motorbike in it is a chart of one
+            # purchase. Same rule as the expense tabs, or the two disagree.
+            Transaction.one_off.is_(False),
             Transaction.booked_on >= first_start,
             Transaction.booked_on < last_end,
         )
