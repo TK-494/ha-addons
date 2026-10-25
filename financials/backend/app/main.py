@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -123,9 +124,34 @@ async def parse_error_handler(_request, exc: ParseError):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
+def _current_bundle() -> str | None:
+    """The JS bundle this build's `index.html` points at.
+
+    Read per request rather than cached: the file is small, and a value frozen
+    at import would itself go stale on a rebuild — which is the whole bug this
+    exists to catch.
+    """
+    index = config.STATIC_DIR / "index.html"
+    if not index.is_file():
+        return None
+    match = re.search(r'src="[^"]*?(assets/index-[A-Za-z0-9_-]+\.js)"', index.read_text("utf-8"))
+    return match.group(1) if match else None
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": config.APP_VERSION}
+    """`bundle` lets the running page notice it is itself out of date.
+
+    A browser that cached the shell keeps serving an old app while the add-on
+    reports a new version, and nothing on screen says so — three releases went
+    by unseen that way. The page compares this against the script it was loaded
+    from and offers a reload when they differ.
+    """
+    return {
+        "status": "ok",
+        "version": config.APP_VERSION,
+        "bundle": _current_bundle(),
+    }
 
 
 # ─── static SPA ─────────────────────────────────────────────────────────────

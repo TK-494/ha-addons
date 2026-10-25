@@ -1,5 +1,20 @@
 # Changelog — Financials
 
+## 0.24.0 — 2026-10-25
+
+### Nieuw
+- **De app merkt nu zelf dat je een oude versie bekijkt.** Staat er een nieuwere versie klaar terwijl
+  je browser nog een gecachte pagina draait, dan verschijnt bovenaan een balk met een knop
+  *Nieuwe versie laden*. Die laadt een adres dat je browser nog niet kent, want een gewone herlaad
+  komt uit dezelfde cache die het probleem veroorzaakte.
+- `/api/health` geeft de naam van de huidige bundel; de pagina vergelijkt die met het script
+  waaruit zij zelf geladen is, en controleert elke vijf minuten opnieuw.
+
+### Note
+- Zonder deze balk is "ik heb bijgewerkt maar zie niets" niet te onderscheiden van "de wijziging
+  werkt niet". Drie releases gingen zo ongezien voorbij.
+- 274 tests.
+
 ## 0.23.1 — 2026-10-25
 
 ### Opgelost

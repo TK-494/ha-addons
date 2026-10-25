@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api } from "./api.js";
 import { setPrivate } from "./format.js";
 import { PeriodProvider } from "./period.js";
+import StaleBuild from "./StaleBuild.jsx";
 import Overview from "./pages/Overview.jsx";
 import Import from "./pages/Import.jsx";
 import Transactions from "./pages/Transactions.jsx";
@@ -173,6 +174,8 @@ export default function App() {
       </nav>
 
       <main className="min-w-0 flex-1">
+        <StaleBuild />
+
         {/* Mobile navigation: the sidebar collapses to a scrollable strip. */}
         <div className="mb-4 flex gap-2 md:hidden">
           {privacyButton("shrink-0")}

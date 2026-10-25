@@ -40,3 +40,26 @@ def test_an_unfingerprinted_file_is_revalidated(client):
     response = client.get("/favicon.svg")
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-cache"
+
+
+def test_health_names_the_bundle_the_shell_points_at(client):
+    """A page can only notice it is stale if it can ask what current is."""
+    static = client.data_dir / "static"
+    (static / "assets").mkdir(parents=True, exist_ok=True)
+    (static / "index.html").write_text(
+        '<!doctype html><html><head>'
+        '<script type="module" crossorigin src="./assets/index-NEW123.js"></script>'
+        '</head><body><div id="root"></div></body></html>',
+        encoding="utf-8",
+    )
+    data = client.get("/api/health").json()
+    assert data["bundle"] == "assets/index-NEW123.js"
+    assert data["status"] == "ok"
+
+
+def test_health_survives_a_shell_it_cannot_parse(client):
+    """An unexpected index.html must not take the health check down with it."""
+    (client.data_dir / "static" / "index.html").write_text("<html>spa</html>", encoding="utf-8")
+    data = client.get("/api/health").json()
+    assert data["status"] == "ok"
+    assert data["bundle"] is None

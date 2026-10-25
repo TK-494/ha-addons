@@ -68,6 +68,7 @@ export const api = {
   balanceHistory: (months) => request("/dashboard/balance-history", { params: { months } }),
   fixedVariable: (months) => request("/dashboard/fixed-variable", { params: { months } }),
   costStructure: (params) => request("/dashboard/cost-structure", { params }),
+  health: () => request("/health"),
   periodOptions: () => request("/dashboard/periods"),
   expenseBreakdown: (kind, params) =>
     request("/dashboard/expense-breakdown", { params: { kind, ...params } }),
