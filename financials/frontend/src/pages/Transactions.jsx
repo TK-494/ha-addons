@@ -11,15 +11,25 @@ const EMPTY_FILTERS = {
   sort: "date", desc: true, page: 1, page_size: 50,
 };
 
+// Sized to fit a laptop window without sideways scrolling: 944px all told,
+// and collapsing the sidebar frees another 170.
 const COLUMN_DEFAULTS = {
-  select: 34, date: 96, description: 360, account: 150,
+  select: 34, date: 96, description: 320, account: 110,
   amount: 120, category: 200, actions: 64,
 };
 
-// One ⋯ button needs 24px plus the cell's own padding. The table as a whole
-// now comes to about 1024px, which fits a laptop without scrolling sideways —
-// the five-button cluster made it 1440 and the last action unreachable.
-const COLUMN_MIN = { actions: 56, category: 120, description: 140 };
+// One ⋯ button needs 24px plus the cell's own padding; anything beyond ~120 is
+// white space, and a width saved when this column held five buttons must come
+// back down on its own. The table as a whole now comes to about 1024px.
+const COLUMN_BOUNDS = {
+  actions: { min: 56, max: 120 },
+  category: { min: 120, max: 400 },
+  description: { min: 140 },
+  date: { min: 90, max: 160 },
+  amount: { min: 90, max: 200 },
+  account: { min: 80, max: 300 },
+  select: { min: 34, max: 48 },
+};
 
 export default function Transactions() {
   // Links from the overview arrive with filters in the URL, so a click on a
@@ -53,7 +63,7 @@ export default function Transactions() {
   const [splitFor, setSplitFor] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { widths, startResize, reset: resetWidths } = useColumnWidths("financials.tx.columns", COLUMN_DEFAULTS, COLUMN_MIN);
+  const { widths, startResize, reset: resetWidths } = useColumnWidths("financials.tx.columns.v2", COLUMN_DEFAULTS, COLUMN_BOUNDS);
 
   useEffect(() => {
     Promise.all([api.accounts(), api.categories(), api.tags()])

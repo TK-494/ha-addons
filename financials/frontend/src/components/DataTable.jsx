@@ -8,15 +8,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * trade-off is that content must be allowed to wrap instead of being clipped,
  * otherwise widening a column would not reveal anything.
  */
-export function useColumnWidths(storageKey, defaults, minimums = {}) {
+export function useColumnWidths(storageKey, defaults, bounds = {}) {
   // A fixed layout does not clip: content wider than its column paints straight
   // over the neighbour. Text wraps and survives that, but a row of buttons with
-  // `whitespace-nowrap` cannot, so a column holding those needs a floor — and
-  // the floor has to apply to widths saved before it existed, or the layout
-  // that was already too narrow stays too narrow forever.
-  const floor = useCallback(
+  // `whitespace-nowrap` cannot, so a column holding those needs a floor.
+  //
+  // A ceiling matters for the same reason in reverse. A width saved months ago
+  // describes what that column held *then*: when five labelled buttons became
+  // one ⋯, the stored 380px stayed, leaving 340px of white space in every row
+  // and a table too wide for the window. Both limits apply to saved layouts,
+  // or a column that no longer makes sense never comes right on its own.
+  const clamp = useCallback(
     (value) => Object.fromEntries(
-      Object.entries(value).map(([key, width]) => [key, Math.max(minimums[key] ?? 52, width)])
+      Object.entries(value).map(([key, width]) => {
+        const { min = 52, max = Infinity } = bounds[key] ?? {};
+        return [key, Math.min(max, Math.max(min, width))];
+      })
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [storageKey]
@@ -27,9 +34,9 @@ export function useColumnWidths(storageKey, defaults, minimums = {}) {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
       // Merge rather than replace: a saved layout from an older version must
       // not hide a column that has been added since.
-      return floor(saved ? { ...defaults, ...saved } : defaults);
+      return clamp(saved ? { ...defaults, ...saved } : defaults);
     } catch {
-      return floor(defaults);
+      return clamp(defaults);
     }
   });
 
@@ -50,8 +57,9 @@ export function useColumnWidths(storageKey, defaults, minimums = {}) {
 
     const onMove = (move) => {
       if (!drag.current) return;
-      const min = minimums[drag.current.key] ?? 52;
-      const next = Math.max(min, drag.current.startWidth + (move.clientX - drag.current.startX));
+      const { min = 52, max = Infinity } = bounds[drag.current.key] ?? {};
+      const dragged = drag.current.startWidth + (move.clientX - drag.current.startX);
+      const next = Math.min(max, Math.max(min, dragged));
       setWidths((current) => ({ ...current, [drag.current.key]: next }));
     };
     const onUp = () => {
@@ -69,7 +77,7 @@ export function useColumnWidths(storageKey, defaults, minimums = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widths]);
 
-  const reset = useCallback(() => setWidths(floor(defaults)), [defaults, floor]);
+  const reset = useCallback(() => setWidths(clamp(defaults)), [defaults, clamp]);
 
   return { widths, startResize, reset };
 }

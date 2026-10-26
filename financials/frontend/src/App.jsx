@@ -121,7 +121,15 @@ export default function App() {
   return (
     <PeriodProvider>
     <div className="mx-auto flex min-h-screen max-w-[110rem] gap-4 p-4">
-      <nav className={`hidden shrink-0 md:block ${collapsed ? "w-14" : "w-56"} transition-[width] duration-150`}>
+      {/* Sticky, and `self-start` with it: a flex item stretches to the row's
+          height by default, which leaves sticky nothing to travel in. The max
+          height keeps a long menu scrollable on a short window instead of
+          running off the bottom. */}
+      <nav
+        className={`sticky top-4 hidden max-h-[calc(100vh-2rem)] shrink-0 self-start overflow-y-auto md:block ${
+          collapsed ? "w-14" : "w-56"
+        } transition-[width] duration-150`}
+      >
         <div className={`mb-6 flex items-center gap-2 ${collapsed ? "justify-center" : "justify-between px-2"}`}>
           {!collapsed && (
             <div className="min-w-0">
@@ -177,7 +185,7 @@ export default function App() {
         <StaleBuild />
 
         {/* Mobile navigation: the sidebar collapses to a scrollable strip. */}
-        <div className="mb-4 flex gap-2 md:hidden">
+        <div className="sticky top-0 z-30 mb-4 flex gap-2 bg-slate-50 py-2 dark:bg-slate-900 md:hidden">
           {privacyButton("shrink-0")}
           <div className="flex gap-2 overflow-x-auto">
           {NAV.map((item) => (

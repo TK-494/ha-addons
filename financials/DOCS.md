@@ -200,6 +200,13 @@ instelling wordt onthouden. Met **Kolommen herstellen** ga je terug naar de stan
 Met de knop **«** linksboven klap je het menu in tot alleen pictogrammen, wat de tabel zo'n 170
 pixels extra geeft. Ook dat wordt onthouden.
 
+### Kolommen
+
+De tabel is op een laptopscherm gemaakt om te passen zonder zijwaarts schuiven. Sleep een
+kolomrand om een kolom breder te maken; elke kolom heeft een minimum en een maximum, zodat je
+hem niet onbruikbaar smal of zinloos breed kunt trekken. **Kolombreedtes herstellen** rechtsboven
+zet alles terug. Past het nog niet, klap dan de navigatiebalk in met « — dat scheelt 170 pixels.
+
 ### Acties achter ⋯
 
 Achter elke rij staat één knop **⋯**. Die opent alle acties voor die transactie: verdelen over

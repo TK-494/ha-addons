@@ -1,5 +1,22 @@
 # Changelog — Financials
 
+## 0.24.1 — 2026-10-26
+
+### Opgelost
+- **Lege ruimte in de transactieregel en toch horizontaal scrollen.** Je browser bewaarde ook de
+  kolombreedtes. De actiekolom stond nog op 380px uit de tijd dat er vijf knoppen in zaten, terwijl
+  er nu één ⋯ in staat — 340px wit per regel, en een tabel die niet paste. Kolommen hebben nu naast
+  een minimum ook een **maximum**, dat net als het minimum op eerder bewaarde breedtes wordt
+  toegepast. De bewaarde indeling begint bovendien eenmalig opnieuw, want een layout van september
+  beschrijft een tabel die niet meer bestaat.
+- Standaardbreedtes teruggebracht naar 944px in totaal, zodat de tabel op een laptop past zonder
+  zijwaarts schuiven.
+
+### Nieuw
+- **De navigatiebalk blijft staan** bij het scrollen in plaats van mee te lopen. Op een kort scherm
+  schuift een lang menu binnen zijn eigen kader. Op telefoonformaat plakt de navigatiestrook boven
+  aan het scherm.
+
 ## 0.24.0 — 2026-10-25
 
 ### Nieuw
