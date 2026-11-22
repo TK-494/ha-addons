@@ -8,6 +8,7 @@ import Overview from "./pages/Overview.jsx";
 import Import from "./pages/Import.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Accounts from "./pages/Accounts.jsx";
+import BalanceHistory from "./pages/BalanceHistory.jsx";
 import CategoryDetail from "./pages/CategoryDetail.jsx";
 import Recurring from "./pages/Recurring.jsx";
 import Budgets from "./pages/Budgets.jsx";
@@ -30,6 +31,7 @@ const NAV = [
   { to: "/te-categoriseren", label: "Nog te categoriseren", icon: "?" },
   { to: "/labels", label: "Labels", icon: "◆" },
   { to: "/rekeningen", label: "Rekeningen", icon: "▤" },
+  { to: "/saldoverloop", label: "Saldoverloop", icon: "↗" },
   { to: "/importeren", label: "Importeren", icon: "↑" },
   { to: "/regels", label: "Categorieën & regels", icon: "⚑" },
   { to: "/instellingen", label: "Instellingen", icon: "⚙" },
@@ -218,6 +220,7 @@ export default function App() {
           <Route path="/tegenpartij" element={<Counterparty />} />
           <Route path="/labels" element={<Tags />} />
           <Route path="/rekeningen" element={<Accounts />} />
+          <Route path="/saldoverloop" element={<BalanceHistory />} />
           <Route path="/importeren" element={<Import />} />
           <Route path="/regels" element={<Rules />} />
           <Route path="/instellingen" element={<Settings />} />

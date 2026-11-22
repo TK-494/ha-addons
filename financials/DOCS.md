@@ -71,6 +71,10 @@ er wordt nooit mee gepind of geïncasseerd, en het verkeer gaat vrijwel alleen v
 rekeningen. Klopt het niet, dan zet je het zelf om; jouw keuze wordt daarna nooit meer automatisch
 overschreven.
 
+Op **Saldoverloop** zie je het saldo per maand: één grafiek met alle rekeningen en het totaal
+(klik een rekening in de legenda weg om de rest beter te zien), en per rekening een kleine grafiek
+met een eigen schaal. Het saldo komt van de bank zelf, dus het klopt met je afschrift.
+
 Geld dat naar een spaarrekening gaat telt als **gespaard** in plaats van als uitgave. Staat er nog
 geen enkele rekening op *Spaarrekening*, dan laat het overzicht bij Gespaard een streepje zien in
 plaats van € 0,00 — want niets ingesteld is iets anders dan niets gespaard.

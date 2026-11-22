@@ -1,5 +1,20 @@
 # Changelog — Financials
 
+## 0.25.0 — 2026-11-22
+
+### Nieuw
+- **Pagina Saldoverloop** in het menu. Een grote grafiek met het totaal en elke rekening, met een
+  legenda waarin je rekeningen aan- en uitzet. Daaronder per rekening een eigen kleine grafiek met
+  **eigen schaal**: op één gezamenlijke as is een betaalrekening van een paar honderd euro naast een
+  spaarrekening een platte streep, op zijn eigen as zie je elke salarisdag terug.
+- Bovenaan: totaal nu en het verschil over de gekozen periode (6 maanden tot 10 jaar; je keuze wordt
+  onthouden). Per rekening ook het huidige saldo en de verandering.
+- Op **Rekeningen** linkt de bestaande grafiek naar de nieuwe pagina.
+
+### Techniek
+- Alleen frontend; gebruikt het bestaande `/api/dashboard/balance-history`. Rekeningen zonder bekend
+  saldo krijgen geen lege grafiek maar een voetnoot.
+
 ## 0.24.1 — 2026-10-26
 
 ### Opgelost

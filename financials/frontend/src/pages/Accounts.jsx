@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Alert, Empty, PageHeader, Spinner } from "../components/Bits.jsx";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -188,7 +189,12 @@ export default function Accounts() {
       {history && history.periods.length > 1 && (
         <section className="card mt-6">
           <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="font-semibold">Saldoverloop</h3>
+            <h3 className="font-semibold">
+              Saldoverloop{" "}
+              <Link className="text-xs font-normal text-sky-600 dark:text-sky-400" to="/saldoverloop">
+                per rekening bekijken →
+              </Link>
+            </h3>
             <select
               className="input w-auto"
               value={historyMonths}
